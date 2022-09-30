@@ -11,7 +11,7 @@ from typing import Any, Union #To make stuff look nicer
 from types import MethodType #Used to attach functions to the class
 
 #Custom Classes:
-from pymadng.classes import madObject, madElement, deferred
+from pymadClasses import madObject, madElement, deferred
 
 #TODO: implement yield into MAD
 #TODO: Allow looping through objects
@@ -23,10 +23,10 @@ from pymadng.classes import madObject, madElement, deferred
 #TODO: Make it so that you ask MAD for the variable, so it doesn't output EVERY VARIABLE
 #TODO: Make args and kwargs not have different methods of string interpolation
 #TODO: Improve error catching
-#TODO: Change name to __name__ in class?
 #TODO: Lamdba and kwargs is a botched fix, not a fan of it
 #TODO: Recursive dot indexing
 #TODO: Improve declaration of where MAD is and usage of mad name
+#TODO: Remove return from call func and call method, allow return / multiple return directly out of the function (Will hugely simplify current functions)
 
 
 class MAD(): #Review private and public
@@ -60,7 +60,7 @@ class MAD(): #Review private and public
         
         #Create initial file when MAD process is created
         INITIALISE_SCRIPT = """
-        sharedata, readSharedMemory, openSharedMemory, closeSharedMemory = require ("madl_mmap").sharedata, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").closeSharedMemory\n
+        sharedata, sharetable, readSharedMemory, openSharedMemory, closeSharedMemory = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").closeSharedMemory\n
         """
 
         #Init the process
@@ -215,7 +215,6 @@ class MAD(): #Review private and public
             del self.__dict__["qwtscvbn"]
         return result
     #----------------------------------------------------------------------------------------------#
-
     #-----------------------------------------Shared Memory----------------------------------------#
     def writeToSharedMemory(self, data: np.ndarray) -> None:
         """Enter a numpy array which will be entered into shared memory, if not send to MAD process, synchronisation problems will occur"""
@@ -229,10 +228,10 @@ class MAD(): #Review private and public
         """Directly run by MAD, never used by user"""
         return self.readMADMatrix(dType, [1, 1])[0][0]
 
-    def readMADElement(self, elmName, element): #Needs improvement!
+    def getMADTable(self, varName): #Needs improvement!
         """Directly run by MAD, never used by user"""
         self.__pagesWritten += 1
-        return 
+        return madObject(varName, self)
 
     def readMADMatrix(self, dType, dims):
         """Directly run by MAD, never used by user"""
@@ -253,20 +252,24 @@ class MAD(): #Review private and public
 
         self.__pagesWritten += decodedData.nbytes // self.__PAGE_SIZE + 1
         return decodedString
+
+    def readMADTable(self) -> list: #Not doing named tables yet
+        """WIP: Reads a table from MAD and returns a list"""
+        table = {}
+        startTable = endTable = 0
+        for i in range(len(self.__madReturn)):
+            if "readMADTable(" in self.__madReturn[i]:
+                startTable = i
+            if "tablehasended" in self.__madReturn[i]:
+                endTable = i 
+                break
+        entireReturn = self.__madReturn
+        self.__madReturn = entireReturn[startTable+1:endTable+1]
+        self.__getVars(list(range(endTable - startTable)), table) 
+        self.__madReturn = entireReturn[:startTable+1] + entireReturn[endTable+1:]
+        return list(table.values())
+
     #---------------------------------------------------------------------------------------------------#
-    
-    def __pyToLuaLst(self, lst: list[Any], split = False) -> str:
-        """Convert a python list to a lua list in a string, used when sending information to MAD, should not need to be accessed by user"""
-        newList = str(lst).replace("[", "{",).replace("]", "}",).replace("(", "{").replace(")", "}")
-        # #-------Resolves character limit in interactive mode-----------#
-        # for x in range(len(newList) // 125):
-        #     idx = newList.find(",", 125*x, 125*(x+1))
-        #     while idx <  125*(x+1) and idx > 0:
-        #         newIdx = idx + 1
-        #         idx =  newList.find(",", idx + 1, 125*(x+1))
-        #     newList = newList[:newIdx] + "\n" + newList[newIdx:]
-        # #---------------------------------------------------------------#
-        return newList
 
     #----------------------------------Sending variables across to MAD----------------------------------------#
     def sendVariables(self, varNames: list[str], vars: list[Union[np.ndarray, int, float, list]] = None):
@@ -311,7 +314,6 @@ class MAD(): #Review private and public
                 elif varTypesList[i][j] == np.int64:
                     warnings.warn("64bit integers not supported by MAD, casting to float64")
                     varList[i][j] = np.asarray(varList[i][j], dtype=np.float64)
-                    print(varList[i][j])
                     functionToCall = "readMatrix"
                 elif varTypesList[i][j] ==  np.float64:
                     functionToCall = "readMatrix"
@@ -341,7 +343,7 @@ class MAD(): #Review private and public
     #-------------------------------------------------------------------------------------------------------------#
 
     #-----------------------------------Receiving variables from to MAD-------------------------------------------#
-    def receiveVariables(self, varNameList: list[str]) -> Any: #Function used by user / internally
+    def receiveVariables(self, varNameList: list[str], shareType = "data") -> Any: #Function used by user / internally
         """Given a list of variable names, receive the variables from the MAD process, and save into the MAD dictionary"""
         varNameIndex = 0
         numVars = len(varNameList)
@@ -351,13 +353,14 @@ class MAD(): #Review private and public
             self.__possibleProcessReturn.append(r"(?P<command>pyCommand:.+\n)+(?P<status>readtable|continue|finished)") #readtable is a dummy var in order to have the matching
             MADReturn = self.sendScript(f"""
             openSharedMemory("{self.shm.name}", true)
-            local offset = sharedata({self.__pyToLuaLst(varNameList[x:y]).replace("'", "")})                  --This mmaps to shared memory
+            local offset = share{shareType}({self.__pyToLuaLst(varNameList[x:y]).replace("'", "")})                  --This mmaps to shared memory
             closeSharedMemory()
                 """)
             while status != "finished":
                 if MADReturn == 6:
                     self.__madReturn = self.process.match.group(0).replace("\t", "\r\n").split(":")[1:]
-                    numVars, status = self.__getVars(varNameList[varNameIndex:], self)
+                    numVars = self.__getVars(varNameList[varNameIndex:], self)
+                    status = self.process.match.group("status")
                     varNameIndex += numVars
                 else:
                     raise(RuntimeError(self.process.match.group()))
@@ -374,7 +377,7 @@ class MAD(): #Review private and public
         varNameIndex = 0
         idx = 0
         while idx < len(self.__madReturn): #Change to be a numbered loop!
-            evaledFunc = eval(self.__madReturn[idx].split("\r\n")[0], self.globalVars, {"self":self}) 
+            evaledFunc = eval(self.__madReturn[idx].split("\r\n")[0], self.globalVars, {"self":self, "varName":varNameList[varNameIndex]}) 
             if evaledFunc is not None: #Change the output of self.safelyCloseShm
                 if isinstance(evaledFunc, str) and evaledFunc == "None": #Special case when the result is nil
                     dictionary[varNameList[varNameIndex]] = eval(evaledFunc)
@@ -382,25 +385,7 @@ class MAD(): #Review private and public
                     dictionary[varNameList[varNameIndex]] = evaledFunc
                 varNameIndex += 1
             idx += 1
-        status = self.process.match.group("status")
-        return varNameIndex, status
-    
-    def readMADTable(self) -> list: #Not doing named tables yet
-        """WIP: Reads a table from MAD and returns a list"""
-        table = {}
-        startTable = endTable = 0
-        for i in range(len(self.__madReturn)):
-            if "readMADTable(" in self.__madReturn[i]:
-                startTable = i
-            if "tablehasended" in self.__madReturn[i]:
-                endTable = i 
-                break
-        entireReturn = self.__madReturn
-        self.__madReturn = entireReturn[startTable+1:endTable+1]
-        self.__getVars(list(range(endTable - startTable)), table) 
-        self.__madReturn = entireReturn[:startTable+1] + entireReturn[endTable+1:]
-        return list(table.values())
-
+        return varNameIndex
     
     def receiveVar(self, var: str) -> Any:
         """Recieve a single variable from the MAD process"""
@@ -423,15 +408,17 @@ class MAD(): #Review private and public
         if isinstance(resultName, list): resultName = self.__pyToLuaLst(resultName)
         if resultName: stringStart = f"do {self.__getAsMADString(resultName)} = "
         else: stringStart = "do "
-        self.writeToProcess(stringStart + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)}) end""")
+        if self.writeToProcess(stringStart + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)}) end""") != 5:
+            raise(RuntimeError(self.process.match.group()))
         return self.receiveVar(resultName)
 
-    def callMethod(self, resultName: str, varName: Union[str, list[str]], methName: str, *args):
+    def callMethod(self, resultName: Union[str, list[str]], varName: str, methName: str, *args):
         """Call the method methName of the variable varName and store the result in resultName, then retreive the result into the MAD dictionary"""
         if isinstance(resultName, list): resultName = self.__pyToLuaLst(resultName)
         if resultName: stringStart = f"do {self.__getAsMADString(resultName)} = "
         else: stringStart = "do "
-        self.writeToProcess(stringStart + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)}) end""") # -2 to get rid of ", "
+        if self.writeToProcess(stringStart + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)}) end""") != 5:
+            raise(RuntimeError(self.process.match.group()))
         if resultName: return self.receiveVar(resultName)
     #-------------------------------------------------------------------------------------------------------------#
     
@@ -468,7 +455,7 @@ class MAD(): #Review private and public
         # self.mmap.close() #N
     #---------------------------------------------------------------------------------------------------#
         
-    #-------------------------------Setup MAD Classes---------------------------------------------------#
+    #-------------------------------String Conversions--------------------------------------------------#
     def __getKwargAsString(self, **kwargs): #Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup
         """Convert a kwargs input to a string used by MAD, should not be required by the user"""
         kwargsString = "{"
@@ -498,6 +485,22 @@ class MAD(): #Review private and public
         else:
             return str(var).replace("False", "false").replace("True", "true")
 
+    def __pyToLuaLst(self, lst: list[Any], split = False) -> str:
+        """Convert a python list to a lua list in a string, used when sending information to MAD, should not need to be accessed by user"""
+        luaString = "{"
+        for item in lst:
+            luaString += self.__getAsMADString(item) + ", "
+        # #-------Resolves character limit in interactive mode-----------#
+        # for x in range(len(newList) // 125):
+        #     idx = newList.find(",", 125*x, 125*(x+1))
+        #     while idx <  125*(x+1) and idx > 0:
+        #         newIdx = idx + 1
+        #         idx =  newList.find(",", idx + 1, 125*(x+1))
+        #     newList = newList[:newIdx] + "\n" + newList[newIdx:]
+        # #---------------------------------------------------------------#
+        return luaString + "}"
+
+
     def MADKwargs(self, varName: str, *args, **kwargs):
         if varName: start = f"{varName} = "
         else: start = ""
@@ -505,7 +508,9 @@ class MAD(): #Review private and public
 
     def MADLambda(self, varName, arguments: list[str], expression: str):
         return self.__getAsMADString(varName) + " = \\" + self.__getArgsAsString(tuple(arguments))[1:-1].replace("'", "") + " -> " + expression
-
+    #---------------------------------------------------------------------------------------------------#
+    
+    #-------------------------------Setup MAD Classes---------------------------------------------------#
     def setupClass(self, className: str, moduleName: str, resultName: Union[str, list[str]], *args, **kwargs):
         """Create a class 'className' from the module 'modulaName' and store into the variable 'varName'
         the kwargs are used to as extra keyword arguments within MAD """
