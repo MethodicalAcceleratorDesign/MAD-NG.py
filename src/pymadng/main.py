@@ -1,10 +1,9 @@
-import os, mmap, pexpect, tempfile
+import os, mmap, pexpect, tempfile, warnings
 #os is used for directorys
 #mmap is for memory mapping
 #pexpect is for communication with the mad executable
 #tempfile is for temporarily creating files 
 
-import sys, time #debugging 
 import numpy as np #For arrays  (Works well with multiprocessing and mmap)
 from resource import getpagesize #To get page size
 from multiprocessing import shared_memory #For shared memory
@@ -12,7 +11,7 @@ from typing import Any, Union #To make stuff look nicer
 from types import MethodType #Used to attach functions to the class
 
 #Custom Classes:
-from .classes import madObject, madElement, deferred
+from pymadng.classes import madObject, madElement, deferred
 
 #TODO: implement yield into MAD
 #TODO: Allow looping through objects
@@ -81,8 +80,12 @@ class MAD(): #Review private and public
         # self.__possibleProcessReturn.pop()
         if MADReturn == 5: #or MADReturn == 6:
             MADReturn = self.sendScript(INITIALISE_SCRIPT) #waits for mad to be ready for input
-            if MADReturn != 5: raise(RuntimeError("MAD process failed", self.process.match.group(0)))
-        else: raise(RuntimeError("MAD process failed", self.process.match.group(0)))
+            if MADReturn != 5: 
+                self.closeData()
+                raise(RuntimeError(self.process.match.group()))
+        else:
+            self.closeData() 
+            raise(RuntimeError(self.process.match.group()))
 
         #--------------------------------Retrieve the modules of MAD-------------------------------#
         modulesToImport = ["MAD", "elements", "sequence", "mtable", "twiss", "beta0", "beam", "survey", "object", "track", "match"] #Limits the ~80 modules
@@ -205,7 +208,7 @@ class MAD(): #Review private and public
         if "=" not in input:
             input = "qwtscvbn = " + input
         var = input.split("=")[0].strip(" ")
-        if self.writeToProcess(input) != 5: raise(RuntimeError("MAD process failed", self.process.match.group(0)))
+        if self.writeToProcess(input) != 5: raise(RuntimeError(self.process.match.group()))
         result = self.receiveVar(var)
         if var == "qwtscvbn":
             del self.userVars["qwtscvbn"]
@@ -279,6 +282,7 @@ class MAD(): #Review private and public
                     vars[i] = np.array(vars[i], ndmin=2)
                     varTypes.append(vars[i].dtype)
             else:
+                vars[i] = np.atleast_2d(vars[i])
                 varTypes.append(vars[i].dtype)
 
         # ---------------------Adaptive file size--------------------# (Currently not used, file is opened at max memory size)
@@ -302,23 +306,27 @@ class MAD(): #Review private and public
             fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar in require ("madl_mmap")\n'
             fileInput += f'openSharedMemory("{self.shm.name}")\n'
             for j in range(len(varList[i])):
-                match varTypesList[i][j]: #Errors here if not using numpy array
-                    case np.int32:
-                        functionToCall = "readIMatrix"
-                    case np.float64:
-                        functionToCall = "readMatrix"
-                    case np.complex128:
-                        functionToCall = "readCMatrix"
-                    case "scalar":
-                        functionToCall = "readScalar"
-                    case _:
-                        print(varTypesList)
-                        raise(NotImplementedError("received type:", varList.dtype, "Only int32, float64 and complex128 implemented"))
+                if varTypesList[i][j] == np.int32:
+                    functionToCall = "readIMatrix"
+                elif varTypesList[i][j] == np.int64:
+                    warnings.warn("64bit integers not supported by MAD, casting to float64")
+                    varList[i][j] = np.asarray(varList[i][j], dtype=np.float64)
+                    print(varList[i][j])
+                    functionToCall = "readMatrix"
+                elif varTypesList[i][j] ==  np.float64:
+                    functionToCall = "readMatrix"
+                elif varTypesList[i][j] == np.complex128:
+                    functionToCall = "readCMatrix"
+                elif varTypesList[i][j] == "scalar":
+                    functionToCall = "readScalar"
+                else:
+                    print(varTypesList[i][j])
+                    raise(NotImplementedError("received type:", varList.dtype, "Only int32, float64 and complex128 implemented"))
                         
                 fileInput += f'{varNames[j]} = {functionToCall}({self.__pyToLuaLst(varList[i][j].shape)})\n' #Process return
                 # self.output.write(f'{varNames[j]} = {functionToCall}({self.__pyToLuaLst(varList[i][j].shape)})\n') #Process return (debug)
             fileInput += f'closeSharedMemory()\n'
-            if self.sendScript(fileInput) != 5: raise(RuntimeError("MAD process failed", self.process.match.group(0)))
+            if self.sendScript(fileInput) != 5: raise(RuntimeError(self.process.match.group()))
             if len(varList) > 1 and i < len(varList) - 1: self.resetShmSafely() #Split into several because too much data, so memory needs cleaning every time (does it?)
 
     
@@ -352,13 +360,13 @@ class MAD(): #Review private and public
                     numVars, status = self.__getVars(varNameList[varNameIndex:], self)
                     varNameIndex += numVars
                 else:
-                    raise(RuntimeError(self.process.match.group(0)))
+                    raise(RuntimeError(self.process.match.group()))
                 if status == "continue":
                     MADReturn = self.writeToProcess("continue")
             self.__possibleProcessReturn.pop()
             y += min(20, numVars - y)
         
-            if self.process.expect(self.__possibleProcessReturn) != 5: raise(RuntimeError(self.process.match.group(0)))
+            if self.process.expect(self.__possibleProcessReturn) != 5: raise(RuntimeError(self.process.match.group()))
         return self[tuple(varNameList)]
     
     def __getVars(self, varNameList: list[str], dictionary) -> Union[int, str]: # Function used internally by python or MAD
