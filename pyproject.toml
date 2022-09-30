@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pymadng"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
   { name="Joshua Gray", email="joshua.mark.gray@cern.ch" },
 ]
@@ -21,7 +21,7 @@ classifiers = [
 ]
 dependencies = [
   'numpy > 1.23',
-  "pexpect > 4.8"
+  "pexpect >= 4.8"
 ]
 
 [project.urls]
