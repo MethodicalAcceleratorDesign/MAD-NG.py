@@ -1,5 +1,3 @@
-import sys
-sys.path.append('../src/')
 from pymadng import MAD
 
 with MAD("/home/joshua/Documents/MAD-NGFork/MAD/src/pyMAD/src") as mad:
