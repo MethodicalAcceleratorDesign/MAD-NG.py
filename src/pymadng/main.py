@@ -477,7 +477,7 @@ class MAD(): #Review private and public
         if isinstance(var, list):
             return self.__pyToLuaLst(var) 
         elif isinstance(var, (madObject, madElement)):
-            return var.name
+            return var.__name__
         elif isinstance(var, dict):
             return self.__getKwargAsString(**var)
         elif callable(var):
@@ -516,7 +516,7 @@ class MAD(): #Review private and public
         the kwargs are used to as extra keyword arguments within MAD """
         if isinstance(resultName, list): 
             self.sendScript(f"""
-    {self.__pyToLuaLst(resultName)[1:-1].replace("'", "")} = {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} 
+    {self.__pyToLuaLst(resultName)[1:-3].replace("'", "")} = {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} 
                 """)
             self.receiveVariables(resultName)
 
