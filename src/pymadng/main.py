@@ -11,7 +11,7 @@ from typing import Any, Union #To make stuff look nicer
 from types import MethodType #Used to attach functions to the class
 
 #Custom Classes:
-from pymadClasses import madObject, madElement, deferred
+from .pymadClasses import madObject, madElement, deferred
 
 #TODO: implement yield into MAD
 #TODO: Allow looping through objects
@@ -481,7 +481,7 @@ class MAD(): #Review private and public
         elif isinstance(var, dict):
             return self.__getKwargAsString(**var)
         elif callable(var):
-                return var.__name__
+            return var.__name__
         else:
             return str(var).replace("False", "false").replace("True", "true")
 
