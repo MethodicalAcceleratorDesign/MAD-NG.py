@@ -20,7 +20,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics"
 ]
 dependencies = [
-  'numpy > 1.23',
+  'numpy >= 1.23',
   "pexpect >= 4.8"
 ]
 
