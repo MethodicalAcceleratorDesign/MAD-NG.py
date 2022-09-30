@@ -12,7 +12,7 @@ from typing import Any, Union #To make stuff look nicer
 from types import MethodType #Used to attach functions to the class
 
 #Custom Classes:
-from pymadngClasses import madObject, madElement, deferred
+from .classes import madObject, madElement, deferred
 
 #TODO: implement yield into MAD
 #TODO: Allow looping through objects
