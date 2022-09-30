@@ -51,7 +51,7 @@ with MAD(current_dir) as mad:
     plt.show()
 
 with MAD(current_dir) as mad:
-    filepath = current_dir
+    filepath = current_dir + "/"
     mad.loadsequence("seq", filepath + "fodo.seq", filepath + "fodo.mad")
     mad.beam("beam1")
     mad.seq.beam = mad.beam1
