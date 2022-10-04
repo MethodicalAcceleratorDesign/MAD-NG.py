@@ -1,4 +1,4 @@
-import os, mmap, pexpect, tempfile, warnings, sys
+import os, mmap, pexpect, tempfile, warnings, sys, select
 
 # os is used for directorys
 # mmap is for memory mapping
@@ -21,7 +21,7 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: Have error if when importing, thing isn't found
 # TODO: Improve method syntax
 # TODO: Have every string send to mad go through the same converter - prevent duplication
-# TODO: Make it so that you ask MAD for the variable, so it doesn't output EVERY VARIABLE
+# TODO: Make it so that MAD does the loop for variables not python (speed)
 # TODO: Make args and kwargs not have different methods of string interpolation
 # TODO: Improve error catching
 # TODO: Lamdba and kwargs is a botched fix, not a fan of it
@@ -61,9 +61,7 @@ class MAD:  # Review private and public
         copyOnRetrieve (bool): When True, the variables are copied from the memory mapping when assigned to a variable outside MAD. When False, you receive a memory mapped numpy array that if transferred outside the MAD class, will have to be manually dealt with
         """
         # Init shared memory related variables
-        self.shm = shared_memory.SharedMemory(
-            create=True, size=int(ram_limit)
-        )  # Probs don't want all that memory taken up
+        self.shm = shared_memory.SharedMemory(create=True, size=int(ram_limit))
         self.RAM_LIMIT = int(ram_limit)
         self.openFile = open("/dev/shm/" + self.shm.name, mode="r+")
         self.mmap = mmap.mmap(
@@ -80,9 +78,16 @@ class MAD:  # Review private and public
         self.PATH_TO_MAD = srcdir + "mad"
         self.globalVars = {"np": np}
 
+        # Setup communication pipe
+        os.mkfifo(srcdir + "PIPE")  # , mode=0o422) #0o422 -> R W W
+        self.pipe = os.open(srcdir + "PIPE", os.O_RDONLY | os.O_NONBLOCK)
+        self.pipePoll = select.poll()
+        self.pipePoll.register(self.pipe, select.POLLIN)
+
         # Create initial file when MAD process is created
-        INITIALISE_SCRIPT = """
-        sharedata, sharetable, readSharedMemory, openSharedMemory, closeSharedMemory = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").closeSharedMemory\n
+        INITIALISE_SCRIPT = f"""
+        sharedata, sharetable, readSharedMemory, openSharedMemory, closeSharedMemory, openPipe = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").closeSharedMemory, require ("madl_mmap").openPipe\n
+        openPipe('{srcdir + "PIPE"}')
         """
 
         # Init the process with a 2 Minute timeout
@@ -90,7 +95,7 @@ class MAD:  # Review private and public
             self.PATH_TO_MAD, ["-q"], encoding="utf-8", timeout=120, echo=False
         )
 
-        # self.process.logfile_read = sys.stdout
+        self.process.logfile_read = sys.stdout
         if log:
             # ----------Optional Logging-------------#
             self.inputFile = open(srcdir + "inLog.txt", "w")
@@ -129,34 +134,42 @@ class MAD:  # Review private and public
         ]
         self.importClasses("MAD", modulesToImport)
         self.importClasses("MAD.element")
-        self.importVariables("MAD", "MADX")
+        self.importVariables("MAD", ["MADX"])
         # ------------------------------------------------------------------------------------------#
         self.process.logfile_read = sys.stdout
 
     def retrieveMADClasses(
-        self, moduleName: str
+        self, moduleName: str, classNames: list[str] = []
     ):  # Currently can only do classes, unable to separate functions
         """Retrieve the classes in MAD from the module "moduleName", while only importing the classes in the list "classesToImport".
         If no list is provided, it is assumed that you would like to import every class"""
         self.__possibleProcessReturn.append(r"Modules:\r\n(?P<names>.*)\r\n> $")
-        madReturn = self.sendScript(
-            f"""
+        script = f"""
+        local writeToPipe in require("madl_mmap")
         local tostring = tostring
-        function getModName(modname, mod)
-            io.write(modname .. "|" .. tostring(mod) .. ";")
-        end
-        io.write("Modules:\\n")
-        for modname, mod in pairs({moduleName}) do pcall(getModName, modname, mod) end io.write("\\n")"""
-        )
+        """
+        if classNames == []:
+            script += f"""
+                       function getModName(modname, mod)
+                           writeToPipe(modname .. "|" .. tostring(mod) .. ";")
+                       end
+                       for modname, mod in pairs({moduleName}) do pcall(getModName, modname, mod); io.write(".") end writeToPipe("\\n")
+                       """
+        else:
+            for className in classNames:
+                script += f"""writeToPipe('{className}' .. "|" .. tostring({moduleName}.{className}) .. ";")\n"""
+        madReturn = self.sendScript(script)
         self.__possibleProcessReturn.pop()
-        return (
-            self.process.match.group(0).strip("Modules:\r\n").split(";")[:-1]
-        )  # Ignore \r\n
+        self.pipePoll.poll()
+        MADPipeRead = os.read(self.pipe, 10000000).decode(
+            "utf-8"
+        )  # should not need to read more than a megabyte
+        return MADPipeRead.split(";")[:-1]  # Ignore \r\n
 
     def importClasses(
         self, moduleName: str, classesToImport: list[str] = []
     ):  # CLEAN UP THIS FUNCTION
-        for madClass in self.retrieveMADClasses(moduleName):
+        for madClass in self.retrieveMADClasses(moduleName, classesToImport):
             varName = madClass.split("|")[0]
             varType = madClass.split("|")[1]
             if "function" not in varType and (
@@ -185,7 +198,7 @@ class MAD:  # Review private and public
                 self.sendScript(f"{varName} = {moduleName}.{varName}")
 
     def importVariables(self, moduleName: str, varsToImport: list[str] = []):
-        for madClass in self.retrieveMADClasses(moduleName):
+        for madClass in self.retrieveMADClasses(moduleName, varsToImport):
             varName = madClass.split("|")[0]
             varType = madClass.split("|")[1]
             # if moduleName ==  "elements" and varName in varsToImport:
@@ -633,8 +646,10 @@ class MAD:  # Review private and public
             argStr += self.__getAsMADString(arg) + ", "
         return argStr[:-2]  # Assumes args is always put last
 
-    def __getAsMADString(self, var: Any):
-        if isinstance(var, list):
+    def __getAsMADString(self, var: Any, convertString=False):
+        if isinstance(var, str) and convertString:
+            return "'" + var + "'"
+        elif isinstance(var, list):
             return self.__pyToLuaLst(var)
         elif isinstance(var, (madObject, madElement)):
             return var.__name__
@@ -649,7 +664,7 @@ class MAD:  # Review private and public
         """Convert a python list to a lua list in a string, used when sending information to MAD, should not need to be accessed by user"""
         luaString = "{"
         for item in lst:
-            luaString += self.__getAsMADString(item) + ", "
+            luaString += self.__getAsMADString(item, True) + ", "
         # #-------Resolves character limit in interactive mode-----------#
         # for x in range(len(newList) // 125):
         #     idx = newList.find(",", 125*x, 125*(x+1))
@@ -757,14 +772,23 @@ class MAD:  # Review private and public
             self.process.close()
         self.openFile.close()
         os.unlink(self.__scriptDir)
+        os.unlink(self.SRC_DIR + "PIPE")
+
+    def __del__(self):  # Should not be relied on
+        if self.shm.buf:
+            self.shm.close()  # Closes the shared memory, needs to be done before unlinked
+            self.shm.unlink()  # Deletes the shared memory (prevents memory leaks)
+        if os.path.exists(self.SRC_DIR + "PIPE"):
+            os.unlink(self.SRC_DIR + "PIPE")  # Have in the __del__
+        if os.path.exists(self.__scriptDir):
+            os.unlink(self.__scriptDir)  # Have in the __del__
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        if self.log:
-            print()
+        print()
         # if exc_type:
         #     traceback.print_exception(exc_type, exc_value, tb)
         #     time.sleep(5) #for debugging
