@@ -56,4 +56,4 @@ with MAD(current_dir) as mad:
     mad.beam("beam1")
     mad.seq.beam = mad.beam1
     mad.twiss("mtbl", sequence = mad.seq, method = 4, chrom=True)
-    mad.callMethod(None, "mtbl", "write", "'twiss_py.tfs'", ['name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'])
+    mad.mtbl.method("write", None, "'twiss_p2y.tfs'", ['name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'])

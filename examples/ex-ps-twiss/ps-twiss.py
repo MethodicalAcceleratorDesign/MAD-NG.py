@@ -1,7 +1,7 @@
 # from pymadng import MAD
 import sys
 sys.path.insert(0, "/home/joshua/Documents/MADpy/src/pymadng")
-from main import MAD
+from pymadng import MAD
 
 import numpy as np
 import matplotlib.pyplot as plt

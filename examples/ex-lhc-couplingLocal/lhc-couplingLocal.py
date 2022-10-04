@@ -12,7 +12,7 @@ current_dir = os.getcwd()
 with MAD(current_dir, log = True) as mad:
     mad.importVariables("MAD.element.flags", ["observed"])
     mad.importVariables("MAD.utility", ["assertf", "printf"])
-    mad.importVariables("MAD.gphys", "mchklost")
+    mad.importVariables("MAD.gphys", ["mchklost"])
 
     filepath = current_dir + "/"
     mad.callMethod(None, "MADX", "load", f"'{filepath}lhc_as-built.seq'", f"'{filepath}lhc_as-built.mad'")
