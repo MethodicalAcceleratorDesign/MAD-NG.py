@@ -11,33 +11,33 @@ class madObject(object):
         self.__mad__ = mad
 
     def __getattribute__(self, item):
-        if item in [
-            "__mad__",
-            "__name__",
-            "__class__",
-            "attachedElements",
-            "attributes",
-            "iterVars",
-            "iterIndex",
-            "__dict__",
-            "method",
-        ]:
+        if (
+            item
+            in [
+                "attachedElements",
+                "attributes",
+                "iterVars",
+                "iterIndex",
+                "method",
+            ]
+            or "__" == item[:2]
+        ):
             return super(madObject, self).__getattribute__(item)
         self.__mad__.receiveVariables([self.__name__ + "." + item])
         return self.__mad__.__getattribute__(self.__name__ + "." + item)
 
     def __setattr__(self, item, value):
-        if item in [
-            "__mad__",
-            "__name__",
-            "__class__",
-            "attachedElements",
-            "attributes",
-            "iterVars",
-            "iterIndex",
-            "__dict__",
-            "method",
-        ]:
+        if (
+            item
+            in [
+                "attachedElements",
+                "attributes",
+                "iterVars",
+                "iterIndex",
+                "method",
+            ]
+            or "__" == item[:2]
+        ):
             return super(madObject, self).__setattr__(item, value)
         if isinstance(value, madObject):
             if (

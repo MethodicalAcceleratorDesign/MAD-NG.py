@@ -1,4 +1,4 @@
-import os, mmap, pexpect, tempfile, warnings
+import os, mmap, pexpect, tempfile, warnings, sys
 
 # os is used for directorys
 # mmap is for memory mapping
@@ -28,6 +28,7 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: Recursive dot indexing
 # TODO: Improve declaration of where MAD is and usage of mad name
 # TODO: Remove return from call func and call method, allow return / multiple return directly out of the function (Will hugely simplify current functions)
+# TODO: Fix MAD = MAD.MAD
 
 
 class MAD:  # Review private and public
@@ -69,14 +70,14 @@ class MAD:  # Review private and public
             self.openFile.fileno(), length=0, flags=mmap.MAP_SHARED, prot=mmap.PROT_READ
         )
         self.copyOnRetreive = copyOnRetreive
+        self.__scriptFd, self.__scriptDir = tempfile.mkstemp()
 
         # All variable names will be changed as soon as I can think of better names
         if srcdir[-1] != "/":
             srcdir += "/"
         self.SRC_DIR = srcdir  # Must be run in directory where mad executable or a sub folder called pyMAD  ##Have this can be changed on install?
-        self.PATH_TO_MAD = (
-            srcdir + "mad"
-        )  # Path to mad executable                         ##This line will be changed to be more flexible
+        # Path to mad executable -- this line will be changed to be more flexible
+        self.PATH_TO_MAD = srcdir + "mad"
         self.globalVars = {"np": np}
 
         # Create initial file when MAD process is created
@@ -84,29 +85,26 @@ class MAD:  # Review private and public
         sharedata, sharetable, readSharedMemory, openSharedMemory, closeSharedMemory = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").closeSharedMemory\n
         """
 
-        # Init the process
+        # Init the process with a 2 Minute timeout
         self.process = pexpect.spawn(
-            self.PATH_TO_MAD, ["-q"], encoding="utf-8", timeout=120
-        )  # 2 Minute timeout
+            self.PATH_TO_MAD, ["-q"], encoding="utf-8", timeout=120, echo=False
+        )
+
+        # self.process.logfile_read = sys.stdout
         if log:
             # ----------Optional Logging-------------#
-            # self.output = sys.stdout #Debugging
-            self.output = open(srcdir + "outLog.txt", "w")
-            self.input = open(srcdir + "inLog.txt", "w")
-            self.process.logfile_send = self.input
-            self.process.logfile_read = self.output
+            self.inputFile = open(srcdir + "inLog.txt", "w")
+            self.process.logfile_send = self.inputFile
+            # self.process.logfile_read = open(srcdir + "outLog.txt", "w")
             # ---------------------------------------#
         self.log = log
 
         self.process.delaybeforesend = None  # Makes slightly faster
-        MADReturn = self.process.expect(
-            self.__possibleProcessReturn
-        )  # waits for mad to be ready for input
-        # self.__possibleProcessReturn.pop()
-        if MADReturn == 5:  # or MADReturn == 6:
-            MADReturn = self.sendScript(
-                INITIALISE_SCRIPT
-            )  # waits for mad to be ready for input
+
+        # Wait for mad to be ready for input
+        MADReturn = self.process.expect(self.__possibleProcessReturn)
+        if MADReturn == 5:
+            MADReturn = self.sendScript(INITIALISE_SCRIPT)
             if MADReturn != 5:
                 self.close()
                 raise (RuntimeError(self.process.match.group()))
@@ -115,6 +113,7 @@ class MAD:  # Review private and public
             raise (RuntimeError(self.process.match.group()))
 
         # --------------------------------Retrieve the modules of MAD-------------------------------#
+        # Limit the 80 modules
         modulesToImport = [
             "MAD",
             "elements",
@@ -127,11 +126,12 @@ class MAD:  # Review private and public
             "object",
             "track",
             "match",
-        ]  # Limits the ~80 modules
+        ]
         self.importClasses("MAD", modulesToImport)
         self.importClasses("MAD.element")
         self.importVariables("MAD", "MADX")
         # ------------------------------------------------------------------------------------------#
+        self.process.logfile_read = sys.stdout
 
     def retrieveMADClasses(
         self, moduleName: str
@@ -256,12 +256,6 @@ class MAD:  # Review private and public
                 return self.__dict__[varName]
 
     # ----------------------------------------------------------------------------------------------#
-
-    # def __dict__(self):
-    #     return self.vars
-
-    # def __del__(self):
-    # self.mmap.close() #N
     # --------------------------------Sending data to subprocess------------------------------------#
     def writeToProcess(self, input: str, expect: bool = True) -> int:
         """Enter a string, which will be send directly to MAD interactive mode
@@ -275,12 +269,14 @@ class MAD:  # Review private and public
     def sendScript(self, fileInput: str, expect: bool = True) -> int:
         """Enter a string, which will be send in a separate file for MAD to run
         returns: index of __possibleProcessReturn indicating the return from MAD"""
-        scriptFd, scriptDir = tempfile.mkstemp()
-        os.write(scriptFd, fileInput.encode("utf-8"))
-        MADReturn = self.writeToProcess(f'assert(loadfile("{scriptDir}"))()', expect)
-        os.close(scriptFd)
+        os.write(self.__scriptFd, fileInput.encode("utf-8"))
+        MADReturn = self.writeToProcess(
+            f'assert(loadfile("{self.__scriptDir}"))()', expect
+        )
+        os.ftruncate(self.__scriptFd, 0)
+        os.lseek(self.__scriptFd, 0, os.SEEK_SET)
         if self.log:
-            self.input.write(fileInput)
+            self.inputFile.write(fileInput)
         return MADReturn
 
     def eval(self, input: str):
@@ -294,6 +290,12 @@ class MAD:  # Review private and public
             del self.userVars["qwtscvbn"]
             del self.__dict__["qwtscvbn"]
         return result
+
+    def input(self, input: str):
+        if self.writeToProcess("do " + input + " end") == 5:
+            return 1
+        else:
+            return -1
 
     # ----------------------------------------------------------------------------------------------#
     # -----------------------------------------Shared Memory----------------------------------------#
@@ -609,20 +611,6 @@ class MAD:  # Review private and public
         if resetMAD:
             self.writeToProcess('=require ("madl_mmap").safelyCloseMemory()')
 
-    def close(
-        self,
-    ):  # After calling this, the variables within MAD are still accessible but communication has ended
-        """Close the shared memory, MAD process"""
-        self.convertMmapToData()
-        self.userVars.clear()
-        self.shm.close()  # Closes the shared memory, needs to be done before unlinked
-        self.shm.unlink()  # Deletes the shared memory (prevents memory leaks)
-        if self.process:
-            self.process.sendcontrol("c")  # ctrl-c (stops mad)
-            self.process.close()
-        self.openFile.close()
-        # self.mmap.close() #N
-
     # ---------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#
@@ -757,6 +745,18 @@ class MAD:  # Review private and public
         self.__dict__[seqName] = madObject(seqName, self)
 
     # ---------------------------------------------------------------------------------------------------#
+    def close(self):
+        # After calling this, the variables within MAD are still accessible but communication has ended
+        """Close the shared memory, MAD process"""
+        self.convertMmapToData()
+        self.userVars.clear()
+        self.shm.close()  # Closes the shared memory, needs to be done before unlinked
+        self.shm.unlink()  # Deletes the shared memory (prevents memory leaks)
+        if self.process:
+            self.process.sendcontrol("c")  # ctrl-c (stops mad)
+            self.process.close()
+        self.openFile.close()
+        os.unlink(self.__scriptDir)
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
