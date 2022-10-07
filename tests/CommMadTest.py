@@ -8,9 +8,9 @@ import time
 
 pid = os.fork()
 
-#Test 1
+# #Test 1
 if pid > 0:
-    with MAD(log = True, copyOnRetreive=False) as mad: # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
+    with MAD("/home/joshua/Documents/MADpy/tests/", log = False, copyOnRetreive=False) as mad: # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
         arr0 = np.zeros((10000, 1000)) + 1j #2*10000*1000*8 -> 160 MB
         # mad["arr"] = arr0 + 1
         # mad.sendVariables(["arr"]*100)
@@ -31,8 +31,10 @@ if pid > 0:
         #Directly send to mad
         # mad.writeToProcess("arr = arr * 2")
         mad.callMethod("arr", "arr", "mul", 2)
-        mad.writeToProcess("arr2 = arr * 2")
-        mad.writeToProcess("arr3 = arr / 3")
+        # mad.writeToProcess("print('hello')", False)
+        print((mad["arr"] == arr0*2).all())
+        mad.eval("arr2 = arr * 2")
+        mad.eval("arr3 = arr / 3")
         # mad["arr", "arr2"])
 
         #Recieving variables: update retrieves all the variables within the mad class or just send a string and the variable of that name will be retrieved
@@ -53,7 +55,7 @@ if pid > 0:
         # arr = None
     print("proc1 ended", time.time() - start_time)
 else:
-    with MAD(log=False) as mad:
+    with MAD(os.getcwd(), log=True) as mad:
         
         #METHOD 1
         filepath = "/home/joshua/Documents/MAD-NGFork/MAD/examples/ex-fodo-madx/"
@@ -62,6 +64,7 @@ else:
         mad.seq.beam = mad.beam1
         mad.twiss("mtbl", sequence = mad.seq, method = 4, chrom=True)
         plt.plot(mad.mtbl.s, mad.mtbl["beta11"]) #Showing both methods of retrieving variables
+        print(mad.mtbl.header)
         plt.show()
 
         #METHOD 2
@@ -88,8 +91,8 @@ else:
         mad.seq2.beam = mad.beam1
         mad.twiss("mtbl2", sequence = mad.seq2, method = 4, chrom=True, nslice = 10, implicit = True, save = "atbody")
         plt.plot(mad.mtbl2.s, mad.mtbl2["beta11"]) #Showing both methods of retrieving variables
-        # print(mad.mtbl2.beta11)
+        print(mad.mtbl2.header)
         plt.show()
 
-    
-    
+        
+        

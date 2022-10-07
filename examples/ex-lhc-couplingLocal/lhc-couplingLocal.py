@@ -33,7 +33,7 @@ with MAD(current_dir, log = True) as mad:
     """) #Is this a common occurence; does this want a separate function?
     t0 = time.time()
     mad.twiss("tbl", sequence = mad.lhcb1, method = 4, chrom = True)
-    mad.callMethod(None, mad.tbl, "write", "'before_tune_correction_n'")
+    mad.tbl.method("write", None, "'before_tune_correction_n'")
 
     print("Values before matching")
     print("dQx.b1=", mad.MADX.dqx_b1)

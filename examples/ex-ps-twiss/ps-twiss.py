@@ -13,16 +13,16 @@ with MAD(current_dir, log = True) as mad:
     mad.MADX.BEAM = mad.psbeam
     mad.MADX.BRHO = mad.psbeam.brho
     filepath = current_dir + "/"
-    mad.callMethod(None, "MADX", "load", f"'{filepath}ps_unset_vars.mad'", False)
-    mad.callMethod(None, "MADX", "load", f"'{filepath}ps_mu.seq'", f"'{filepath}ps_mu.mad'", False)
-    mad.callMethod(None, "MADX", "load", f"'{filepath}ps_ss.seq'", f"'{filepath}ps_ss.mad'", False)
-    mad.callMethod(None, "MADX", "load", f"'{filepath}ps_fb_lhc.str'", f"'{filepath}ps_fb_lhc_str.mad'", False)
+    mad.MADX.method("load", None, f"'{filepath}ps_unset_vars.mad'", False)
+    mad.MADX.method("load", None, f"'{filepath}ps_mu.seq'", f"'{filepath}ps_mu.mad'", False)
+    mad.MADX.method("load", None, f"'{filepath}ps_ss.seq'", f"'{filepath}ps_ss.mad'", False)
+    mad.MADX.method("load", None, f"'{filepath}ps_fb_lhc.str'", f"'{filepath}ps_fb_lhc_str.mad'", False)
     
     mad.importVariables("MADX", ["ps"])
     mad.ps.beam = mad.psbeam
     mad.survey("srv", sequence = mad.ps)
 
-    mad.callMethod(None, "srv", "write", "'PS_survey_py.tfs'", ['name', 'kind', 's', 'l', 'angle', 'x', 'y', 'z', 'theta'])
+    mad.srv.method("write", None, "'PS_survey_py.tfs'", ['name', 'kind', 's', 'l', 'angle', 'x', 'y', 'z', 'theta'])
 
     mad.twiss("tws", sequence = mad.ps, method = 6, nslice = 3, chrom = True)
 
