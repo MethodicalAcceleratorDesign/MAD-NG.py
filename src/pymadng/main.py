@@ -1,8 +1,7 @@
-import os, mmap, pexpect, tempfile, warnings, sys, select
+import os, mmap, tempfile, warnings, sys, select, time, re, subprocess
 
 # os is used for directorys
 # mmap is for memory mapping
-# pexpect is for communication with the mad executable
 # tempfile is for temporarily creating files
 
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
@@ -28,23 +27,13 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: Recursive dot indexing
 # TODO: Improve declaration of where MAD is and usage of mad name
 # TODO: Remove return from call func and call method, allow return / multiple return directly out of the function (Will hugely simplify current functions)
-# TODO: Fix MAD = MAD.MAD
+# TODO: Make runPipeContents aware of object or not
 
 
 class MAD:  # Review private and public
-
     __pagesWritten = 0
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
-    __possibleProcessReturn = [
-        pexpect.EOF,
-        pexpect.TIMEOUT,
-        r"stdin.*\r\n> $",
-        r"SIGSEGV: segmentation fault!.*",
-        r"/tmp/tmp.*stdin:1: in main chunk",
-        r"> $",
-    ]  # Use this list to cope with errors
     userVars = {}
-    __madReturn = []
 
     def __init__(
         self,
@@ -69,58 +58,67 @@ class MAD:  # Review private and public
         )
         self.copyOnRetreive = copyOnRetreive
         self.__scriptFd, self.__scriptDir = tempfile.mkstemp()
-
-        # All variable names will be changed as soon as I can think of better names
         if srcdir[-1] != "/":
             srcdir += "/"
         self.SRC_DIR = srcdir  # Must be run in directory where mad executable or a sub folder called pyMAD  ##Have this can be changed on install?
         # Path to mad executable -- this line will be changed to be more flexible
         self.PATH_TO_MAD = srcdir + "mad"
         self.globalVars = {"np": np}
+        self.pipeDir = srcdir + self.__scriptDir.split("/")[2].replace("tmp", "pipe")
 
         # Setup communication pipe
-        os.mkfifo(srcdir + "PIPE")  # , mode=0o422) #0o422 -> R W W
-        self.pipe = os.open(srcdir + "PIPE", os.O_RDONLY | os.O_NONBLOCK)
-        self.pipePoll = select.poll()
-        self.pipePoll.register(self.pipe, select.POLLIN)
+        os.mkfifo(self.pipeDir) 
 
         # Create initial file when MAD process is created
         INITIALISE_SCRIPT = f"""
-        sharedata, sharetable, readSharedMemory, openSharedMemory, closeSharedMemory, openPipe = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").closeSharedMemory, require ("madl_mmap").openPipe\n
-        openPipe('{srcdir + "PIPE"}')
+        sharedata, sharetable, readSharedMemory, openSharedMemory, close, writeToPipe = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").close, require ("madl_mmap").writeToPipe\n
+        local openPipe in require("madl_mmap")
+        openPipe("{self.pipeDir}")
         """
 
-        # Init the process with a 2 Minute timeout
-        self.process = pexpect.spawn(
-            self.PATH_TO_MAD, ["-q"], encoding="utf-8", timeout=120, echo=False
-        )
-
-        self.process.logfile_read = sys.stdout
+        # shell = True; security problems?
+        self.process = subprocess.Popen(
+            self.PATH_TO_MAD + " -q" + " -i",
+            shell=True,
+            bufsize=0,
+            stdout=sys.stdout,
+            stderr=sys.stdout,
+            stdin=subprocess.PIPE,
+        )  # , universal_newlines=True)
+        try:  # See if it closes in 10 ms (1 ms is too quick)
+            self.process.wait(0.01)
+            self.close()
+            raise (
+                OSError(
+                    f"Unsuccessful opening of {self.PATH_TO_MAD}, process closed immediately"
+                )
+            )
+        except subprocess.TimeoutExpired:
+            pass
         if log:
             # ----------Optional Logging-------------#
+            # self.outputFile = open(srcdir + "outLog.txt", "w")
             self.inputFile = open(srcdir + "inLog.txt", "w")
             self.process.logfile_send = self.inputFile
-            # self.process.logfile_read = open(srcdir + "outLog.txt", "w")
+            # self.process.logfile_read = self.outputFile
             # ---------------------------------------#
         self.log = log
-
+        self.process.logfile_read = sys.stdout
         self.process.delaybeforesend = None  # Makes slightly faster
 
         # Wait for mad to be ready for input
-        MADReturn = self.process.expect(self.__possibleProcessReturn)
-        if MADReturn == 5:
-            MADReturn = self.sendScript(INITIALISE_SCRIPT)
-            if MADReturn != 5:
-                self.close()
-                raise (RuntimeError(self.process.match.group()))
-        else:
-            self.close()
-            raise (RuntimeError(self.process.match.group()))
+        self.sendScript(INITIALISE_SCRIPT, False)
+
+        # Now read from pipe as write end is open
+        self.pipe = os.open(self.pipeDir, os.O_RDONLY)
+        self.pollIn = select.poll()
+        self.pollIn.register(self.pipe, select.POLLIN)
+        self.pipeMatch = re.compile(r"(?P<instruction>pyInstruction:.*\n)*(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>continue|finished)?")
 
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
         modulesToImport = [
-            "MAD",
+            # "MAD", #Need MAD.MAD?
             "elements",
             "sequence",
             "mtable",
@@ -134,90 +132,55 @@ class MAD:  # Review private and public
         ]
         self.importClasses("MAD", modulesToImport)
         self.importClasses("MAD.element")
-        self.importVariables("MAD", ["MADX"])
-        # ------------------------------------------------------------------------------------------#
-        self.process.logfile_read = sys.stdout
+        self.__dict__["MADX"] = madObject("MADX", self)
+
+    # ------------------------------------------------------------------------------------------#
 
     def retrieveMADClasses(
-        self, moduleName: str, classNames: list[str] = []
-    ):  # Currently can only do classes, unable to separate functions
+        self, moduleName: str, requireInitialisation: bool, classNames: list[str] = []
+    ):
         """Retrieve the classes in MAD from the module "moduleName", while only importing the classes in the list "classesToImport".
         If no list is provided, it is assumed that you would like to import every class"""
-        self.__possibleProcessReturn.append(r"Modules:\r\n(?P<names>.*)\r\n> $")
-        script = f"""
-        local writeToPipe in require("madl_mmap")
-        local tostring = tostring
-        """
+        script = f"""local tostring = tostring\n"""
         if classNames == []:
             script += f"""
                        function getModName(modname, mod)
-                           writeToPipe(modname .. "|" .. tostring(mod) .. ";")
+                           writeToPipe('pyCommand:self._import("{moduleName}", "'..tostring(modname)..'", "'..tostring(mod)..'", {requireInitialisation})\\n')\n
                        end
-                       for modname, mod in pairs({moduleName}) do pcall(getModName, modname, mod); io.write(".") end writeToPipe("\\n")
-                       """
+                       for modname, mod in pairs({moduleName}) do pcall(getModName, modname, mod); end writeToPipe("\\n")"""
         else:
             for className in classNames:
-                script += f"""writeToPipe('{className}' .. "|" .. tostring({moduleName}.{className}) .. ";")\n"""
-        madReturn = self.sendScript(script)
-        self.__possibleProcessReturn.pop()
-        self.pipePoll.poll()
-        MADPipeRead = os.read(self.pipe, 10000000).decode(
-            "utf-8"
-        )  # should not need to read more than a megabyte
-        return MADPipeRead.split(";")[:-1]  # Ignore \r\n
+                script += f"""writeToPipe('pyCommand:self._import("{moduleName}", "{className}", "'.. tostring({moduleName}.{className}) .. '", {requireInitialisation})\\n')\n"""
+        self.sendScript(script)
 
-    def importClasses(
-        self, moduleName: str, classesToImport: list[str] = []
-    ):  # CLEAN UP THIS FUNCTION
-        for madClass in self.retrieveMADClasses(moduleName, classesToImport):
-            varName = madClass.split("|")[0]
-            varType = madClass.split("|")[1]
-            if "function" not in varType and (
-                classesToImport == [] or varName in classesToImport
-            ):  ##If statements can be improved
+    # CLEAN UP THIS FUNCTION:
+    def _import(self, moduleName, varName, varType, requireInitialisation):
+        """Only ever called by MAD - DO NOT USE"""
+        ##To be improved
+        if "function" in varType:
+            exec(
+                f"""def {varName}(self, resultName, *args): 
+            self.callFunc(resultName, "{varName}", *args) """
+            )
+            setattr(self, varName, MethodType(locals()[varName], self))
+        else:
+            if requireInitialisation:
                 exec(
                     f"""def {varName}(self, varName, *args, **kwargs): 
                 self.setupClass("{varName}", "{moduleName}", varName, *args, **kwargs) """
-                )  # Create a function on the fly
-                setattr(
-                    self, varName, MethodType(locals()[varName], self)
-                )  # Bind the function to the mad class
-                if varName != "MADX":
-                    self.sendScript(f"{varName} = {moduleName}.{varName}")
+                )
+                setattr(self, varName, MethodType(locals()[varName], self))
+            else:
+                self.__dict__[varName] = madObject(varName, self)
+        self.sendScript(f"{varName} = {moduleName}.{varName}\n")
 
-            elif "function" in varType and (
-                classesToImport == [] or varName in classesToImport
-            ):  # WIP - NOT TESTED
-                exec(
-                    f"""def {varName}(self, resultName, *args): 
-                self.callFunc(resultName, "{varName}", *args) """
-                )  # Create a function on the fly
-                setattr(
-                    self, varName, MethodType(locals()[varName], self)
-                )  # Bind the function to the mad class
-                self.sendScript(f"{varName} = {moduleName}.{varName}")
+    def importClasses(self, moduleName: str, classesToImport: list[str] = []):
+        """Import uninitialised variables into the local environment (necessary?)"""
+        self.retrieveMADClasses(moduleName, True, classesToImport)
 
     def importVariables(self, moduleName: str, varsToImport: list[str] = []):
-        for madClass in self.retrieveMADClasses(moduleName, varsToImport):
-            varName = madClass.split("|")[0]
-            varType = madClass.split("|")[1]
-            # if moduleName ==  "elements" and varName in varsToImport:
-            #     self[varName] = madElement(varName, self)
-            #     self.sendScript(f"{varName} in {moduleName}")
-            if varName in varsToImport and "function" in varType:  # Functionise this ?
-                exec(
-                    f"""def {varName}(self, resultName, *args): 
-                self.callFunc(resultName, "{varName}", *args) """
-                )  # Create a function on the fly
-                setattr(
-                    self, varName, MethodType(locals()[varName], self)
-                )  # Bind the function to the mad class
-                self.sendScript(f"{varName} = {moduleName}.{varName}")
-
-            elif varName in varsToImport:
-                self.__dict__[varName] = madObject(varName, self)
-                if varName != "MADX":
-                    self.sendScript(f"{varName} = {moduleName}.{varName}")
+        """Import initialised variables into the local environment (necessary?)"""
+        self.retrieveMADClasses(moduleName, False, varsToImport)
 
     # -----------------------------Make the class work like a dictionary----------------------------#
     def __setitem__(self, varName: str, var: Any) -> None:
@@ -269,70 +232,75 @@ class MAD:  # Review private and public
                 return self.__dict__[varName]
 
     # ----------------------------------------------------------------------------------------------#
-    # --------------------------------Sending data to subprocess------------------------------------#
-    def writeToProcess(self, input: str, expect: bool = True) -> int:
-        """Enter a string, which will be send directly to MAD interactive mode
-        returns: index of __possibleProcessReturn indicating the return from MAD"""
-        self.process.write(input + "\n")
-        if expect:
-            return self.process.expect(
-                self.__possibleProcessReturn
-            )  # waits for mad to be ready for input/completed last input
 
-    def sendScript(self, fileInput: str, expect: bool = True) -> int:
-        """Enter a string, which will be send in a separate file for MAD to run
-        returns: index of __possibleProcessReturn indicating the return from MAD"""
-        os.write(self.__scriptFd, fileInput.encode("utf-8"))
-        MADReturn = self.writeToProcess(
-            f'assert(loadfile("{self.__scriptDir}"))()', expect
-        )
+    # --------------------------------Sending data to subprocess------------------------------------#
+    def writeToProcess(self, input: str, wait: bool = True) -> int:
+        """Enter a string, which will be send directly to MAD interactive mode, most users should use sendScript"""
+        if input[len(input) - 2 :] != "\n":
+            input += "\n"  # Prevent multiple lines
+        self.process.stdin.write((input).encode("utf-8"))
+        self.process.stdin.flush()
+        if wait:
+            return self.runPipeContents()
+
+    def sendScript(self, fileInput: str, wait: bool = True) -> int:
+        """Enter a string, which will be send in a separate file for MAD to run"""
         os.ftruncate(self.__scriptFd, 0)
         os.lseek(self.__scriptFd, 0, os.SEEK_SET)
+        if wait:
+            fileInput += "\nwriteToPipe('finished\\n')\n"
         if self.log:
             self.inputFile.write(fileInput)
-        return MADReturn
+        os.write(self.__scriptFd, fileInput.encode("utf-8"))
+        return self.writeToProcess(f'assert(loadfile("{self.__scriptDir}"))()', wait)
 
     def eval(self, input: str):
-        if "=" not in input:
-            input = "qwtscvbn = " + input
-        var = input.split("=")[0].strip(" ")
-        if self.writeToProcess(input) != 5:
-            raise (RuntimeError(self.process.match.group()))
-        result = self.receiveVar(var)
-        if var == "qwtscvbn":
-            del self.userVars["qwtscvbn"]
-            del self.__dict__["qwtscvbn"]
-        return result
+        if input[0] == "=":
+            input = "_" + input
+        self.writeToProcess(input + "\n", False)
+        if input[0] == "_":
+            result = self.receiveVar("_")
+            del self.userVars["_"]
+            del self.__dict__["_"]
+            return result
 
-    def input(self, input: str):
-        if self.writeToProcess("do " + input + " end") == 5:
-            return 1
-        else:
-            return -1
+    # def input(self, input: str): #Same as sendScript
+    #     self.writeToProcess("do " + input + " end")
 
     # ----------------------------------------------------------------------------------------------#
+
     # -----------------------------------------Shared Memory----------------------------------------#
     def writeToSharedMemory(self, data: np.ndarray) -> None:
         """Enter a numpy array which will be entered into shared memory, if not send to MAD process, synchronisation problems will occur"""
+        pagesUpTo = []
         for i in range(len(data)):
             offset = self.__PAGE_SIZE * self.__pagesWritten
             sharedArray = np.ndarray(
                 data[i].shape, dtype=data[i].dtype, buffer=self.shm.buf[offset:]
             )
             sharedArray[:] = data[i][:]
+            pagesUpTo.append(self.__pagesWritten)
             self.__pagesWritten = (offset + data[i].nbytes) // self.__PAGE_SIZE + 1
+        return pagesUpTo
 
-    def readMADScalar(self, dType):
-        """Directly run by MAD, never used by user"""
-        return self.readMADMatrix(dType, [1, 1])[0][0]
+    def __chkPage(self, pageUpTo: int) -> None:
+        if self.__pagesWritten != pageUpTo:
+            self.__pagesWritten = pageUpTo
+            print("WARNING SHARED MEMORY MISALLIGNED, PLEASE REPORT")
 
-    def getMADTable(self, varName):  # Needs improvement!
+    def readMADScalar(self, dType, pageUpTo):
         """Directly run by MAD, never used by user"""
+        return self.readMADMatrix(dType, [1, 1], pageUpTo)[0][0]
+
+    def getMADTable(self, pageUpTo):  # Needs improvement!
+        """Directly run by MAD, never used by user"""
+        self.__chkPage(pageUpTo)
         self.__pagesWritten += 1
-        return madObject(varName, self)
+        return madObject("MADTABLE" + str(self.__pagesWritten), self)
 
-    def readMADMatrix(self, dType, dims):
+    def readMADMatrix(self, dType, dims, pageUpTo):
         """Directly run by MAD, never used by user"""
+        self.__chkPage(pageUpTo)
         # Below line does not work on windows - the windows version uses access = ... rather than flags and prot
         self.mmap = mmap.mmap(
             self.openFile.fileno(), length=0, flags=mmap.MAP_SHARED
@@ -346,8 +314,9 @@ class MAD:  # Review private and public
         self.__pagesWritten += result.nbytes // self.__PAGE_SIZE + 1
         return result
 
-    def readMADString(self, dims):
+    def readMADString(self, dims, pageUpTo):
         """Directly run by MAD, never used by user"""
+        self.__chkPage(pageUpTo)
         self.mmap = mmap.mmap(
             self.openFile.fileno(), length=0, flags=mmap.MAP_SHARED
         )  # prot=mmap.PROT_READ)
@@ -365,21 +334,9 @@ class MAD:  # Review private and public
         self.__pagesWritten += decodedData.nbytes // self.__PAGE_SIZE + 1
         return decodedString
 
-    def readMADTable(self) -> list:  # Not doing named tables yet
-        """WIP: Reads a table from MAD and returns a list"""
-        table = {}
-        startTable = endTable = 0
-        for i in range(len(self.__madReturn)):
-            if "readMADTable(" in self.__madReturn[i]:
-                startTable = i
-            if "tablehasended" in self.__madReturn[i]:
-                endTable = i
-                break
-        entireReturn = self.__madReturn
-        self.__madReturn = entireReturn[startTable + 1 : endTable + 1]
-        self.__getVars(list(range(endTable - startTable)), table)
-        self.__madReturn = entireReturn[: startTable + 1] + entireReturn[endTable + 1 :]
-        return list(table.values())
+    def readMADTable(self, tableLength) -> list:  # Not doing named tables yet
+        """Reads a table from MAD and returns a list"""
+        return f"TABLE|STARTS|HERE|{tableLength}"
 
     # ---------------------------------------------------------------------------------------------------#
 
@@ -429,7 +386,7 @@ class MAD:  # Review private and public
         varTypesList.append(varTypes[initIndex:])
         # -----------------------------------------------------------#
         for i in range(len(varList)):
-            self.writeToSharedMemory(varList[i])
+            pagesUpTo = self.writeToSharedMemory(varList[i])
             fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar in require ("madl_mmap")\n'
             fileInput += f'openSharedMemory("{self.shm.name}")\n'
             for j in range(len(varList[i])):
@@ -456,12 +413,10 @@ class MAD:  # Review private and public
                             "Only int32, float64 and complex128 implemented",
                         )
                     )
-
-                fileInput += f"{varNames[j]} = {functionToCall}({self.__pyToLuaLst(varList[i][j].shape)})\n"  # Process return
+                fileInput += f"{varNames[j]} = {functionToCall}({self.__pyToLuaLst(varList[i][j].shape)}, {pagesUpTo[j]})\n"  # Process return
                 # self.output.write(f'{varNames[j]} = {functionToCall}({self.__pyToLuaLst(varList[i][j].shape)})\n') #Process return (debug)
-            fileInput += f"closeSharedMemory()\n"
-            if self.sendScript(fileInput) != 5:
-                raise (RuntimeError(self.process.match.group()))
+            fileInput += f"close()\n"
+            self.sendScript(fileInput)
             if len(varList) > 1 and i < len(varList) - 1:
                 self.resetShmSafely()  # Split into several because too much data, so memory needs cleaning every time (does it?)
 
@@ -479,68 +434,72 @@ class MAD:  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
-    def receiveVariables(
-        self, varNameList: list[str], shareType="data"
-    ) -> Any:  # Function used by user / internally
+    def readPipe(self):
+        """Read up to 8.912 MB from the pipe and return the result"""
+        if self.pollIn.poll(120000) == []:  # 2 Minute poll!
+            warnings.warn(
+                "Either no data in PIPE or PIPE between MAD and python unavailable, may cause errors elsewhere"
+            )
+        else:
+            return os.read(self.pipe, 8912).decode("utf-8").replace("\x00", "")
+
+    #Read all types of contents
+    def runPipeContents(self): 
+        status, pipeRead = "start", ""
+        instruction = None
+        self.evaluatedList = []
+        while status != "finished":
+            pipeRead += self.readPipe()
+            instructionSet = re.match(self.pipeMatch,pipeRead)
+            status = instructionSet.group("status")
+            instruction = instruction or instructionSet.group("instruction") #In case of continue
+            if status == "finished" or status == "continue":
+                if instructionSet.group("commands") is not None:
+                    commands = instructionSet.group("commands").split("pyCommand:")[1:]
+                    tableStart, tableLength = 0, 0
+                    for i in range(len(commands)):
+                        evaluatedValue = eval(
+                            commands[i],
+                            self.globalVars,
+                            {"self": self},
+                        )
+                        if (
+                            isinstance(evaluatedValue, str)
+                            and evaluatedValue[:17] == "TABLE|STARTS|HERE"
+                        ):
+                            tableLength, tableStart = int(evaluatedValue[18:]), i
+                            self.evaluatedList.append([])
+                        elif tableLength > 0 and i <= tableStart + tableLength:
+                            self.evaluatedList[-1].append(evaluatedValue)
+                        else:
+                            self.evaluatedList.append(evaluatedValue)
+                            tableStart, tableLength = 0, 0
+            if status == "continue":
+                self.evaluatedList.pop()
+                pipeRead = ""
+        if instruction == "pyInstruction:Save\n":
+            return self.evaluatedList
+
+    def receiveVariables(self, varNameList: list[str], shareType="data") -> Any:
         """Given a list of variable names, receive the variables from the MAD process, and save into the MAD dictionary"""
-        varNameIndex = 0
         numVars = len(varNameList)
         y = min(numVars, 20)
-        for x in range(
-            0, numVars, 20
-        ):  # Splits the reading to only 20 variables are read at once, significantly improves performance
-            status = "continue"
-            self.__possibleProcessReturn.append(
-                r"(?P<command>pyCommand:.+\n)+(?P<status>readtable|continue|finished)"
-            )  # readtable is a dummy var in order to have the matching
-            MADReturn = self.sendScript(
+        # Split the reading to only 20 variables are read at once, significantly improves performance:
+        for x in range(0, numVars, 20):
+            self.__varNameList = varNameList[x:y]
+            madReturn = self.sendScript(
                 f"""
             openSharedMemory("{self.shm.name}", true)
             local offset = share{shareType}({self.__pyToLuaLst(varNameList[x:y]).replace("'", "")})                  --This mmaps to shared memory
-            closeSharedMemory()
+            close()
                 """
             )
-            while status != "finished":
-                if MADReturn == 6:
-                    self.__madReturn = (
-                        self.process.match.group(0).replace("\t", "\r\n").split(":")[1:]
-                    )
-                    numVars = self.__getVars(varNameList[varNameIndex:], self)
-                    status = self.process.match.group("status")
-                    varNameIndex += numVars
-                else:
-                    raise (RuntimeError(self.process.match.group()))
-                if status == "continue":
-                    MADReturn = self.writeToProcess("continue")
-            self.__possibleProcessReturn.pop()
+            for i in range(len(madReturn)):
+                if isinstance(madReturn[i], madObject):
+                    madReturn[i + x].__name__ = self.__varNameList[i + x]
+                self[varNameList[i + x]] = madReturn[i + x]
             y += min(20, numVars - y)
-
-            if self.process.expect(self.__possibleProcessReturn) != 5:
-                raise (RuntimeError(self.process.match.group()))
         return self[tuple(varNameList)]
-
-    def __getVars(
-        self, varNameList: list[str], dictionary
-    ) -> Union[int, str]:  # Function used internally by python or MAD
-        """Mainly used by receiveVariables, by evaluating the return from the MAD process and storing the result in dictionary"""
-        varNameIndex = 0
-        idx = 0
-        while idx < len(self.__madReturn):  # Change to be a numbered loop!
-            evaledFunc = eval(
-                self.__madReturn[idx].split("\r\n")[0],
-                self.globalVars,
-                {"self": self, "varName": varNameList[varNameIndex]},
-            )
-            if evaledFunc is not None:  # Change the output of self.safelyCloseShm
-                if (
-                    isinstance(evaledFunc, str) and evaledFunc == "None"
-                ):  # Special case when the result is nil
-                    dictionary[varNameList[varNameIndex]] = eval(evaledFunc)
-                else:
-                    dictionary[varNameList[varNameIndex]] = evaledFunc
-                varNameIndex += 1
-            idx += 1
-        return varNameIndex
 
     def receiveVar(self, var: str) -> Any:
         """Recieve a single variable from the MAD process"""
@@ -559,25 +518,21 @@ class MAD:  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # ----------------------------------Calling functions(WIP)-----------------------------------------------------#
-    def callFunc(
-        self, resultName: Union[str, list[str]], funcName: str, *args
-    ):  # Should result name be provided? ALSO NOT TESTED
+    # Should result name be provided? ALSO NOT TESTED -->
+    def callFunc(self, resultName: Union[str, list[str]], funcName: str, *args):
         """Call the function funcName and store the result in resultName, then retreive the result into the MAD dictionary"""
         if isinstance(resultName, list):
             resultName = self.__pyToLuaLst(resultName)
         if resultName:
-            stringStart = f"do {self.__getAsMADString(resultName)} = "
+            stringStart = f"{self.__getAsMADString(resultName)} = "
         else:
-            stringStart = "do "
-        if (
-            self.writeToProcess(
-                stringStart
-                + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)}) end"""
-            )
-            != 5
-        ):
-            raise (RuntimeError(self.process.match.group()))
-        return self.receiveVar(resultName)
+            stringStart = ""
+        self.sendScript(
+            stringStart
+            + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"""
+        )
+        if resultName:
+            return self.receiveVar(resultName)
 
     def callMethod(
         self, resultName: Union[str, list[str]], varName: str, methName: str, *args
@@ -586,17 +541,13 @@ class MAD:  # Review private and public
         if isinstance(resultName, list):
             resultName = self.__pyToLuaLst(resultName)
         if resultName:
-            stringStart = f"do {self.__getAsMADString(resultName)} = "
+            stringStart = f"{self.__getAsMADString(resultName)} = "
         else:
-            stringStart = "do "
-        if (
-            self.writeToProcess(
-                stringStart
-                + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)}) end"""
-            )
-            != 5
-        ):
-            raise (RuntimeError(self.process.match.group()))
+            stringStart = ""
+        self.sendScript(
+            stringStart
+            + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
+        )
         if resultName:
             return self.receiveVar(resultName)
 
@@ -614,6 +565,11 @@ class MAD:  # Review private and public
     def resetShmSafely(self, resetMAD: bool = True):
         """Reset the shared memory safely, i.e. no data is lost on reset"""
         self.convertMmapToData()
+        for i in range(len(self.evaluatedList)):
+            if isinstance(self.evaluatedList[i], np.ndarray):
+                newArray = np.empty_like(self.evaluatedList[i])
+                newArray[:] = self.evaluatedList[i][:]
+                self.evaluatedList[i] = newArray
         fildes = os.open("/dev/shm/" + self.shm.name, os.O_RDWR)
         os.ftruncate(fildes, 0)
         os.ftruncate(fildes, self.RAM_LIMIT)
@@ -622,7 +578,9 @@ class MAD:  # Review private and public
             name=self.shm.name, create=False, size=self.RAM_LIMIT
         )
         if resetMAD:
-            self.writeToProcess('=require ("madl_mmap").safelyCloseMemory()')
+            self.sendScript('safelyCloseMemory = require ("madl_mmap").safelyCloseMemory\nsafelyCloseMemory()')
+        else:
+            self.writeToProcess("continue\n", False)
 
     # ---------------------------------------------------------------------------------------------------#
 
@@ -647,7 +605,9 @@ class MAD:  # Review private and public
         return argStr[:-2]  # Assumes args is always put last
 
     def __getAsMADString(self, var: Any, convertString=False):
-        if isinstance(var, str) and convertString:
+        if not var:
+            return "nil"
+        elif isinstance(var, str) and convertString:
             return "'" + var + "'"
         elif isinstance(var, list):
             return self.__pyToLuaLst(var)
@@ -710,10 +670,10 @@ class MAD:  # Review private and public
         if isinstance(resultName, list):
             self.sendScript(
                 f"""
-    {self.__pyToLuaLst(resultName)[1:-3].replace("'", "")} = {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} 
+    {self.__pyToLuaLst(resultName)[1:-3].replace("'", "")} = {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }}
                 """
             )
-            self.receiveVariables(resultName)
+            self.receiveVariables(resultName)  # Make this optional, or not do it
 
         else:
             self.sendScript(
@@ -768,20 +728,23 @@ class MAD:  # Review private and public
         self.shm.close()  # Closes the shared memory, needs to be done before unlinked
         self.shm.unlink()  # Deletes the shared memory (prevents memory leaks)
         if self.process:
-            self.process.sendcontrol("c")  # ctrl-c (stops mad)
-            self.process.close()
+            self.process.terminate()  # ctrl-c (stops mad)
+            self.process.wait()
         self.openFile.close()
         os.unlink(self.__scriptDir)
-        os.unlink(self.SRC_DIR + "PIPE")
+        os.unlink(self.pipeDir)
 
     def __del__(self):  # Should not be relied on
         if self.shm.buf:
             self.shm.close()  # Closes the shared memory, needs to be done before unlinked
             self.shm.unlink()  # Deletes the shared memory (prevents memory leaks)
-        if os.path.exists(self.SRC_DIR + "PIPE"):
-            os.unlink(self.SRC_DIR + "PIPE")  # Have in the __del__
+        if os.path.exists(self.pipeDir):
+            os.unlink(self.pipeDir)  # Have in the __del__
         if os.path.exists(self.__scriptDir):
             os.unlink(self.__scriptDir)  # Have in the __del__
+        if self.process:
+            self.process.terminate()  # ctrl-c (stops mad)
+            self.process.wait()
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
@@ -789,9 +752,6 @@ class MAD:  # Review private and public
 
     def __exit__(self, exc_type, exc_value, tb):
         print()
-        # if exc_type:
-        #     traceback.print_exception(exc_type, exc_value, tb)
-        #     time.sleep(5) #for debugging
         self.close()
 
     # ---------------------------------------------------------------------------------------------------#

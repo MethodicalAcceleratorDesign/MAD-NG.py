@@ -40,13 +40,9 @@ class madObject(object):
         ):
             return super(madObject, self).__setattr__(item, value)
         if isinstance(value, madObject):
-            if (
-                self.__mad__.writeToProcess(
-                    f"do {self.__name__ + '.' + item} = {value.__name__} end"
-                )
-                != 5
-            ):
-                raise (RuntimeError(self.__mad__.process.match.group(0)))
+            self.__mad__.sendScript(
+                f"{self.__name__ + '.' + item} = {value.__name__}\n"
+            )
         elif isinstance(value, np.ndarray):
             self.__mad__.sendVar(self.__name__ + "." + item, value)
 
@@ -60,8 +56,8 @@ class madObject(object):
 
     def __setitem__(self, item, value):
         if isinstance(value, madObject):
-            self.__mad__.writeToProcess(
-                f"do {self.__name__ + '.' + item} = {value.__name__} end"
+            self.__mad__.sendScript(
+                f"{self.__name__ + '.' + item} = {value.__name__}\n"
             )
         elif isinstance(value, np.ndarray):
             self.__mad__.sendVar(self.__name__ + "." + item, value)
