@@ -113,15 +113,11 @@ local function openSharedMemory(filename, write)
     shmFildes = _C.shm_open(filename, O_RDWR, 384)-- tonumber('444', 8) + tonumber('222', 8))  (read-write)
     shmInfoAddress = _C.mmap(nil, 12, bit.bor(PROT_READ, PROT_WRITE), MAP_SHARED, shmFildes, 0)
     getShmInfo()
-    shmInfo:print()
-    print("label2", ffi.sizeof(shmInfoAddress))
     shmDataAddress = _C.mmap(nil, shmInfo[3], bit.bor(PROT_READ, PROT_WRITE), MAP_SHARED, shmFildes, PAGE_SIZE)
-    print("Size of data address", ffi.sizeof(shmDataAddress))
-    print(shmDataAddress)
 end
 
-local function setShmInfo(bufstart, bufend, pseudoCap)
-    shmInfo = imatrix({bufstart, bufend, pseudoCap})
+local function setShmInfo(bufstart, bufend)
+    shmInfo = imatrix({bufstart, bufend, shmInfo[3]})
     ffi.copy(shmInfoAddress, shmInfo.data, 12)
 end
 -- local function getDimsAndSize(offset)
@@ -132,18 +128,22 @@ end
 --     return dims, dataSize
 -- end
 ----------------------------------READING------------------------------
-local function readSharedMemory(dataFrame, dataSize)
+local function readSharedMemory(dataFrame, dataSize) --Need by page until I figure out how to cast void pointers
     getShmInfo()
     local dataLen = min(shmInfo[3] - 1 - shmInfo[2], dataSize)
-    local newReadLocation = (shmInfo[1] + dataSize) % (shmInfo[3] - 1)
-    print("sataSizeL", dataSize, "len", dataLen)
-    print(shmDataAddress[0])
-    ffi.copy(dataFrame.data, shmDataAddress, dataLen)
+    local newReadLocation = ceil(((shmInfo[1] + dataSize) % (shmInfo[3] - 1))/PAGE_SIZE) * PAGE_SIZE
+
+    local dataAddress = _C.mmap(nil, dataLen, PROT_READ, MAP_SHARED, shmFildes, PAGE_SIZE + shmInfo[1])
+    ffi.copy(dataFrame.data, dataAddress, dataLen)
+    _C.munmap(dataAddress, dataLen)
+
     if dataLen < dataSize then --So I don't write beyond the array
-        ffi.copy(dataFrame.data + (dataSize - dataLen), shmDataAddress, dataSize - dataLen)
+        local dataAddress = _C.mmap(nil, dataSize - dataLen, PROT_READ, MAP_SHARED, shmFildes, PAGE_SIZE)
+        ffi.copy(dataFrame.data + dataLen, dataAddress, dataSize - dataLen)
+    _C.munmap(dataAddress, dataSize - dataLen)
     end
-    dataFrame:print()
-    return dataFrame
+    setShmInfo(newReadLocation, shmInfo[2])
+    return dataFrame, numPagesUsed --Other way to produce varargs?
 end
 
 local function readCMatrix(dims)
@@ -179,22 +179,22 @@ end
 --------------------------WRITING-------------------------------------
 
 local function mmapWrite(data) --rename data and dataSize?
-    pagesWritten = pageUpTo
-    offset = pageUpTo * PAGE_SIZE
-    local dataSize = ffi.sizeof(data)
-    file_size = tonumber(_C.lseek(shmFildes, 0, SEEK_END))
-    _C.lseek(shmFildes, 0, SEEK_SET)
-    if dataSize + offset + 2*PAGE_SIZE > file_size then --This increases the RAM Usage (if necessary)
-        writeToPipe(pyCommandFormat.."self.resetShmSafely(False)\n" .. "continue")
-        io.read(8)
-        offset = 0
-        pagesWritten = 0
-        pageUpTo = 0
+    getShmInfo()
+    local dataSize = ffi.sizeof(data) --discrepancy w/ python - beware!
+    dataLen = min(shmInfo[3] - 1 - shmInfo[2], dataSize)
+    bufWrittenLocation = (ceil((shmInfo[2] + dataSize)/PAGE_SIZE) * PAGE_SIZE) % (shmInfo[3] - 1)
+    assert(not((shmInfo[2] > shmInfo[1] and bufWrittenLocation < shmInfo[2] and bufWrittenLocation >= shmInfo[1]) or (shmInfo[2] < shmInfo[1] and not bufWrittenLocation > shmInfo[2] and not bufWrittenLocation < shmInfo[1])), "Shared memory available to send to MAD full, read from python to continue")
+    
+    local dataAddress = _C.mmap(nil, dataLen, bit.bor(PROT_READ, PROT_WRITE), MAP_SHARED, shmFildes, PAGE_SIZE + shmInfo[2])
+    ffi.copy(dataAddress, data.data, dataLen)
+    _C.munmap(dataAddress, dataLen)
+   
+    if dataLen < dataSize then
+        local dataAddress = _C.mmap(nil, dataSize - dataLen, bit.bor(PROT_READ, PROT_WRITE), MAP_SHARED, shmFildes, PAGE_SIZE)
+        ffi.copy(dataAddress, data.data + dataLen, dataSize - dataLen)
+        _C.munmap(dataAddress, dataSize - dataLen)
     end
-    local dataAddress = _C.mmap(nil, dataSize, bit.bor(PROT_READ, PROT_WRITE), MAP_SHARED, shmFildes, offset)
-    ffi.copy(dataAddress, data.data, dataSize)
-    pageUpTo = pageUpTo + ceil(dataSize/PAGE_SIZE)
-
+    setShmInfo(shmInfo[1], bufWrittenLocation)
 end
 
 local function sortData(data)

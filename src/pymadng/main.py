@@ -38,8 +38,7 @@ class shmBuffer:
     # Mix of pages and bytes - could be confusing.
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
     start = 0   # bytes
-    end = 1     # bytes
-    capacity = int(2**12 - __PAGE_SIZE + 30)  # bytes
+    end = 0     # bytes
     # readWriteLock = 0
 
     def __init__(self, ram_limit: int) -> None:
@@ -58,6 +57,7 @@ class shmBuffer:
             shape=(ram_limit // 8),
             offset=self.__PAGE_SIZE
         )
+        self.capacity = int(ram_limit - self.__PAGE_SIZE)  # bytes
         self.__setProperties(self.start, self.end)
 
     def __setProperties(self, start: int, end: int) -> None:
@@ -74,7 +74,6 @@ class shmBuffer:
     def write(self, data: np.ndarray) -> None:
         """Enter a numpy array which will be entered into shared memory, if not send to MAD process, synchronisation problems will occur"""
         self.__getProperties()
-        print(self.capacity)
         dataLen = min(self.capacity - 1 - self.end, data.nbytes)
         # Change below to be bit manipulation
         bufWrittenLocation = (self.end + data.nbytes) % (self.capacity - 1)
@@ -92,26 +91,26 @@ class shmBuffer:
                     "Shared memory available to send to MAD full, read from MAD to continue"
                 )
             )
-        self.__setProperties(
-            self.start,
-            np.intc(bufWrittenLocation),
-        )
         self.__numpyBuffer[self.end : self.end + dataLen] = np.frombuffer(
             data.tobytes(), dtype=np.byte
         )[:dataLen]
-        print(dataLen, data)
         if dataLen < data.nbytes: #Seperate the whole buffer from writeable buffer!
             self.__numpyBuffer[0 : data.nbytes - dataLen] = np.frombuffer(
                 data.tobytes(), dtype=np.byte
             )[dataLen:]
         self.__numpyBuffer.flush()
+        self.__setProperties(
+            self.start,
+            (np.intc(bufWrittenLocation)// self.__PAGE_SIZE + 1) * self.__PAGE_SIZE,
+        )
 
     def read(self, dataSize: int) -> Any:
         """Enter datasize in bytes to read the data"""
         self.__getProperties()
         dataLen = min(self.capacity - 1 - self.end, dataSize)
         # Change below to be bit manipulation
-        newReadLocation = (self.start + dataSize) % (self.capacity - 1)
+        newReadLocation = (((self.start + dataSize) % (self.capacity - 1))// self.__PAGE_SIZE + 1) * self.__PAGE_SIZE
+        assert newReadLocation == (((self.start + dataSize)// self.__PAGE_SIZE + 1) * self.__PAGE_SIZE) % (self.capacity - 1), "Houston, we have a problem"
         returnData = self.__numpyBuffer[
             self.start : self.start + dataLen
         ]  # Likely will have a problem
@@ -143,7 +142,7 @@ class MAD:  # Review private and public
         self,
         srcdir: str,
         log: bool = False,
-        ram_limit: int = 1024e6,
+        ram_limit: int = 2**20,
         copyOnRetreive: bool = True,
     ) -> None:
         """Initialise MAD Object.
@@ -373,7 +372,7 @@ class MAD:  # Review private and public
     # -----------------------------------------MAD Commands-----------------------------------------#
     def readMADScalar(self, dType):
         """Directly run by MAD, never used by user"""
-        return self.readMADMatrix(dType, [1, 1])[0][0]
+        return self.readMADMatrix(dType, [1, 1])[0]
 
     def getMADTable(self):  # Needs improvement!
         """Directly run by MAD, never used by user"""
@@ -382,7 +381,7 @@ class MAD:  # Review private and public
 
     def readMADMatrix(self, DType, dims):
         """Directly run by MAD, never used by user"""
-        datasize = np.empty(0, dtype=DType).itemsize * dims[0] * dims[1]
+        datasize = np.dtype(DType).itemsize * dims[0] * dims[1]
         result = np.frombuffer(self.shm.read(datasize).tobytes(), dtype=DType)
         return result
 
@@ -772,7 +771,7 @@ class MAD:  # Review private and public
         self.userVars.clear()
         self.shm.close()
         if self.process:
-            self.writeToProcess("do close() end", wait = False)
+            # self.writeToProcess("do close() end", wait = False)
             self.process.terminate()  # ctrl-c (stops mad)
             self.process.wait()
         os.unlink(self.__scriptDir)
