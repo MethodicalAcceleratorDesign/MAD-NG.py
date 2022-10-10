@@ -264,6 +264,8 @@ class MAD:  # Review private and public
             del self.__dict__["_"]
             return result
 
+    def MADXInput(self, input: str):
+        return self.sendScript("MADX:open_env()\n" + input + "\nMADX:close_env()")
     # def input(self, input: str): #Same as sendScript
     #     self.writeToProcess("do " + input + " end")
 
