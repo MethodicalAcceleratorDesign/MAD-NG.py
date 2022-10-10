@@ -1,4 +1,7 @@
+from asyncore import read
+import math
 import os, mmap, tempfile, warnings, sys, select, time, re, subprocess
+from pyclbr import readmodule
 
 # os is used for directorys
 # mmap is for memory mapping
@@ -7,7 +10,7 @@ import os, mmap, tempfile, warnings, sys, select, time, re, subprocess
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from resource import getpagesize  # To get page size
 from multiprocessing import shared_memory  # For shared memory
-from typing import Any, Union  # To make stuff look nicer
+from typing import Any, Union, Tuple  # To make stuff look nicer
 from types import MethodType  # Used to attach functions to the class
 
 # Custom Classes:
@@ -28,6 +31,107 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: Improve declaration of where MAD is and usage of mad name
 # TODO: Remove return from call func and call method, allow return / multiple return directly out of the function (Will hugely simplify current functions)
 # TODO: Make runPipeContents aware of object or not
+# TODO: Make shared memory more secure - flag at end, size and type in buffer, to deal with corrupted data
+
+
+class shmBuffer:
+    # Mix of pages and bytes - could be confusing.
+    __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
+    start = 0   # bytes
+    end = 1     # bytes
+    capacity = int(2**12 - __PAGE_SIZE + 30)  # bytes
+    # readWriteLock = 0
+
+    def __init__(self, ram_limit: int) -> None:
+        self.__shm = shared_memory.SharedMemory(create=True, size=ram_limit)
+        self.name = self.__shm.name
+        self.__bufferInfo = np.memmap(            
+            "/dev/shm/" + self.name,
+            dtype=np.int32,
+            mode="w+",
+            shape=(3,),
+        )
+        self.__numpyBuffer = np.memmap(
+            "/dev/shm/" + self.name,
+            dtype=np.byte,
+            mode="w+",
+            shape=(ram_limit // 8),
+            offset=self.__PAGE_SIZE
+        )
+        self.__setProperties(self.start, self.end)
+
+    def __setProperties(self, start: int, end: int) -> None:
+        self.start = start
+        self.end = end
+        self.__bufferInfo[:] = np.array([self.start, self.end, self.capacity], dtype=np.int32)[:]
+        self.__bufferInfo.flush()
+
+    def __getProperties(self):
+        self.__bufferInfo.flush()
+        self.start = self.__bufferInfo[0]
+        self.end = self.__bufferInfo[1]
+
+    def write(self, data: np.ndarray) -> None:
+        """Enter a numpy array which will be entered into shared memory, if not send to MAD process, synchronisation problems will occur"""
+        self.__getProperties()
+        print(self.capacity)
+        dataLen = min(self.capacity - 1 - self.end, data.nbytes)
+        # Change below to be bit manipulation
+        bufWrittenLocation = (self.end + data.nbytes) % (self.capacity - 1)
+        if (  # Simplify - store stuff to prevent this
+            self.end > self.start
+            and bufWrittenLocation < self.end
+            and bufWrittenLocation >= self.start
+        ) or (
+            self.end < self.start
+            and not bufWrittenLocation > self.end
+            and not bufWrittenLocation < self.start
+        ):
+            raise (
+                MemoryError(
+                    "Shared memory available to send to MAD full, read from MAD to continue"
+                )
+            )
+        self.__setProperties(
+            self.start,
+            np.intc(bufWrittenLocation),
+        )
+        self.__numpyBuffer[self.end : self.end + dataLen] = np.frombuffer(
+            data.tobytes(), dtype=np.byte
+        )[:dataLen]
+        print(dataLen, data)
+        if dataLen < data.nbytes: #Seperate the whole buffer from writeable buffer!
+            self.__numpyBuffer[0 : data.nbytes - dataLen] = np.frombuffer(
+                data.tobytes(), dtype=np.byte
+            )[dataLen:]
+        self.__numpyBuffer.flush()
+
+    def read(self, dataSize: int) -> Any:
+        """Enter datasize in bytes to read the data"""
+        self.__getProperties()
+        dataLen = min(self.capacity - 1 - self.end, dataSize)
+        # Change below to be bit manipulation
+        newReadLocation = (self.start + dataSize) % (self.capacity - 1)
+        returnData = self.__numpyBuffer[
+            self.start : self.start + dataLen
+        ]  # Likely will have a problem
+        if dataLen < dataSize:
+            returnData = np.concatenate(
+                (returnData, self.__numpyBuffer[0 : dataSize - dataLen])
+            )
+        # Need to set before or after? After means errors with data does not affect shared memory:
+        self.__setProperties(np.intc(newReadLocation), self.end)
+        self.__numpyBuffer.flush()
+        return returnData
+
+    def close(self):
+        self.__numpyBuffer = None
+        self.__shm.close()  # Closes the shared memory, needs to be done before unlinked
+        self.__shm.unlink()  # Deletes the shared memory (prevents memory leaks)
+
+    def __del__(self):
+        self.__numpyBuffer = None
+        del self.__shm
 
 
 class MAD:  # Review private and public
@@ -50,12 +154,8 @@ class MAD:  # Review private and public
         copyOnRetrieve (bool): When True, the variables are copied from the memory mapping when assigned to a variable outside MAD. When False, you receive a memory mapped numpy array that if transferred outside the MAD class, will have to be manually dealt with
         """
         # Init shared memory related variables
-        self.shm = shared_memory.SharedMemory(create=True, size=int(ram_limit))
         self.RAM_LIMIT = int(ram_limit)
-        self.openFile = open("/dev/shm/" + self.shm.name, mode="r+")
-        self.mmap = mmap.mmap(
-            self.openFile.fileno(), length=0, flags=mmap.MAP_SHARED, prot=mmap.PROT_READ
-        )
+        self.shm = shmBuffer(self.RAM_LIMIT)
         self.copyOnRetreive = copyOnRetreive
         self.__scriptFd, self.__scriptDir = tempfile.mkstemp()
         if srcdir[-1] != "/":
@@ -67,13 +167,14 @@ class MAD:  # Review private and public
         self.pipeDir = srcdir + self.__scriptDir.split("/")[2].replace("tmp", "pipe")
 
         # Setup communication pipe
-        os.mkfifo(self.pipeDir) 
+        os.mkfifo(self.pipeDir)
 
         # Create initial file when MAD process is created
         INITIALISE_SCRIPT = f"""
         sharedata, sharetable, readSharedMemory, openSharedMemory, close, writeToPipe = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").close, require ("madl_mmap").writeToPipe\n
         local openPipe in require("madl_mmap")
         openPipe("{self.pipeDir}")
+        openSharedMemory("{self.shm.name}")
         """
 
         # shell = True; security problems?
@@ -103,8 +204,6 @@ class MAD:  # Review private and public
             # self.process.logfile_read = self.outputFile
             # ---------------------------------------#
         self.log = log
-        self.process.logfile_read = sys.stdout
-        self.process.delaybeforesend = None  # Makes slightly faster
 
         # Wait for mad to be ready for input
         self.sendScript(INITIALISE_SCRIPT, False)
@@ -113,7 +212,9 @@ class MAD:  # Review private and public
         self.pipe = os.open(self.pipeDir, os.O_RDONLY)
         self.pollIn = select.poll()
         self.pollIn.register(self.pipe, select.POLLIN)
-        self.pipeMatch = re.compile(r"(?P<instruction>pyInstruction:.*\n)*(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>continue|finished)?")
+        self.pipeMatch = re.compile(
+            r"(?P<instruction>pyInstruction:.*\n)*(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>continue|finished)?"
+        )
 
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
@@ -269,63 +370,25 @@ class MAD:  # Review private and public
 
     # ----------------------------------------------------------------------------------------------#
 
-    # -----------------------------------------Shared Memory----------------------------------------#
-    def writeToSharedMemory(self, data: np.ndarray) -> None:
-        """Enter a numpy array which will be entered into shared memory, if not send to MAD process, synchronisation problems will occur"""
-        pagesUpTo = []
-        for i in range(len(data)):
-            offset = self.__PAGE_SIZE * self.__pagesWritten
-            sharedArray = np.ndarray(
-                data[i].shape, dtype=data[i].dtype, buffer=self.shm.buf[offset:]
-            )
-            sharedArray[:] = data[i][:]
-            pagesUpTo.append(self.__pagesWritten)
-            self.__pagesWritten = (offset + data[i].nbytes) // self.__PAGE_SIZE + 1
-        return pagesUpTo
-
-    def __chkPage(self, pageUpTo: int) -> None:
-        if self.__pagesWritten != pageUpTo:
-            self.__pagesWritten = pageUpTo
-            print("WARNING SHARED MEMORY MISALLIGNED, PLEASE REPORT")
-
-    def readMADScalar(self, dType, pageUpTo):
+    # -----------------------------------------MAD Commands-----------------------------------------#
+    def readMADScalar(self, dType):
         """Directly run by MAD, never used by user"""
-        return self.readMADMatrix(dType, [1, 1], pageUpTo)[0][0]
+        return self.readMADMatrix(dType, [1, 1])[0][0]
 
-    def getMADTable(self, pageUpTo):  # Needs improvement!
+    def getMADTable(self):  # Needs improvement!
         """Directly run by MAD, never used by user"""
-        self.__chkPage(pageUpTo)
-        self.__pagesWritten += 1
+        self.shm.read(1)
         return madObject("MADTABLE" + str(self.__pagesWritten), self)
 
-    def readMADMatrix(self, dType, dims, pageUpTo):
+    def readMADMatrix(self, DType, dims):
         """Directly run by MAD, never used by user"""
-        self.__chkPage(pageUpTo)
-        # Below line does not work on windows - the windows version uses access = ... rather than flags and prot
-        self.mmap = mmap.mmap(
-            self.openFile.fileno(), length=0, flags=mmap.MAP_SHARED
-        )  # prot=mmap.PROT_READ)
-        result = np.frombuffer(
-            dtype=dType,
-            buffer=self.mmap,
-            count=dims[0] * dims[1],
-            offset=self.__pagesWritten * self.__PAGE_SIZE,
-        ).reshape(dims)
-        self.__pagesWritten += result.nbytes // self.__PAGE_SIZE + 1
+        datasize = np.empty(0, dtype=DType).itemsize * dims[0] * dims[1]
+        result = np.frombuffer(self.shm.read(datasize).tobytes(), dtype=DType)
         return result
 
-    def readMADString(self, dims, pageUpTo):
+    def readMADString(self, dims):
         """Directly run by MAD, never used by user"""
-        self.__chkPage(pageUpTo)
-        self.mmap = mmap.mmap(
-            self.openFile.fileno(), length=0, flags=mmap.MAP_SHARED
-        )  # prot=mmap.PROT_READ)
-        decodedData = np.ndarray(
-            dims,
-            dtype=np.int32,
-            buffer=self.mmap,
-            offset=self.__pagesWritten * self.__PAGE_SIZE,
-        )
+        decodedData = self.readMADMatrix(np.int32, dims)
         decodedString = ""
         stringMatrix = np.resize(decodedData, dims)
         for val in stringMatrix[0]:
@@ -362,63 +425,45 @@ class MAD:  # Review private and public
                 vars[i] = np.atleast_2d(vars[i])
                 varTypes.append(vars[i].dtype)
 
-        # ---------------------Adaptive file size--------------------# (Currently not used, file is opened at max memory size)
+        # ---------------------Data size checks----------------------# (Currently not used, file is opened at max memory size)
         totalDataSize = self.__PAGE_SIZE * self.__pagesWritten
-        varList = []
-        varTypesList = []
-        initIndex = 0
         for i in range(len(vars)):
             totalDataSize += (vars[i].nbytes // self.__PAGE_SIZE + 1) * self.__PAGE_SIZE
-            if totalDataSize * 1.1 > self.RAM_LIMIT:
-                if i == initIndex:
-                    raise (
-                        OverflowError(
-                            "Data size greater than ram limit, cannot send to mad"
-                        )
-                    )  # Next step would be to send in chunks
-                varList.append(vars[initIndex:i])
-                varTypesList.append(varTypes[initIndex:i])
-                totalDataSize = (
-                    vars[i].nbytes // self.__PAGE_SIZE + 1
-                ) * self.__PAGE_SIZE
-                initIndex = i
-        varList.append(vars[initIndex:])
-        varTypesList.append(varTypes[initIndex:])
+            if totalDataSize + self.__PAGE_SIZE > self.RAM_LIMIT:
+                raise (
+                    OverflowError(
+                        "Data size greater than ram limit, cannot send to mad"
+                    )
+                )  # Next step would be to send in chunks
         # -----------------------------------------------------------#
-        for i in range(len(varList)):
-            pagesUpTo = self.writeToSharedMemory(varList[i])
-            fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar in require ("madl_mmap")\n'
-            fileInput += f'openSharedMemory("{self.shm.name}")\n'
-            for j in range(len(varList[i])):
-                if varTypesList[i][j] == np.int32:
-                    functionToCall = "readIMatrix"
-                elif varTypesList[i][j] == np.int64:
-                    warnings.warn(
-                        "64bit integers not supported by MAD, casting to float64"
+        for var in vars:
+            self.shm.write(var)
+        fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar in require ("madl_mmap")\n'
+        for i in range(len(vars)):
+            if varTypes[i] == np.int32:
+                functionToCall = "readIMatrix"
+            elif varTypes[i] == np.int64:
+                warnings.warn("64bit integers not supported by MAD, casting to float64")
+                vars[i] = np.asarray(vars[i], dtype=np.float64)
+                functionToCall = "readMatrix"
+            elif varTypes[i] == np.float64:
+                functionToCall = "readMatrix"
+            elif varTypes[i] == np.complex128:
+                functionToCall = "readCMatrix"
+            elif varTypes[i] == "scalar":
+                functionToCall = "readScalar"
+            else:
+                print(varTypes[i])
+                raise (
+                    NotImplementedError(
+                        "received type:",
+                        vars[i].dtype,
+                        "Only int32, float64 and complex128 implemented",
                     )
-                    varList[i][j] = np.asarray(varList[i][j], dtype=np.float64)
-                    functionToCall = "readMatrix"
-                elif varTypesList[i][j] == np.float64:
-                    functionToCall = "readMatrix"
-                elif varTypesList[i][j] == np.complex128:
-                    functionToCall = "readCMatrix"
-                elif varTypesList[i][j] == "scalar":
-                    functionToCall = "readScalar"
-                else:
-                    print(varTypesList[i][j])
-                    raise (
-                        NotImplementedError(
-                            "received type:",
-                            varList.dtype,
-                            "Only int32, float64 and complex128 implemented",
-                        )
-                    )
-                fileInput += f"{varNames[j]} = {functionToCall}({self.__pyToLuaLst(varList[i][j].shape)}, {pagesUpTo[j]})\n"  # Process return
-                # self.output.write(f'{varNames[j]} = {functionToCall}({self.__pyToLuaLst(varList[i][j].shape)})\n') #Process return (debug)
-            fileInput += f"close()\n"
-            self.sendScript(fileInput)
-            if len(varList) > 1 and i < len(varList) - 1:
-                self.resetShmSafely()  # Split into several because too much data, so memory needs cleaning every time (does it?)
+                )
+            fileInput += f"{varNames[i]} = {functionToCall}({self.__pyToLuaLst(vars[i].shape)})\n"  # Process return
+            # self.output.write(f'{varNames[j]} = {functionToCall}({self.__pyToLuaLst(vars[j].shape)})\n') #Process return (debug)
+        self.sendScript(fileInput)
 
     def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list] = None):
         """Send a variable to the MAD process, either send a varName that already exists in the python MAD class or a varName along with data"""
@@ -443,16 +488,16 @@ class MAD:  # Review private and public
         else:
             return os.read(self.pipe, 8912).decode("utf-8").replace("\x00", "")
 
-    #Read all types of contents
-    def runPipeContents(self): 
+    # Read all types of contents
+    def runPipeContents(self):
         status, pipeRead = "start", ""
         instruction = None
         self.evaluatedList = []
         while status != "finished":
             pipeRead += self.readPipe()
-            instructionSet = re.match(self.pipeMatch,pipeRead)
+            instructionSet = re.match(self.pipeMatch, pipeRead)
             status = instructionSet.group("status")
-            instruction = instruction or instructionSet.group("instruction") #In case of continue
+            instruction = instruction or instructionSet.group("instruction")
             if status == "finished" or status == "continue":
                 if instructionSet.group("commands") is not None:
                     commands = instructionSet.group("commands").split("pyCommand:")[1:]
@@ -489,9 +534,7 @@ class MAD:  # Review private and public
             self.__varNameList = varNameList[x:y]
             madReturn = self.sendScript(
                 f"""
-            openSharedMemory("{self.shm.name}", true)
             local offset = share{shareType}({self.__pyToLuaLst(varNameList[x:y]).replace("'", "")})                  --This mmaps to shared memory
-            close()
                 """
             )
             for i in range(len(madReturn)):
@@ -562,25 +605,27 @@ class MAD:  # Review private and public
                 newArray[:] = self.__dict__[key][:]
                 self.__dict__[key] = newArray
 
-    def resetShmSafely(self, resetMAD: bool = True):
-        """Reset the shared memory safely, i.e. no data is lost on reset"""
-        self.convertMmapToData()
-        for i in range(len(self.evaluatedList)):
-            if isinstance(self.evaluatedList[i], np.ndarray):
-                newArray = np.empty_like(self.evaluatedList[i])
-                newArray[:] = self.evaluatedList[i][:]
-                self.evaluatedList[i] = newArray
-        fildes = os.open("/dev/shm/" + self.shm.name, os.O_RDWR)
-        os.ftruncate(fildes, 0)
-        os.ftruncate(fildes, self.RAM_LIMIT)
-        self.__pagesWritten = 0
-        self.shm = shared_memory.SharedMemory(
-            name=self.shm.name, create=False, size=self.RAM_LIMIT
-        )
-        if resetMAD:
-            self.sendScript('safelyCloseMemory = require ("madl_mmap").safelyCloseMemory\nsafelyCloseMemory()')
-        else:
-            self.writeToProcess("continue\n", False)
+    # def resetShmSafely(self, resetMAD: bool = True):
+    #     """Reset the shared memory safely, i.e. no data is lost on reset"""
+    #     self.convertMmapToData()
+    #     for i in range(len(self.evaluatedList)):
+    #         if isinstance(self.evaluatedList[i], np.ndarray):
+    #             newArray = np.empty_like(self.evaluatedList[i])
+    #             newArray[:] = self.evaluatedList[i][:]
+    #             self.evaluatedList[i] = newArray
+    #     fildes = os.open("/dev/shm/" + self.shm.name, os.O_RDWR)
+    #     os.ftruncate(fildes, 0)
+    #     os.ftruncate(fildes, self.RAM_LIMIT)
+    #     self.__pagesWritten = 0
+    #     self.shm = shared_memory.SharedMemory(
+    #         name=self.shm.name, create=False, size=self.RAM_LIMIT
+    #     )
+    #     if resetMAD:
+    #         self.sendScript(
+    #             'safelyCloseMemory = require ("madl_mmap").safelyCloseMemory\nsafelyCloseMemory()'
+    #         )
+    #     else:
+    #         self.writeToProcess("continue\n", False)
 
     # ---------------------------------------------------------------------------------------------------#
 
@@ -725,25 +770,21 @@ class MAD:  # Review private and public
         """Close the shared memory, MAD process"""
         self.convertMmapToData()
         self.userVars.clear()
-        self.shm.close()  # Closes the shared memory, needs to be done before unlinked
-        self.shm.unlink()  # Deletes the shared memory (prevents memory leaks)
+        self.shm.close()
         if self.process:
+            self.writeToProcess("do close() end", wait = False)
             self.process.terminate()  # ctrl-c (stops mad)
             self.process.wait()
-        self.openFile.close()
         os.unlink(self.__scriptDir)
         os.unlink(self.pipeDir)
 
     def __del__(self):  # Should not be relied on
-        if self.shm.buf:
-            self.shm.close()  # Closes the shared memory, needs to be done before unlinked
-            self.shm.unlink()  # Deletes the shared memory (prevents memory leaks)
         if os.path.exists(self.pipeDir):
-            os.unlink(self.pipeDir)  # Have in the __del__
+            os.unlink(self.pipeDir)
         if os.path.exists(self.__scriptDir):
-            os.unlink(self.__scriptDir)  # Have in the __del__
+            os.unlink(self.__scriptDir)
         if self.process:
-            self.process.terminate()  # ctrl-c (stops mad)
+            self.process.terminate()
             self.process.wait()
 
     # -------------------------------For use with the "with" statement-----------------------------------#
