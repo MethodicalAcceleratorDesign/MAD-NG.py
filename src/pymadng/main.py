@@ -74,9 +74,9 @@ class shmBuffer:
     def write(self, data: np.ndarray) -> None:
         """Enter a numpy array which will be entered into shared memory, if not send to MAD process, synchronisation problems will occur"""
         self.__getProperties()
-        dataLen = min(self.capacity - 1 - self.end, data.nbytes)
+        dataLen = min(self.capacity - self.end, data.nbytes)
         # Change below to be bit manipulation
-        bufWrittenLocation = (self.end + data.nbytes) % (self.capacity - 1)
+        bufWrittenLocation = (self.end + data.nbytes) % (self.capacity)
         if (  # Simplify - store stuff to prevent this
             self.end > self.start
             and bufWrittenLocation < self.end
@@ -107,16 +107,16 @@ class shmBuffer:
     def read(self, dataSize: int) -> Any:
         """Enter datasize in bytes to read the data"""
         self.__getProperties()
-        dataLen = min(self.capacity - 1 - self.end, dataSize)
+        dataLen = min(self.capacity - self.start, dataSize)
         # Change below to be bit manipulation
-        newReadLocation = (((self.start + dataSize) % (self.capacity - 1))// self.__PAGE_SIZE + 1) * self.__PAGE_SIZE
-        assert newReadLocation == (((self.start + dataSize)// self.__PAGE_SIZE + 1) * self.__PAGE_SIZE) % (self.capacity - 1), "Houston, we have a problem"
+        newReadLocation = (((self.start + dataSize) % (self.capacity))// self.__PAGE_SIZE + 1) * self.__PAGE_SIZE
+        assert newReadLocation == (((self.start + dataSize)// self.__PAGE_SIZE + 1) * self.__PAGE_SIZE) % (self.capacity), "Houston, we have a problem"
         returnData = self.__numpyBuffer[
             self.start : self.start + dataLen
         ]  # Likely will have a problem
         if dataLen < dataSize:
             returnData = np.concatenate(
-                (returnData, self.__numpyBuffer[0 : dataSize - dataLen])
+                (returnData, self.__numpyBuffer[0: dataSize - dataLen])
             )
         # Need to set before or after? After means errors with data does not affect shared memory:
         self.__setProperties(np.intc(newReadLocation), self.end)
@@ -372,7 +372,7 @@ class MAD:  # Review private and public
     # -----------------------------------------MAD Commands-----------------------------------------#
     def readMADScalar(self, dType):
         """Directly run by MAD, never used by user"""
-        return self.readMADMatrix(dType, [1, 1])[0]
+        return self.readMADMatrix(dType, [1, 1])[0][0]
 
     def getMADTable(self):  # Needs improvement!
         """Directly run by MAD, never used by user"""
@@ -382,7 +382,8 @@ class MAD:  # Review private and public
     def readMADMatrix(self, DType, dims):
         """Directly run by MAD, never used by user"""
         datasize = np.dtype(DType).itemsize * dims[0] * dims[1]
-        result = np.frombuffer(self.shm.read(datasize).tobytes(), dtype=DType)
+        result = np.frombuffer(self.shm.read(datasize).tobytes(), dtype=DType).reshape(dims)
+        print(result, self.shm.start)
         return result
 
     def readMADString(self, dims):

@@ -75,7 +75,6 @@ local CMATRIX_VAL   = 4
 local SCALAR_VAL    = 5 
 --Add more here
 
--- local file_size = 10000000
 local shmFildes = nil
 local shmInfo = imatrix(3, 1) --start, end, pseudoCap
 local shmCapacity = imatrix(1)
@@ -130,8 +129,8 @@ end
 ----------------------------------READING------------------------------
 local function readSharedMemory(dataFrame, dataSize) --Need by page until I figure out how to cast void pointers
     getShmInfo()
-    local dataLen = min(shmInfo[3] - 1 - shmInfo[2], dataSize)
-    local newReadLocation = ceil(((shmInfo[1] + dataSize) % (shmInfo[3] - 1))/PAGE_SIZE) * PAGE_SIZE
+    local dataLen = min(shmInfo[3] - shmInfo[2], dataSize)
+    local newReadLocation = ceil(((shmInfo[1] + dataSize) % (shmInfo[3]))/PAGE_SIZE) * PAGE_SIZE
 
     local dataAddress = _C.mmap(nil, dataLen, PROT_READ, MAP_SHARED, shmFildes, PAGE_SIZE + shmInfo[1])
     ffi.copy(dataFrame.data, dataAddress, dataLen)
@@ -181,9 +180,13 @@ end
 local function mmapWrite(data) --rename data and dataSize?
     getShmInfo()
     local dataSize = ffi.sizeof(data) --discrepancy w/ python - beware!
-    dataLen = min(shmInfo[3] - 1 - shmInfo[2], dataSize)
-    bufWrittenLocation = (ceil((shmInfo[2] + dataSize)/PAGE_SIZE) * PAGE_SIZE) % (shmInfo[3] - 1)
-    assert(not((shmInfo[2] > shmInfo[1] and bufWrittenLocation < shmInfo[2] and bufWrittenLocation >= shmInfo[1]) or (shmInfo[2] < shmInfo[1] and not bufWrittenLocation > shmInfo[2] and not bufWrittenLocation < shmInfo[1])), "Shared memory available to send to MAD full, read from python to continue")
+    dataLen = min(shmInfo[3] - shmInfo[2], dataSize)
+    bufWrittenLocation = (ceil((shmInfo[2] + dataSize)/PAGE_SIZE) * PAGE_SIZE) % (shmInfo[3])
+    assert(not(
+        (shmInfo[2] > shmInfo[1] and bufWrittenLocation < shmInfo[2] and bufWrittenLocation >= shmInfo[1])
+        or
+        (shmInfo[2] < shmInfo[1] and not (bufWrittenLocation > shmInfo[2]) and not (bufWrittenLocation < shmInfo[1]))), 
+        "Shared memory available to send to MAD full, read from python to continue")
     
     local dataAddress = _C.mmap(nil, dataLen, bit.bor(PROT_READ, PROT_WRITE), MAP_SHARED, shmFildes, PAGE_SIZE + shmInfo[2])
     ffi.copy(dataAddress, data.data, dataLen)
