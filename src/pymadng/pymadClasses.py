@@ -19,6 +19,7 @@ class madObject(object):
                 "iterVars",
                 "iterIndex",
                 "method",
+                "set",
             ]
             or "__" == item[:2]
         ):
@@ -35,6 +36,7 @@ class madObject(object):
                 "iterVars",
                 "iterIndex",
                 "method",
+                "set",
             ]
             or "__" == item[:2]
         ):
@@ -81,27 +83,6 @@ class madElement(madObject):
         "misalign",
         "apertype",
     ]
-
-    def __init__(self, name, mad):
-        self.__name__ = name
-        self.__mad__ = mad
-
-        def getKwargAsString(**kwargs):
-            kwargList = [
-                x.split(",")[-1].replace("'", "") for x in str(kwargs).split(":")[:-1]
-            ]  # Replace all the ' in the args (could split up?)
-            kvalsList = [
-                x.split(",")[0] for x in str(kwargs).split(":")[1:]
-            ]  # Do not replace string identifier in vals
-            kwargsString = ",".join(
-                [kwargList[x] + " =" + kvalsList[x] for x in range(len(kwargList))]
-            )
-            return kwargsString
-
-        returnElm = (
-            lambda funcName=name, **kwargs: f"""{name} '{funcName}' {getKwargAsString(**kwargs)}"""
-        )
-        setattr(mad, name + "Set", returnElm)
 
     def __iter__(self):
         self.iterVars = [self.__name__ + "." + attr for attr in self.attributes]

@@ -37,7 +37,7 @@ class MAD:  # Review private and public
 
     def __init__(
         self,
-        srcdir: str,
+        srcdir: str = os.getcwd(),
         log: bool = False,
         ram_limit: int = 1024e6,
         copyOnRetreive: bool = True,
@@ -648,10 +648,11 @@ class MAD:  # Review private and public
         )
 
     def MADLambda(self, varName, arguments: list[str], expression: str):
+        result = self.__getAsMADString(varName) + " = \\"
+        if arguments:
+            result += self.__getAsMADString(arguments)
         return (
-            self.__getAsMADString(varName)
-            + " = \\"
-            + self.__getArgsAsString(tuple(arguments))[1:-1].replace("'", "")
+            result
             + " -> "
             + expression
         )
@@ -685,10 +686,14 @@ class MAD:  # Review private and public
             )
             if moduleName == "MAD.element":
                 self[resultName] = madElement(resultName, self)
+                returnElm = (
+                lambda _,**kwargs: f"""{resultName} {self.__getKwargAsString(**kwargs)}"""
+                )
+                setattr(self[resultName], "set", MethodType(returnElm, self[resultName]))
             else:
                 self[resultName] = madObject(resultName, self)
 
-    def deferedExpr(self, **kwargs):
+    def defExpr(self, **kwargs):
         """Create a deffered expression object where the kwargs are used as the deffered expressions, specified using strings"""
         return (
             self.__getKwargAsString(**kwargs).replace("=", ":=").replace("'", "")[1:-3]
@@ -699,7 +704,7 @@ class MAD:  # Review private and public
         self.sendScript(
             f"""
             local deferred in MAD.typeid
-            {varName} = deferred {{{self.deferedExpr(**kwargs)}}}
+            {varName} = deferred {{{self.defExpr(**kwargs)}}}
             """
         )
         self.__dict__[varName] = deferred(varName, self)
