@@ -1,7 +1,4 @@
-from asyncore import read
-import math
 import os, mmap, tempfile, warnings, sys, select, time, re, subprocess
-from pyclbr import readmodule
 
 # os is used for directorys
 # mmap is for memory mapping
