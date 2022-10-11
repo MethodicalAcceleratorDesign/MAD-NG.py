@@ -15,17 +15,16 @@ with MAD(current_dir, log = True) as mad:
     mad.importVariables("MAD.gphys", ["mchklost"])
 
     filepath = current_dir + "/"
-    mad.callMethod(None, "MADX", "load", f"'{filepath}lhc_as-built.seq'", f"'{filepath}lhc_as-built.mad'")
-    mad.callMethod(None, "MADX", "load", f"'{filepath}opticsfile.21'", f"'{filepath}opticsfile.21.mad'")
-    mad.callMethod(None, "MADX", "load", f"'{filepath}lhc_unset_vars.mad'")
+    mad.MADX.method("load", None, f"'{filepath}lhc_as-built.seq'", f"'{filepath}lhc_as-built.mad'")
+    mad.MADX.method("load", None, f"'{filepath}opticsfile.21'", f"'{filepath}opticsfile.21.mad'")
+    mad.MADX.method("load", None, f"'{filepath}lhc_unset_vars.mad'")
 
     mad.importVariables("MADX", ["lhcb1", "nrj"])
 
     mad.assertf(None, "#lhcb1 == 6694", "'invalid number of elements %d in LHCB1 (6694 expected)'", "#lhcb1")
     mad.beam("lhcb1beam", particle = 'proton', energy = mad.nrj) #Do i want functions to be able to be passed as strings?
     mad.lhcb1.beam = mad.lhcb1beam
-    mad.sendScript("""
-    MADX:open_env()
+    mad.MADXInput("""
     ktqx1_r2 = -ktqx1_l2 ! remove the link between these 2 vars
     kqsx3_l2 = -0.0015
     kqsx3_r2 = +0.0015
