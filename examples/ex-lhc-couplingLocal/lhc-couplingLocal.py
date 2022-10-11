@@ -50,7 +50,7 @@ with MAD(current_dir, log=True) as mad:
 
     mad.match(
         ["status", "fmin", "ncall"],
-        mad.deferedExpr(
+        mad.defExpr(
             command="mchklost(twiss {sequence=lhcb1, method=4, observe=1})"
         ),
         mad.MADKwargs(
