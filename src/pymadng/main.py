@@ -32,7 +32,8 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: Remove return from call func and call method, allow return / multiple return directly out of the function (Will hugely simplify current functions)
 # TODO: Make runPipeContents aware of object or not
 # TODO: Make shared memory more secure - flag at end, size and type in buffer, to deal with corrupted data
-
+# TODO: fix madl_mmap int, float and complex sizes to not be constant!
+# TODO: Allow sending of integers not always cast to float
 
 class shmBuffer:
     # Mix of pages and bytes - could be confusing.
@@ -197,15 +198,14 @@ class MAD:  # Review private and public
             pass
         if log:
             # ----------Optional Logging-------------#
-            # self.outputFile = open(srcdir + "outLog.txt", "w")
             self.inputFile = open(srcdir + "inLog.txt", "w")
             self.process.logfile_send = self.inputFile
-            # self.process.logfile_read = self.outputFile
             # ---------------------------------------#
         self.log = log
 
         # Wait for mad to be ready for input
         self.sendScript(INITIALISE_SCRIPT, False)
+        self.writeToProcess("_PROMPT = ''", False) #Change this to change how output works
 
         # Now read from pipe as write end is open
         self.pipe = os.open(self.pipeDir, os.O_RDONLY)
@@ -383,7 +383,6 @@ class MAD:  # Review private and public
         """Directly run by MAD, never used by user"""
         datasize = np.dtype(DType).itemsize * dims[0] * dims[1]
         result = np.frombuffer(self.shm.read(datasize).tobytes(), dtype=DType).reshape(dims)
-        print(result, self.shm.start)
         return result
 
     def readMADString(self, dims):
@@ -540,7 +539,7 @@ class MAD:  # Review private and public
             for i in range(len(madReturn)):
                 if isinstance(madReturn[i], madObject):
                     madReturn[i + x].__name__ = self.__varNameList[i + x]
-                self[varNameList[i + x]] = madReturn[i + x]
+                self[varNameList[i + x]] = madReturn[i]
             y += min(20, numVars - y)
         return self[tuple(varNameList)]
 

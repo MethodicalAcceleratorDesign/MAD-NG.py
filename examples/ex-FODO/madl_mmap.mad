@@ -127,7 +127,7 @@ end
 --     return dims, dataSize
 -- end
 ----------------------------------READING------------------------------
-local function readSharedMemory(dataFrame, dataSize) --Need by page until I figure out how to cast void pointers
+local function readSharedMemory(dataFrame, dataSize, elementSize) --Need by page until I figure out how to cast void pointers
     getShmInfo()
     local dataLen = min(shmInfo[3] - shmInfo[2], dataSize)
     local newReadLocation = ceil(((shmInfo[1] + dataSize) % (shmInfo[3]))/PAGE_SIZE) * PAGE_SIZE
@@ -138,7 +138,7 @@ local function readSharedMemory(dataFrame, dataSize) --Need by page until I figu
 
     if dataLen < dataSize then --So I don't write beyond the array
         local dataAddress = _C.mmap(nil, dataSize - dataLen, PROT_READ, MAP_SHARED, shmFildes, PAGE_SIZE)
-        ffi.copy(dataFrame.data + dataLen, dataAddress, dataSize - dataLen)
+        ffi.copy(dataFrame.data + dataLen / elementSize, dataAddress, dataSize - dataLen)
     _C.munmap(dataAddress, dataSize - dataLen)
     end
     setShmInfo(newReadLocation, shmInfo[2])
@@ -149,7 +149,7 @@ local function readCMatrix(dims)
     local fileContents = {}
     local dataSize = 8 * dims[1] * dims[2] * 2
     local dataFrame = cmatrix(dims[1], dims[2])
-    local data = readSharedMemory(dataFrame, dataSize)
+    local data = readSharedMemory(dataFrame, dataSize, 16) --CHANGE
     return data
 end
 
@@ -157,7 +157,7 @@ local function readMatrix(dims)
     local fileContents = {}
     local dataSize = 8 * dims[1] * dims[2]
     local dataFrame = matrix(dims[1], dims[2])
-    local data = readSharedMemory(dataFrame, dataSize)
+    local data = readSharedMemory(dataFrame, dataSize, 8) --CHANGE
     return data
 end
 
@@ -165,7 +165,7 @@ local function readIMatrix(dims)
     local fileContents = {}
     local dataSize = 8 * dims[1] * dims[2] / 2
     local dataFrame = imatrix(dims[1], dims[2])
-    local data = readSharedMemory(dataFrame, dataSize)
+    local data = readSharedMemory(dataFrame, dataSize, 4) --CHANGE
     return data
 end
 
@@ -177,7 +177,7 @@ end
 
 --------------------------WRITING-------------------------------------
 
-local function mmapWrite(data) --rename data and dataSize?
+local function mmapWrite(data, elementSize) --rename data and dataSize?
     getShmInfo()
     local dataSize = ffi.sizeof(data) --discrepancy w/ python - beware!
     dataLen = min(shmInfo[3] - shmInfo[2], dataSize)
@@ -194,7 +194,7 @@ local function mmapWrite(data) --rename data and dataSize?
    
     if dataLen < dataSize then
         local dataAddress = _C.mmap(nil, dataSize - dataLen, bit.bor(PROT_READ, PROT_WRITE), MAP_SHARED, shmFildes, PAGE_SIZE)
-        ffi.copy(dataAddress, data.data + dataLen, dataSize - dataLen)
+        ffi.copy(dataAddress, data.data + dataLen / elementSize, dataSize - dataLen)
         _C.munmap(dataAddress, dataSize - dataLen)
     end
     setShmInfo(shmInfo[1], bufWrittenLocation)
@@ -206,9 +206,11 @@ local function sortData(data)
     if is_number(data) then
         data = matrix(1):fill(data)
         command = command .. "self.readMADScalar(np.float64, "
+        elementSize = 8
     elseif is_boolean(data) then
         data = matrix(1):fill(data and 1 or 0)
         command = command .. "self.readMADScalar(bool, "
+        elementSize = 8
     elseif is_string(data) then 
         local stringAsMatrix = imatrix(1,data:len()) 
         for i = 1, #data do
@@ -216,19 +218,24 @@ local function sortData(data)
         end
         data = stringAsMatrix -- Had problems with strings so matrix of ascii
         command = command .. "self.readMADString(["..data.nrow..","..data.ncol.."],"
+        elementSize = 4
     elseif is_imatrix(data) then
         command = command .. "self.readMADMatrix(np.int32,["..data.nrow..","..data.ncol.."], "
+        elementSize = 4
     elseif is_matrix(data) then
         command = command .. "self.readMADMatrix(np.float64,["..data.nrow..","..data.ncol.."], "
+        elementSize = 8
     elseif is_cmatrix(data) then
         command = command .. "self.readMADMatrix(np.complex128,["..data.nrow..","..data.ncol.."], "
+        elementSize = 16
     elseif is_table(data) then 
         command = command .. "self.getMADTable("
         data = matrix(1):fill(0)
+        elementSize = 8
     else
         writeToPipe(data)
     end 
-    return data, command
+    return data, command, elementSize
 end
 
 
@@ -238,8 +245,8 @@ local function sharedata(dataList) --Can't do tables of tables
         writeToPipe(pyCommandFormat .. 'None\n')
     end 
     for _, data in ipairs(dataList) do 
-        data, command = sortData(data)
-        mmapWrite(data)
+        data, command, elementSize = sortData(data)
+        mmapWrite(data, elementSize)
         writeToPipe(command .. ")\n")
     end
 end
@@ -248,16 +255,18 @@ local function sharetable(table) --Ignores named tables IMPROVE!
     data = table[1]
     dataList = {}
     commandList = {}
+    elementSizeList = {}
     -- for i, v in pairs(table) do print(i, v) end
     for i, v in ipairs(data) do 
-        newValue, newCmd = sortData(v)
+        newValue, newCmd, newElmSize = sortData(v)
         dataList[i]= newValue
         commandList[i] = newCmd
+        elementSizeList[i] = newElmSize
     end
     writeToPipe(pyInstructionFormat .. "Save\n")
     writeToPipe(pyCommandFormat .. "self.readMADTable(".. #dataList..")\n")
-    for i, v in ipairs(dataList) do 
-        mmapWrite(v)
+    for i, value in ipairs(dataList) do 
+        mmapWrite(value, elementSizeList[i])
         writeToPipe(commandList[i] .. ")\n")
     end
 end
