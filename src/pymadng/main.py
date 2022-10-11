@@ -50,14 +50,14 @@ class shmBuffer:
             mode="w+",
             shape=(3,),
         )
+        self.capacity = int(ram_limit - self.__PAGE_SIZE)  # bytes
         self.__numpyBuffer = np.memmap(
             "/dev/shm/" + self.name,
             dtype=np.byte,
             mode="w+",
-            shape=(ram_limit // 8),
+            shape=self.capacity,
             offset=self.__PAGE_SIZE
         )
-        self.capacity = int(ram_limit - self.__PAGE_SIZE)  # bytes
         self.__setProperties(self.start, self.end)
 
     def __setProperties(self, start: int, end: int) -> None:
@@ -142,7 +142,7 @@ class MAD:  # Review private and public
         self,
         srcdir: str,
         log: bool = False,
-        ram_limit: int = 2**20,
+        ram_limit: int = 2**30 + 2**12,
         copyOnRetreive: bool = True,
     ) -> None:
         """Initialise MAD Object.

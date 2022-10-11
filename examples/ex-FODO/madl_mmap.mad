@@ -255,7 +255,7 @@ local function sharetable(table) --Ignores named tables IMPROVE!
     writeToPipe(pyCommandFormat .. "self.readMADTable(".. #dataList..")\n")
     for i, v in ipairs(dataList) do 
         mmapWrite(v)
-        writeToPipe(commandList[i] .. pagesWritten..")\n")
+        writeToPipe(commandList[i] .. ")\n")
     end
 end
 
