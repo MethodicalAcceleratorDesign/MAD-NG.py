@@ -22,14 +22,13 @@ with MAD(current_dir, log = True) as mad:
     mad.importVariables("MADX", ["lhcb1", "nrj"])
 
     mad.assertf(None, "#lhcb1 == 6694", "'invalid number of elements %d in LHCB1 (6694 expected)'", "#lhcb1")
-    mad.beam("lhcb1beam", particle = 'proton', energy = mad.nrj) #Do i want functions to be able to be passed as strings?
+    mad.beam("lhcb1beam", particle = 'proton', energy = mad.nrj)
     mad.lhcb1.beam = mad.lhcb1beam
     mad.MADXInput("""
     ktqx1_r2 = -ktqx1_l2 ! remove the link between these 2 vars
     kqsx3_l2 = -0.0015
     kqsx3_r2 = +0.0015
-    MADX:close_env()
-    """) #Is this a common occurence; does this want a separate function?
+    """)
     t0 = time.time()
     mad.twiss("tbl", sequence = mad.lhcb1, method = 4, chrom = True)
     mad.tbl.method("write", None, "'before_tune_correction_n'")
