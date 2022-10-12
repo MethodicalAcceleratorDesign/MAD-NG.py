@@ -1,0 +1,224 @@
+--[[
+    Influence from https://github.com/luapower/mmap/blob/master/mmap.lua
+]]
+
+local ffi = require 'ffi'
+local bit = require 'bit'
+local istype in ffi
+local _C in MAD --For speed
+local tostring, imatrix, matrix, cmatrix in MAD
+local is_matrix, is_cmatrix, is_imatrix, is_string, is_number, is_nil, is_element, is_boolean, is_table in MAD.typeid
+local ceil, min in math
+local type, assert, error, ipairs, tonumber, tostring, table, string, rawequal = --Not all necessary (check)
+      type, assert, error, ipairs, tonumber, tostring, table, string, rawequal    --Any others here?
+
+ffi.cdef 
+[[ 
+typedef signed int ssize_t;
+typedef int64_t off64_t;
+typedef int64_t pid_t;
+typedef unsigned short mode_t;
+int msync(void *addr, size_t len, int flags); 
+void *mmap (void *addr, size_t len,  int prot, int flags, int fildes, off64_t offset);
+int shm_open(const char *name, int oflag, mode_t mode); 
+int printf(const char *format, ...); //For debugging
+int munmap(void *addr, size_t len);
+int ftruncate(int fildes, off64_t length);
+int close(int fd);
+int getpagesize(void);
+off64_t lseek(int fd, off64_t offset, int whence);
+ssize_t write(int fd, const void *buf, size_t count);
+int open(const char *pathname, int flags);
+]]
+
+------------------MMAPP ACESS FLAGS------------------- (From https://github.com/luapower/mmap/blob/master/mmap.lua)
+
+--mmap() access flags
+local PROT_READ  = 1
+local PROT_WRITE = 2
+
+--mmap() parameter flags
+local osx = ffi.os == 'OSX'
+local MAP_SHARED  = 1
+local MAP_PRIVATE = 2 --copy-on-write
+local MAP_FIXED   = 0x0010
+local MAP_ANON    = osx and 0x1000 or 0x0020
+
+--shm_open() oflags --Need to verify these
+local O_RDONLY    = 0
+local O_WRONLY    = 1
+local O_RDWR      = 2
+local O_NONBLOCK  = osx and 0x00004 or tonumber("04000", 8)
+local O_CREAT     = osx and 0x00200 or tonumber('00100', 8)
+local O_SYNC      = osx and 0x00080 or tonumber('4010000', 8)
+local O_TRUNC     = osx and 0x00400 or tonumber('01000', 8)
+
+--msync() flags
+local MS_ASYNC      = 1
+-- local MS_INVALIDATE = 2
+local MS_SYNC       = osx and 0x0010 or 4
+
+-----------------------lseek flags------------------ (Only for linux?)
+local SEEK_SET = 0	-- Seek from beginning of file.
+local SEEK_CUR = 1	-- Seek from current position.
+local SEEK_END = 2	-- Seek from end of file.
+local SEEK_DATA = 3	-- Seek to next data.
+local SEEK_HOLE	= 4	-- Seek to next hole.
+
+local PAGE_SIZE = _C.getpagesize()
+
+--List of identifier types
+local STRING_VAL    = 1
+local IMATRIX_VAL   = 2
+local MATRIX_VAL    = 3
+local CMATRIX_VAL   = 4
+local SCALAR_VAL    = 5 
+--Add more here
+
+local shmFildes = nil
+local shmInfo = imatrix(3, 1) --start, end, pseudoCap
+local shmCapacity = imatrix(1)
+local shmInfoAddress 
+local shmDataAddress
+-- local pipeDir = nil
+local pipe = nil
+local pyCommandFormat = "pyCommand:"
+local pyInstructionFormat = "pyInstruction:"
+----------------Necessary??-------------------------
+local function sleep(time) --For debugging
+    local start = os.clock()
+    while os.clock() - start < time do end
+end
+-----------------------------------------------------
+---------------------------------SETUP--------------------------------
+-- local function setupPipe(pipeName)
+--     pipeDir = pipeName
+-- end
+
+local function openPipe(pipeName)
+    pipe = assert(io.open(pipeName, "w"))
+    pipe:setvbuf("no")
+end
+
+local function writeToPipe(string)
+    pipe:write(string)
+end
+
+----------------------------------READING------------------------------
+local function readCMatrix(dims, values)
+    data = cmatrix(dims[1], dims[2])
+    return data:fill(values)
+end
+
+local function readMatrix(dims, values)
+    data = matrix(dims[1], dims[2])
+    return data:fill(values)
+end
+
+local function readIMatrix(dims, values)
+    data = matrix(dims[1], dims[2])
+    return data:fill(values)
+end
+
+local function readScalar(dims, value)
+    return value[1]
+end
+
+-----------------------------------------------------------------------
+
+--------------------------WRITING-------------------------------------
+local function madMatrixToPyList(m)
+    r = "["
+    for i, v in ipairs(m) do
+        r = r .. v ..","
+    end
+    return r .. "]"
+end
+
+local function sortData(data)
+    local command = pyCommandFormat
+    -- Not a fan of this if statment, is there a better way?    
+    if is_number(data) then
+        data = matrix(1):fill(data)
+        command = command .. "self.readMADScalar(np.float64, [" .. data .. "], "
+    elseif is_boolean(data) then
+        command = command .. "self.readMADScalar(bool, [" .. data .. "], "
+    elseif is_string(data) then 
+        command = command .. "self.readMADString([".. data .."]," 
+    elseif is_imatrix(data) then
+        command = command .. "self.readMADMatrix(np.int32,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", "
+    elseif is_matrix(data) then
+        command = command .. "self.readMADMatrix(np.float64,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", "
+    elseif is_cmatrix(data) then
+        command = command .. "self.readMADMatrix(np.complex128,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", "
+    elseif is_table(data) then 
+        command = command .. "self.getMADTable("
+        data:dumpseq()
+    else
+        writeToPipe(data)
+    end 
+    return data, command, elementSize
+end
+
+
+local function sharedata(dataList) --Can't do tables of tables
+    writeToPipe(pyInstructionFormat .. "Save\n")
+    if #dataList == 0 then 
+        writeToPipe(pyCommandFormat .. 'None\n')
+    end 
+    for _, data in ipairs(dataList) do 
+        data, command = sortData(data)
+        writeToPipe(command .. ")\n")
+    end
+end
+
+local function sharetable(table) --Ignores named tables IMPROVE!
+    data = table[1]
+    dataList = {}
+    commandList = {}
+    -- for i, v in pairs(table) do print(i, v) end
+    for i, v in ipairs(data) do 
+        newValue, newCmd = sortData(v)
+        dataList[i]= newValue
+        commandList[i] = newCmd
+    end
+    writeToPipe(pyInstructionFormat .. "Save\n")
+    writeToPipe(pyCommandFormat .. "self.readMADTable(".. #dataList..")\n")
+    for i, value in ipairs(dataList) do 
+        writeToPipe(commandList[i] .. ")\n")
+    end
+end
+
+local function close() --necessary if statements?
+    if shmFildes then
+        _C.close(shmFildes)
+        shmFildes = nil
+    end
+    if shmInfoAddress then
+        _C.munmap(shmInfoAddress, 12)
+        shmInfoAddress = nil
+    end
+    if shmDataAddress then
+        _C.munmap(shmDataAddress, shmInfo[3])
+        shmDataAddress = nil
+    end
+end
+
+local function safelyCloseMemory() --Will also convert pointers into memory in the future
+    closeSharedMemory()
+    pageUpTo = 0
+end
+----------------------------end-----------------------------
+return{ 
+    sharedata = sharedata, 
+    sharetable = sharetable,
+    readCMatrix = readCMatrix,
+    readIMatrix = readIMatrix,
+    readMatrix = readMatrix,
+    readScalar = readScalar,
+    openSharedMemory = openSharedMemory,
+    close = close,
+    safelyCloseMemory = safelyCloseMemory,
+    openPipe = openPipe,
+    writeToPipe = writeToPipe,
+}

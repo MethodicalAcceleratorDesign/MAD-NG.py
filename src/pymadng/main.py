@@ -13,7 +13,6 @@ from sympy import var  # Used to attach functions to the class
 
 # Custom Classes:
 from .pymadClasses import madObject, madElement, deferred
-from .sharedMemoryClass import shmBuffer
 
 # TODO: implement yield into MAD
 # TODO: Allow looping through objects
@@ -41,7 +40,7 @@ class MAD:  # Review private and public
 
     def __init__(
         self,
-        srcdir: str = os.getcwd(),
+        srcdir: str = None,
         log: bool = False,
         ram_limit: int = 2**30 + 2**12,
         copyOnRetreive: bool = True,
@@ -55,9 +54,13 @@ class MAD:  # Review private and public
         """
         # Init shared memory related variables
         self.RAM_LIMIT = int(ram_limit)
-        self.shm = shmBuffer(self.RAM_LIMIT)
         self.copyOnRetreive = copyOnRetreive
         self.__scriptFd, self.__scriptDir = tempfile.mkstemp()
+        if not srcdir: 
+            srcdir = os.path.dirname(os.path.abspath(__file__)) + "/"
+        if srcdir[-1] != "/":
+            srcdir += "/"
+        self.SRC_DIR = srcdir  # Must be run in directory where mad executable or a sub folder called pyMAD  ##Have this can be changed on install?
         if srcdir[-1] != "/":
             srcdir += "/"
         self.SRC_DIR = srcdir  # Must be run in directory where mad executable or a sub folder called pyMAD  ##Have this can be changed on install?
@@ -71,11 +74,10 @@ class MAD:  # Review private and public
 
         # Create initial file when MAD process is created
         INITIALISE_SCRIPT = f"""
-        sharedata, sharetable, readSharedMemory, openSharedMemory, close, writeToPipe = require ("madl_mmap").sharedata, require ("madl_mmap").sharetable, require ("madl_mmap").readSharedMemory, require ("madl_mmap").openSharedMemory, require ("madl_mmap").close, require ("madl_mmap").writeToPipe\n
-        local openPipe in require("madl_mmap")
+        sharedata, sharetable, close, writeToPipe = require ("madl_buffer").sharedata, require ("madl_buffer").sharetable, require ("madl_buffer").close, require ("madl_buffer").writeToPipe\n
+        local openPipe in require("madl_buffer")
         openPipe("{self.pipeDir}")
-        openSharedMemory("{self.shm.name}")
-        """
+       """
 
         # shell = True; security problems?
         self.process = subprocess.Popen(
@@ -87,7 +89,7 @@ class MAD:  # Review private and public
             stdin=subprocess.PIPE,
         )  # , universal_newlines=True)
         try:  # See if it closes in 10 ms (1 ms is too quick)
-            self.process.wait(0.01)
+            self.process.wait(0.1)
             self.close()
             raise (
                 OSError(
@@ -105,7 +107,7 @@ class MAD:  # Review private and public
 
         # Wait for mad to be ready for input
         self.sendScript(INITIALISE_SCRIPT, False)
-        self.writeToProcess("_PROMPT = ''", False) #Change this to change how output works
+        # self.writeToProcess("_PROMPT = ''", False) #Change this to change how output works
 
         # Now read from pipe as write end is open
         self.pipe = os.open(self.pipeDir, os.O_RDONLY)
@@ -204,7 +206,9 @@ class MAD:  # Review private and public
                     varList[i]
                 )  # So the user isn't forced to initialise the array as numpy
             self.__dict__[nameList[i]] = varList[i]
-            self.userVars[nameList[i]] = None  #####Double check if this is necessary
+            if not isinstance(varList[i], madObject):
+                self.userVars[nameList[i]] = None  #####Double check if this is necessary
+        self.sendVariables(list(self.userVars.keys()))
 
     def __getitem__(self, varName: str) -> Any:
         if isinstance(varName, tuple):
@@ -278,25 +282,15 @@ class MAD:  # Review private and public
 
     def getMADTable(self):  # Needs improvement!
         """Directly run by MAD, never used by user"""
-        self.shm.read(1)
         return madObject("MADTABLE" + str(self.__pagesWritten), self)
 
-    def readMADMatrix(self, DType, dims):
+    def readMADMatrix(self, DType, dims, valueList):
         """Directly run by MAD, never used by user"""
-        datasize = np.dtype(DType).itemsize * dims[0] * dims[1]
-        result = np.frombuffer(self.shm.read(datasize).tobytes(), dtype=DType).reshape(dims)
-        return result
+        return np.asarray(valueList, DType).reshape(dims)
 
-    def readMADString(self, dims):
+    def readMADString(self, string):
         """Directly run by MAD, never used by user"""
-        decodedData = self.readMADMatrix(np.int32, dims)
-        decodedString = ""
-        stringMatrix = np.resize(decodedData, dims)
-        for val in stringMatrix[0]:
-            decodedString = decodedString + chr(val)  # Convert back to string
-
-        self.__pagesWritten += decodedData.nbytes // self.__PAGE_SIZE + 1
-        return decodedString
+        return string
 
     def readMADTable(self, tableLength) -> list:  # Not doing named tables yet
         """Reads a table from MAD and returns a list"""
@@ -337,9 +331,7 @@ class MAD:  # Review private and public
                     )
                 )  # Next step would be to send in chunks
         # -----------------------------------------------------------#
-        for var in vars:
-            self.shm.write(var)
-        fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar in require ("madl_mmap")\n'
+        fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar in require ("madl_buffer")\n'
         for i in range(len(vars)):
             if varTypes[i] == np.int32:
                 functionToCall = "readIMatrix"
@@ -362,8 +354,8 @@ class MAD:  # Review private and public
                         "Only int32, float64 and complex128 implemented",
                     )
                 )
-            fileInput += f"{varNames[i]} = {functionToCall}({self.__pyToLuaLst(vars[i].shape)})\n"  # Process return
-            # self.output.write(f'{varNames[j]} = {functionToCall}({self.__pyToLuaLst(vars[j].shape)})\n') #Process return (debug)
+            fileInput += f"{varNames[i]} = {functionToCall}({self.__pyToLuaLst(vars[i].shape)}, {self.__pyToLuaLst(vars[i])})\n"  # Process return
+            print(fileInput)
         self.sendScript(fileInput)
 
     def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list] = None):
@@ -528,12 +520,12 @@ class MAD:  # Review private and public
         return argStr[:-2]  # Assumes args is always put last
 
     def __getAsMADString(self, var: Any, convertString=False):
-        if not var:
+        if isinstance(var, (list, np.ndarray)):
+            return self.__pyToLuaLst(var)
+        elif not var:
             return "nil"
         elif isinstance(var, str) and convertString:
             return "'" + var + "'"
-        elif isinstance(var, list):
-            return self.__pyToLuaLst(var)
         elif isinstance(var, (madObject, madElement)):
             return var.__name__
         elif isinstance(var, dict):
@@ -548,14 +540,6 @@ class MAD:  # Review private and public
         luaString = "{"
         for item in lst:
             luaString += self.__getAsMADString(item, True) + ", "
-        # #-------Resolves character limit in interactive mode-----------#
-        # for x in range(len(newList) // 125):
-        #     idx = newList.find(",", 125*x, 125*(x+1))
-        #     while idx <  125*(x+1) and idx > 0:
-        #         newIdx = idx + 1
-        #         idx =  newList.find(",", idx + 1, 125*(x+1))
-        #     newList = newList[:newIdx] + "\n" + newList[newIdx:]
-        # #---------------------------------------------------------------#
         return luaString + "}"
 
     def MADKwargs(self, varName: str, *args, **kwargs):
@@ -655,7 +639,6 @@ class MAD:  # Review private and public
         """Close the shared memory, MAD process"""
         self.convertMmapToData()
         self.userVars.clear()
-        self.shm.close()
         if self.process:
             # self.writeToProcess("do close() end", wait = False)
             self.process.terminate()  # ctrl-c (stops mad)
