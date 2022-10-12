@@ -7,7 +7,9 @@ import os, tempfile, warnings, sys, select, time, re, subprocess
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from resource import getpagesize  # To get page size
 from typing import Any, Union, Tuple  # To make stuff look nicer
-from types import MethodType  # Used to attach functions to the class
+from types import MethodType
+
+from sympy import var  # Used to attach functions to the class
 
 # Custom Classes:
 from .pymadClasses import madObject, madElement, deferred
@@ -566,10 +568,12 @@ class MAD:  # Review private and public
             + f"""{{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} """
         )
 
-    def MADLambda(self, varName, arguments: list[str], expression: str):
+    def MADLambda(self, varName: str, arguments: list[str], expression: str):
         result = self.__getAsMADString(varName) + " = \\"
         if arguments:
-            result += self.__getAsMADString(arguments)
+            for arg in arguments:
+                result += self.__getAsMADString(arg) + ","
+            result = result[:-1]
         return (
             result
             + " -> "

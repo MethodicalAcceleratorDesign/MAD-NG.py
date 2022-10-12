@@ -44,7 +44,6 @@ with MAD() as mad:
 with MAD() as mad:
     sharedData = mad.sendScript("""
     local beam, twiss in MAD
-    openSharedMemory('""" + mad.shm.name + """', true)
     MADX:load("fodo.seq", "fodo.mad")
     local seq in MADX
     seq.beam = beam -- use default beam
@@ -52,7 +51,6 @@ with MAD() as mad:
     mtbl = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
     mtbl:write("twiss_mad_tfs", cols)
     sharedata({mtbl})
-    close()
     """)
     mad.mtbl = sharedData[0]
     mad.mtbl.__name__ = "mtbl"
