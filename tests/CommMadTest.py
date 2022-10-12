@@ -1,3 +1,4 @@
+from sympy import var
 from pymadng import MAD
 import numpy as np
 import os
@@ -16,22 +17,15 @@ if pid > 0:
         # mad.sendVariables(["arr"]*100)
 
         #Set variables within the mad class
+        start_time = time.time()
         mad["arr"] = arr0
         # print(mad.arr)
         mad["arr2", "arr3", "arr4"] = arr0, arr0, arr0
+        print("receive large array", time.time() - start_time)
 
-
-        #Three ways to send multiple variables: sendall, send variables just using name, send variables not within mad class, giving name and variable
-        start_time = time.time()
-        print(mad.userVars)
-        mad.sendall()
-        print(time.time() - start_time)
-        # mad.sendVariables(["arr", "arr2", "arr3","arr4"])
-        # mad.sendVariables(["arr", "arr2", "arr3","arr4"], [arr0, arr0, arr0, arr0])
         #Directly send to mad
         # mad.writeToProcess("arr = arr * 2")
         mad.callMethod("arr", "arr", "mul", 2)
-        # mad.writeToProcess("print('hello')", False)
         print((mad["arr"] == arr0*2).all())
         mad.eval("arr2 = arr * 2")
         mad.eval("arr3 = arr / 3")
@@ -40,18 +34,32 @@ if pid > 0:
         #Recieving variables: update retrieves all the variables within the mad class or just send a string and the variable of that name will be retrieved
         start_time = time.time()
         mad.updateVariables()
-        print(time.time() - start_time)
-        # mad.receiveVariables(["arr"]*1000)
-
-        # print((mad["arr"] == arr0*2).all())
-        # print(mad["arr"])
-        # print(mad.variables)
-
-        # arr, arr2, arr3 = mad.receiveVariables(["arr", "arr2", "arr3"])
-        # arr, arr2, arr3 = mad["arr", "arr2", "arr3"]
+        print("send large array", time.time() - start_time)
         print((mad["arr"] == arr0*2).all())
         print((mad["arr2"] == arr0*2*2).all())
         print((mad["arr3"] == arr0*2/3).all())
+
+    with MAD(os.getcwd(), log = False, copyOnRetreive=False, ram_limit=2**30 + 2**12) as mad: # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
+        numVars = 25000
+        varNameList = []
+        values = [12345] * numVars
+        for i in range(numVars):
+            varNameList.append(f"var{i}")
+        
+        start_time = time.time()
+        mad[tuple(varNameList)] = values
+        print(f"send {numVars} vals", time.time() - start_time)
+        start_time = time.time()
+        
+        start_time = time.time()
+        mad.sendVariables(list(varNameList), values)
+        print(f"send {numVars} vals v2", time.time() - start_time)
+
+        start_time = time.time()
+        mad.receiveVariables(list(varNameList))
+        print(f"receive {numVars} vals", time.time() - start_time)
+        input()
+        
         # arr = None
     print("proc1 ended", time.time() - start_time)
 else:
@@ -72,20 +80,20 @@ else:
         mad.sendVariables(["circum", "lcell"])
         #WIll add a search into mad for variable in the future
         mad.deferred("v", f = "lcell/math.sin(math.pi/4)/4", k = "1/v.f")
-        # mad.multipole("qf", mad.deferedExpr(knl = {0,  mad.v.k}))
-        mad.multipole("qf", mad.deferedExpr(knl = "{0,  v.k}"))
-        # mad.quadrupole("qf", mad.deferedExpr(k1 = "v.k"), l = 1)
+        # mad.multipole("qf", mad.defExpr(knl = {0,  mad.v.k}))
+        mad.multipole("qf", mad.defExpr(knl = "{0,  v.k}"))
+        # mad.quadrupole("qf", mad.defExpr(k1 = "v.k"), l = 1)
         
-        # mad.multipole("qd", mad.deferedExpr(knl = {0, -mad.v.k}))
-        mad.multipole("qd", mad.deferedExpr(knl = "{0, -v.k}"))
+        # mad.multipole("qd", mad.defExpr(knl = {0, -mad.v.k}))
+        mad.multipole("qd", mad.defExpr(knl = "{0, -v.k}"))
 
-        # mad.quadrupole("qd", mad.deferedExpr(k1 = "-v.k"), l = 1)
-        mad.sequence("seq2", mad.qfSet(at = 0 * mad.lcell),
-                            mad.qdSet(at = 0.5 * mad.lcell),
-                            mad.qfSet(at = 1 * mad.lcell),
-                            mad.qdSet(at = 1.5 * mad.lcell),
-                            mad.qfSet(at = 2 * mad.lcell),
-                            mad.qdSet(at = 2.5 * mad.lcell), 
+        # mad.quadrupole("qd", mad.defExpr(k1 = "-v.k"), l = 1)
+        mad.sequence("seq2", mad.qf.set(at = 0 * mad.lcell),
+                            mad.qd.set(at = 0.5 * mad.lcell),
+                            mad.qf.set(at = 1 * mad.lcell),
+                            mad.qd.set(at = 1.5 * mad.lcell),
+                            mad.qf.set(at = 2 * mad.lcell),
+                            mad.qd.set(at = 2.5 * mad.lcell), 
                             refer = 'entry', l=mad.circum )
         mad.beam("beam1")
         mad.seq2.beam = mad.beam1
