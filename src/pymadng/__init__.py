@@ -1,7 +1,7 @@
 from .main import MAD
 
 __title__ = "pymadng"
-__version__ = "0.0.6"
+__version__ = "0.1.1"
 
 __summary__ = " Python interface to MAD-NG running as subprocess and using Pexpect "
 __uri__ = "https://github.com/MethodicalAcceleratorDesign/MADpy"
