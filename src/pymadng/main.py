@@ -266,8 +266,6 @@ class MAD:  # Review private and public
         self.writeToProcess(input + "\n", False)
         if input[0] == "_":
             result = self.receiveVar("_")
-            del self.userVars["_"]
-            del self.__dict__["_"]
             return result
 
     def MADXInput(self, input: str):
