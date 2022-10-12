@@ -4,11 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pymadng"
-<<<<<<< HEAD
 version = "0.1.2"
-=======
-version = "0.1.1"
->>>>>>> b4cfd91a593dbe32d27691d875db503e80fd9215
 authors = [
   { name="Joshua Gray", email="joshua.mark.gray@cern.ch" },
 ]
