@@ -1,5 +1,5 @@
 # pymadng
-Python interface to MAD-NG running as subprocess and using Pexpect 
+Python interface to MAD-NG running as subprocess
 
 Getting the examples working
 ============================
