@@ -33,6 +33,7 @@ from .sharedMemoryClass import shmBuffer
 # TODO: Make shared memory more secure - flag at end, size and type in buffer, to deal with corrupted data
 # TODO: fix madl_mmap int, float and complex sizes to not be constant!
 # TODO: Allow sending of integers not always cast to float
+# TODO: Fix what happens if mad trys to write too much to the buffer! Then make ability to send in chunks
 
 class MAD:  # Review private and public
     __pagesWritten = 0
@@ -204,7 +205,9 @@ class MAD:  # Review private and public
                     varList[i]
                 )  # So the user isn't forced to initialise the array as numpy
             self.__dict__[nameList[i]] = varList[i]
-            self.userVars[nameList[i]] = None  #####Double check if this is necessary
+            if not isinstance(varList[i], madObject):
+                self.userVars[nameList[i]] = None  #####Double check if this is necessary
+        self.sendVariables(list(self.userVars.keys()))
 
     def __getitem__(self, varName: str) -> Any:
         if isinstance(varName, tuple):
@@ -428,21 +431,16 @@ class MAD:  # Review private and public
 
     def receiveVariables(self, varNameList: list[str], shareType="data") -> Any:
         """Given a list of variable names, receive the variables from the MAD process, and save into the MAD dictionary"""
-        numVars = len(varNameList)
-        y = min(numVars, 20)
-        # Split the reading to only 20 variables are read at once, significantly improves performance:
-        for x in range(0, numVars, 20):
-            self.__varNameList = varNameList[x:y]
-            madReturn = self.sendScript(
-                f"""
-            local offset = share{shareType}({self.__pyToLuaLst(varNameList[x:y]).replace("'", "")})                  --This mmaps to shared memory
-                """
-            )
-            for i in range(len(madReturn)):
-                if isinstance(madReturn[i], madObject):
-                    madReturn[i + x].__name__ = self.__varNameList[i + x]
-                self[varNameList[i + x]] = madReturn[i]
-            y += min(20, numVars - y)
+        self.__varNameList = varNameList
+        madReturn = self.sendScript(
+            f"""
+        local offset = share{shareType}({self.__pyToLuaLst(varNameList).replace("'", "")})                  --This mmaps to shared memory
+            """
+        )
+        for i in range(len(madReturn)):
+            if isinstance(madReturn[i], madObject):
+                madReturn[i].__name__ = self.__varNameList[i]
+            self.__dict__[varNameList[i]] = madReturn[i]
         return self[tuple(varNameList)]
 
     def receiveVar(self, var: str) -> Any:
@@ -664,6 +662,8 @@ class MAD:  # Review private and public
         os.unlink(self.pipeDir)
 
     def __del__(self):  # Should not be relied on
+        if self.shm.file.buf:
+            self.shm.close()
         if os.path.exists(self.pipeDir):
             os.unlink(self.pipeDir)
         if os.path.exists(self.__scriptDir):
