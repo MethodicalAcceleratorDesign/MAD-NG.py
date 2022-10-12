@@ -39,10 +39,11 @@ class MAD:  # Review private and public
     __pagesWritten = 0
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
     userVars = {}
+    process = None
 
     def __init__(
         self,
-        srcdir: str = os.getcwd(),
+        srcdir: str = None,
         log: bool = False,
         ram_limit: int = 2**30 + 2**12,
         copyOnRetreive: bool = True,
@@ -59,6 +60,8 @@ class MAD:  # Review private and public
         self.shm = shmBuffer(self.RAM_LIMIT)
         self.copyOnRetreive = copyOnRetreive
         self.__scriptFd, self.__scriptDir = tempfile.mkstemp()
+        if not srcdir: 
+            srcdir = os.path.dirname(os.path.abspath(__file__)) + "/"
         if srcdir[-1] != "/":
             srcdir += "/"
         self.SRC_DIR = srcdir  # Must be run in directory where mad executable or a sub folder called pyMAD  ##Have this can be changed on install?
@@ -99,7 +102,7 @@ class MAD:  # Review private and public
             pass
         if log:
             # ----------Optional Logging-------------#
-            self.inputFile = open(srcdir + "inLog.txt", "w")
+            self.inputFile = open(os.getcwd() + "/inLog.txt", "w")
             self.process.logfile_send = self.inputFile
             # ---------------------------------------#
         self.log = log
