@@ -11,7 +11,7 @@ pid = os.fork()
 
 # #Test 1
 if pid > 0:
-    with MAD(os.getcwd(), log = False, copyOnRetreive=False, ram_limit=2**30 + 2**12) as mad: # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
+    with MAD(log = False, copyOnRetreive=False, ram_limit=2**30 + 2**12) as mad: # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
         arr0 = np.zeros((10000, 1000)) + 1j #2*10000*1000*8 -> 160 MB
         # mad["arr"] = arr0 + 1
         # mad.sendVariables(["arr"]*100)
@@ -39,7 +39,7 @@ if pid > 0:
         print((mad["arr2"] == arr0*2*2).all())
         print((mad["arr3"] == arr0*2/3).all())
 
-    with MAD(os.getcwd(), log = False, copyOnRetreive=False, ram_limit=2**30 + 2**12) as mad: # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
+    with MAD(log = False, copyOnRetreive=False, ram_limit=2**30 + 2**12) as mad: # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
         numVars = 25000
         varNameList = []
         values = [12345] * numVars
@@ -57,13 +57,10 @@ if pid > 0:
 
         start_time = time.time()
         mad.receiveVariables(list(varNameList))
-        print(f"receive {numVars} vals", time.time() - start_time)
-        input()
-        
-        # arr = None
+        print(f"receive {numVars} vals", time.time() - start_time)        
     print("proc1 ended", time.time() - start_time)
 else:
-    with MAD(os.getcwd(), log=True) as mad:
+    with MAD(log=True) as mad:
         
         #METHOD 1
         filepath = "/home/joshua/Documents/MAD-NGFork/MAD/examples/ex-fodo-madx/"
