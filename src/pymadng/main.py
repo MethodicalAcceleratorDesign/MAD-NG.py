@@ -501,29 +501,6 @@ class MAD:  # Review private and public
                 newArray = np.empty_like(self.__dict__[key])
                 newArray[:] = self.__dict__[key][:]
                 self.__dict__[key] = newArray
-
-    # def resetShmSafely(self, resetMAD: bool = True):
-    #     """Reset the shared memory safely, i.e. no data is lost on reset"""
-    #     self.convertMmapToData()
-    #     for i in range(len(self.evaluatedList)):
-    #         if isinstance(self.evaluatedList[i], np.ndarray):
-    #             newArray = np.empty_like(self.evaluatedList[i])
-    #             newArray[:] = self.evaluatedList[i][:]
-    #             self.evaluatedList[i] = newArray
-    #     fildes = os.open("/dev/shm/" + self.shm.name, os.O_RDWR)
-    #     os.ftruncate(fildes, 0)
-    #     os.ftruncate(fildes, self.RAM_LIMIT)
-    #     self.__pagesWritten = 0
-    #     self.shm = shared_memory.SharedMemory(
-    #         name=self.shm.name, create=False, size=self.RAM_LIMIT
-    #     )
-    #     if resetMAD:
-    #         self.sendScript(
-    #             'safelyCloseMemory = require ("madl_mmap").safelyCloseMemory\nsafelyCloseMemory()'
-    #         )
-    #     else:
-    #         self.writeToProcess("continue\n", False)
-
     # ---------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#
