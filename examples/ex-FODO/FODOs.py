@@ -14,7 +14,6 @@ with MAD() as mad:
 
 with MAD() as mad:
     mad["circum", "lcell"] = 60, 20
-    mad.sendVariables(["circum", "lcell"])
 
     mad.importVariables("math", ["sin", "pi"])
     mad.deferred("v", k = "1/(lcell/sin(pi/4)/4)")
