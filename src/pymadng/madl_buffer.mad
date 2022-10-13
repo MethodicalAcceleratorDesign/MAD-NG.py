@@ -6,7 +6,7 @@ local ffi = require 'ffi'
 local bit = require 'bit'
 local istype in ffi
 local tostring, imatrix, matrix, cmatrix in MAD
-local is_matrix, is_cmatrix, is_imatrix, is_string, is_number, is_nil, is_element, is_boolean, is_rawtable, is_table, is_object in MAD.typeid
+local is_matrix, is_cmatrix, is_imatrix, is_string, is_number, is_nil, is_element, is_boolean, is_rawtable, is_table, is_object, is_complex in MAD.typeid
 local type, assert, ipairs, tonumber, tostring, table, string = --Not all necessary (check)
       type, assert, ipairs, tonumber, tostring, table, string    --Any others here?
 
@@ -66,7 +66,9 @@ end
 local function madMatrixToPyList(m)
     r = "["
     for i, v in ipairs(m) do
-        r = r .. v ..","
+        if is_complex(v) then  r = r .. string.gsub(tostring(v), "i", "j") ..","
+        else                   r = r .. v .."," 
+        end
     end
     return r .. "]"
 end
@@ -99,10 +101,10 @@ local function sortData(data, name)
 end
 
 
-local function sortTable(atable)
+local function sortTable(data)
     command = "["
     dataList = {}
-    for i, v in pairs(data) do 
+    for i, v in ipairs(data) do 
         newValue, newCmd, none = sortData(v)
         dataList[i]= newValue
         command = command .. newCmd .. ","
@@ -110,6 +112,7 @@ local function sortTable(atable)
     command = command .. "]"
     data = dataList
     islist = true
+    return data, command
 end
 
 local function sharedata(dataList, dataNames, istable) --Can't do tables of tables
@@ -118,7 +121,7 @@ local function sharedata(dataList, dataNames, istable) --Can't do tables of tabl
     end 
     entireCommand = ""
     for i, data in ipairs(dataList) do 
-        if istable then sortTable(data) --temporary
+        if istable then data, command, islist = sortTable(data) --temporary
         else data, command, islist = sortData(data, dataNames[i]) end
 
         if islist then else end -- mapping would be here

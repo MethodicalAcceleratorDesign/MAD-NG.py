@@ -112,7 +112,6 @@ class MAD:  # Review private and public
 
         # Wait for mad to be ready for input
         self.sendScript(INITIALISE_SCRIPT, False)
-        # self.writeToProcess("_PROMPT = ''", False) #Change this to change how output works
 
         # Now read from pipe as write end is open
         self.pipe = os.open(self.pipeDir, os.O_RDONLY)
@@ -124,6 +123,7 @@ class MAD:  # Review private and public
         self.execCheck = re.compile(
             r"self.__dict__\['.+\] = "
         )
+        # self.writeToProcess("_PROMPT = ''") #Change this to change how output works
 
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
@@ -255,7 +255,7 @@ class MAD:  # Review private and public
         if self.mad_is_running_scipt:
             self.runPipeContents() #This implementation is terrible -> what if the user wnats to results returned?
             #Could the mad process write the the python mad class dictionary?
-        self.process.stdin.write((input).encode("utf-8"))
+        self.process.stdin.write((input + "\nwriteToPipe('finished\\n')\n").encode("utf-8"))
         self.process.stdin.flush()
         self.mad_is_running_scipt = True
         if wait:
@@ -265,16 +265,15 @@ class MAD:  # Review private and public
         """Enter a string, which will be send in a separate file for MAD to run"""
         os.ftruncate(self.__madScriptFd, 0)
         os.lseek(self.__madScriptFd, 0, os.SEEK_SET)
-        fileInput += "\nwriteToPipe('finished\\n')\n"
         if self.log:
             self.inputFile.write(fileInput)
         os.write(self.__madScriptFd, fileInput.encode("utf-8"))
         return self.writeToProcess(f'assert(loadfile("{self.__madScriptDir}"))()', wait)
 
-    def eval(self, input: str):
+    def eval(self, input: str, wait = True):
         if input[0] == "=":
             input = "_" + input
-        self.writeToProcess(input + "\n", False)
+        self.writeToProcess(input, wait)
         if input[0] == "_":
             result = self.receiveVar("_")
             return result
@@ -530,6 +529,8 @@ class MAD:  # Review private and public
             return "nil"
         elif isinstance(var, str) and convertString:
             return "'" + var + "'"
+        elif isinstance(var, complex):
+            return str(var).replace("j", "i")
         elif isinstance(var, (madObject, madElement)):
             return var.__name__
         elif isinstance(var, dict):
@@ -667,7 +668,6 @@ class MAD:  # Review private and public
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        print()
         self.close()
 
     # ---------------------------------------------------------------------------------------------------#
