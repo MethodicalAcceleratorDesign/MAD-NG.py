@@ -11,8 +11,8 @@ class shmBuffer:
     # readWriteLock = 0
 
     def __init__(self, ram_limit: int) -> None:
-        self.__shm = shared_memory.SharedMemory(create=True, size=ram_limit)
-        self.name = self.__shm.name
+        self.file = shared_memory.SharedMemory(create=True, size=ram_limit)
+        self.name = self.file.name
         self.__bufferInfo = np.memmap(
             "/dev/shm/" + self.name,
             dtype=np.int32,
@@ -100,9 +100,9 @@ class shmBuffer:
 
     def close(self):
         self.__numpyBuffer = None
-        self.__shm.close()  # Closes the shared memory, needs to be done before unlinked
-        self.__shm.unlink()  # Deletes the shared memory (prevents memory leaks)
+        self.file.close()  # Closes the shared memory, needs to be done before unlinked
+        self.file.unlink()  # Deletes the shared memory (prevents memory leaks)
 
     def __del__(self):
         self.__numpyBuffer = None
-        del self.__shm
+        del self.file

@@ -32,12 +32,15 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: Make shared memory more secure - flag at end, size and type in buffer, to deal with corrupted data
 # TODO: fix madl_mmap int, float and complex sizes to not be constant!
 # TODO: Allow sending of integers not always cast to float
+# TODO: Fix what happens if mad trys to write too much to the buffer! Then make ability to send in chunks
+
 
 
 class MAD:  # Review private and public
     __pagesWritten = 0
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
     userVars = {}
+    process = None
 
     def __init__(
         self,
@@ -267,8 +270,6 @@ class MAD:  # Review private and public
         self.writeToProcess(input + "\n", False)
         if input[0] == "_":
             result = self.receiveVar("_")
-            del self.userVars["_"]
-            del self.__dict__["_"]
             return result
 
     def MADXInput(self, input: str):
@@ -634,6 +635,8 @@ class MAD:  # Review private and public
         os.rmdir(self.__tmpFldr)
 
     def __del__(self):  # Should not be relied on
+        if self.shm.file.buf:
+            self.shm.close()
         if os.path.exists(self.pipeDir):
             os.unlink(self.pipeDir)
         if os.path.exists(self.__madScriptDir):

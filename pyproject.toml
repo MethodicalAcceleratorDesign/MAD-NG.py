@@ -1,10 +1,12 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
 
 [project]
 name = "pymadng"
-version = "0.1.0"
+version = "0.1.4"
 authors = [
   { name="Joshua Gray", email="joshua.mark.gray@cern.ch" },
 ]
@@ -20,10 +22,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics"
 ]
 dependencies = [
-  'numpy >= 1.23',
+  'numpy >= 1.20',
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/MethodicalAcceleratorDesign/MADpy"
 "Bug Tracker" = "https://github.com/MethodicalAcceleratorDesign/MADpy/issues"
 "MAD Source" = "https://github.com/MethodicalAcceleratorDesign/MAD"
+
+[tool.setuptools.packages.find]
+where = ["src"]
