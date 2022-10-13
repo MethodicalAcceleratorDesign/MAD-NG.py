@@ -15,25 +15,19 @@ from sympy import var  # Used to attach functions to the class
 from .pymadClasses import madObject, madElement, deferred
 
 # TODO: implement yield into MAD
-# TODO: Allow looping through objects
-# TODO: create a metaclass that allows for variables to be created using MAD.x and automatically sent over
+# TODO: Allow looping through objects (Not just elements)
 # TODO: don't pollute MAD environment, place into MAD's MADX environment
 # TODO: Have error if when importing, thing isn't found
 # TODO: Improve method syntax
 # TODO: Have every string send to mad go through the same converter - prevent duplication
 # TODO: Make it so that MAD does the loop for variables not python (speed)
-# TODO: Make args and kwargs not have different methods of string interpolation
-# TODO: Improve error catching
 # TODO: Lamdba and kwargs is a botched fix, not a fan of it
 # TODO: Recursive dot indexing
-# TODO: Improve declaration of where MAD is and usage of mad name
-# TODO: Remove return from call func and call method, allow return / multiple return directly out of the function (Will hugely simplify current functions)
-# TODO: Make runPipeContents aware of object or not
+# TODO: Add ability to make function asynchronous
 # TODO: Make shared memory more secure - flag at end, size and type in buffer, to deal with corrupted data
 # TODO: fix madl_mmap int, float and complex sizes to not be constant!
 # TODO: Allow sending of integers not always cast to float
 # TODO: Fix what happens if mad trys to write too much to the buffer! Then make ability to send in chunks
-
 
 
 class MAD:  # Review private and public
@@ -45,7 +39,7 @@ class MAD:  # Review private and public
 
     def __init__(
         self,
-        srcdir: str = None, #need to be optional?
+        srcdir: str = None,  # need to be optional?
         log: bool = False,
         ram_limit: int = 2**30 + 2**12,
         copyOnRetreive: bool = True,
@@ -61,14 +55,18 @@ class MAD:  # Review private and public
         self.RAM_LIMIT = int(ram_limit)
         self.copyOnRetreive = copyOnRetreive
         self.__tmpFldr = tempfile.mkdtemp(prefix="pymadng-") + "/"
-        self.__madScriptFd, self.__madScriptDir = tempfile.mkstemp(prefix="madscript-", dir=self.__tmpFldr)
-        self.__pyScriptFd, self.__pyScriptDir = tempfile.mkstemp(prefix="pyscript-", dir=self.__tmpFldr)
+        self.__madScriptFd, self.__madScriptDir = tempfile.mkstemp(
+            prefix="madscript-", dir=self.__tmpFldr
+        )
+        self.__pyScriptFd, self.__pyScriptDir = tempfile.mkstemp(
+            prefix="pyscript-", dir=self.__tmpFldr
+        )
         os.close(self.__pyScriptFd)
         if not srcdir:
             srcdir = os.path.dirname(os.path.abspath(__file__)) + "/"
         if srcdir[-1] != "/":
             srcdir += "/"
-        self.SRC_DIR = srcdir 
+        self.SRC_DIR = srcdir
         self.PATH_TO_MAD = srcdir + "mad"
         self.globalVars = {"np": np}
         self.pipeDir = self.__tmpFldr + "pipe"
@@ -120,9 +118,7 @@ class MAD:  # Review private and public
         self.pipeMatch = re.compile(
             r"(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>finished|continue)?"
         )
-        self.execCheck = re.compile(
-            r"self.__dict__\['.+\] = "
-        )
+        self.execCheck = re.compile(r"self.__dict__\['.+\] = ")
         # self.writeToProcess("_PROMPT = ''") #Change this to change how output works
 
         # --------------------------------Retrieve the modules of MAD-------------------------------#
@@ -253,9 +249,11 @@ class MAD:  # Review private and public
         if input[len(input) - 2 :] != "\n":
             input += "\n"  # Prevent multiple lines
         if self.mad_is_running_scipt:
-            self.runPipeContents() #This implementation is terrible -> what if the user wnats to results returned?
-            #Could the mad process write the the python mad class dictionary?
-        self.process.stdin.write((input + "\nwriteToPipe('finished\\n')\n").encode("utf-8"))
+            self.runPipeContents()  # This implementation is terrible -> what if the user wnats to results returned?
+            # Could the mad process write the the python mad class dictionary?
+        self.process.stdin.write(
+            (input + "\nwriteToPipe('finished\\n')\n").encode("utf-8")
+        )
         self.process.stdin.flush()
         self.mad_is_running_scipt = True
         if wait:
@@ -270,7 +268,7 @@ class MAD:  # Review private and public
         os.write(self.__madScriptFd, fileInput.encode("utf-8"))
         return self.writeToProcess(f'assert(loadfile("{self.__madScriptDir}"))()', wait)
 
-    def eval(self, input: str, wait = True):
+    def eval(self, input: str, wait=True):
         if input[0] == "=":
             input = "_" + input
         self.writeToProcess(input, wait)
@@ -280,6 +278,7 @@ class MAD:  # Review private and public
 
     def MADXInput(self, input: str):
         return self.sendScript("MADX:open_env()\n" + input + "\nMADX:close_env()")
+
     # ----------------------------------------------------------------------------------------------#
 
     # -----------------------------------------MAD Commands-----------------------------------------#
@@ -301,6 +300,7 @@ class MAD:  # Review private and public
     def readMADString(self, string):
         """Directly run by MAD, never used by user"""
         return string
+
     # ---------------------------------------------------------------------------------------------------#
 
     # ----------------------------------Sending variables across to MAD----------------------------------------#
@@ -391,7 +391,7 @@ class MAD:  # Review private and public
             return os.read(self.pipe, 8192).decode("utf-8").replace("\x00", "")
 
     # Read all types of contents
-    def runCommands(self, commands:str):
+    def runCommands(self, commands: str):
         evaluatedList = []
         for i in range(len(commands)):
             if self.execCheck.match(commands[i]):
@@ -399,7 +399,7 @@ class MAD:  # Review private and public
                     commands[i],
                     self.globalVars,
                     {"self": self},
-                ) #Always returns None
+                )  # Always returns None
             else:
                 evaluatedValue = eval(
                     commands[i],
@@ -422,7 +422,7 @@ class MAD:  # Review private and public
             self.pipeRead += self.readPipe()
             matchedString = self.pipeMatch.match(self.pipeRead)
             status = matchedString.group("status")
-            self.pipeRead = self.pipeRead[matchedString.end("status")+1:]
+            self.pipeRead = self.pipeRead[matchedString.end("status") + 1 :]
         if status == "finished":
             self.mad_is_running_scipt = False
         if matchedString.group("commands") is not None:
@@ -501,11 +501,12 @@ class MAD:  # Review private and public
                 newArray = np.empty_like(self.__dict__[key])
                 newArray[:] = self.__dict__[key][:]
                 self.__dict__[key] = newArray
+
     # -------------------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#
-    def __getKwargAsString(self, **kwargs):  
-    # Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup
+    def __getKwargAsString(self, **kwargs):
+        # Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup
         """Convert a kwargs input to a string used by MAD, should not be required by the user"""
         kwargsString = "{"
         for key, item in kwargs.items():
