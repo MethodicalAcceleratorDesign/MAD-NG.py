@@ -46,7 +46,7 @@ with MAD() as mad:
     plt.ylabel("beta11")
     plt.show()
 with MAD() as mad:
-    sharedData = mad.sendScript(
+    mad.sendScript(
         """
     local beam, twiss in MAD
     MADX:load("fodo.seq", "fodo.mad")
@@ -55,11 +55,9 @@ with MAD() as mad:
     local cols = {'name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'}
     mtbl = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
     mtbl:write("twiss_mad_tfs", cols)
-    sharedata({mtbl})
+    sharedata({mtbl}, {"mtbl"})
     """
     )
-    mad.mtbl = sharedData[0]
-    mad.mtbl.__name__ = "mtbl"
     plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
     plt.show()
 
