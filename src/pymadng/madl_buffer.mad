@@ -75,7 +75,6 @@ local function sortData(data)
     --This will try to call method "getBufData" (or something better), and only check for number, string and table (Table is seperate because) delegating is only way to separate mflow (or similar) and {1, 2, 3}
     local command = ""  
     if is_number(data) then
-        data = matrix(1):fill(data)
         command = command .. "self.readMADScalar(np.float64, [" .. data .. "], " .. ")"
     elseif is_boolean(data) then
         command = command .. "self.readMADScalar(bool, [" .. data .. "], " .. ")"

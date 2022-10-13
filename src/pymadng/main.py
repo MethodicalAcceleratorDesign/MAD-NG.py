@@ -276,9 +276,9 @@ class MAD:  # Review private and public
     # ----------------------------------------------------------------------------------------------#
 
     # -----------------------------------------MAD Commands-----------------------------------------#
-    def readMADScalar(self, dType):
+    def readMADScalar(self, dType, valueList):
         """Directly run by MAD, never used by user"""
-        return self.readMADMatrix(dType, [1, 1])[0][0]
+        return self.readMADMatrix(dType, [1, 1], valueList)[0][0]
 
     def getMADTable(self):  # Needs improvement!
         """Directly run by MAD, never used by user"""

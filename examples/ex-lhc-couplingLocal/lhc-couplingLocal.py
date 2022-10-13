@@ -9,7 +9,7 @@ import os
 
 current_dir = os.getcwd()
 
-with MAD(current_dir, log=True) as mad:
+with MAD(log=True) as mad:
     mad.importVariables("MAD.element.flags", ["observed"])
     mad.importVariables("MAD.utility", ["assertf", "printf"])
     mad.importVariables("MAD.gphys", ["mchklost"])
@@ -50,9 +50,7 @@ with MAD(current_dir, log=True) as mad:
 
     mad.match(
         ["status", "fmin", "ncall"],
-        mad.defExpr(
-            command="mchklost(twiss {sequence=lhcb1, method=4, observe=1})"
-        ),
+        mad.defExpr(command="mchklost(twiss {sequence=lhcb1, method=4, observe=1})"),
         mad.MADKwargs(
             "variables",
             mad.MADKwargs(None, var="MADX.dqx_b1", name="dQx.b1"),

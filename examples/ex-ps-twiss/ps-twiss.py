@@ -10,7 +10,7 @@ import os
 
 current_dir = os.getcwd()
 
-with MAD(current_dir, log=True) as mad:
+with MAD(log=True) as mad:
     mad.beam("psbeam", particle="proton", pc=2.794987)
     mad.MADX.BEAM = mad.psbeam
     mad.MADX.BRHO = mad.psbeam.brho
