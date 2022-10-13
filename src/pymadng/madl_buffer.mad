@@ -71,7 +71,7 @@ local function madMatrixToPyList(m)
     return r .. "]"
 end
 
-local function sortData(data) 
+local function sortData(data, name) 
     --This will try to call method "getBufData" (or something better), and only check for number, string and table (Table is seperate because) delegating is only way to separate mflow (or similar) and {1, 2, 3}
     local command = ""  
     if is_number(data) then
@@ -86,8 +86,12 @@ local function sortData(data)
         command = command .. "self.readMADMatrix(np.float64,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", " .. ")"
     elseif is_cmatrix(data) then
         command = command .. "self.readMADMatrix(np.complex128,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", " .. ")"
-    elseif is_table(data) then 
-        command = command .. "self.getMADTable(".. ")"
+    elseif is_table(data) then --temp before it knows its own name
+        if name then 
+            command = command .. "self.getMADTable('".. name .. "')"
+        else
+            command = command .. "self.getMADTable(None)"
+        end
     else
         writeToPipe(data)
     end 
@@ -108,17 +112,17 @@ local function sortTable(atable)
     islist = true
 end
 
-local function sharedata(dataList, istable) --Can't do tables of tables
+local function sharedata(dataList, dataNames, istable) --Can't do tables of tables
     if #dataList == 0 then 
         writeToPipe(pyCommandFormat .. 'None\n')
     end 
     entireCommand = ""
     for i, data in ipairs(dataList) do 
         if istable then sortTable(data) --temporary
-        else data, command, islist = sortData(data) end
+        else data, command, islist = sortData(data, dataNames[i]) end
 
         if islist then else end -- mapping would be here
-        entireCommand = entireCommand .. command .. "\n"
+        entireCommand = entireCommand .. "self.__dict__['" .. dataNames[i] .. "'] = ".. command .. "\n"
     end
     sendScript(entireCommand)
 end

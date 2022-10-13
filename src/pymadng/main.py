@@ -37,10 +37,11 @@ from .pymadClasses import madObject, madElement, deferred
 
 
 class MAD:  # Review private and public
-    __pagesWritten = 0
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
     userVars = {}
     process = None
+    mad_is_running_scipt = False
+    pipeRead = ""
 
     def __init__(
         self,
@@ -118,7 +119,10 @@ class MAD:  # Review private and public
         self.pollIn = select.poll()
         self.pollIn.register(self.pipe, select.POLLIN)
         self.pipeMatch = re.compile(
-            r"(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>finished)?"
+            r"(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>finished|continue)?"
+        )
+        self.execCheck = re.compile(
+            r"self.__dict__\['.+\] = "
         )
 
         # --------------------------------Retrieve the modules of MAD-------------------------------#
@@ -248,8 +252,12 @@ class MAD:  # Review private and public
         """Enter a string, which will be send directly to MAD interactive mode, most users should use sendScript"""
         if input[len(input) - 2 :] != "\n":
             input += "\n"  # Prevent multiple lines
+        if self.mad_is_running_scipt:
+            self.runPipeContents() #This implementation is terrible -> what if the user wnats to results returned?
+            #Could the mad process write the the python mad class dictionary?
         self.process.stdin.write((input).encode("utf-8"))
         self.process.stdin.flush()
+        self.mad_is_running_scipt = True
         if wait:
             return self.runPipeContents()
 
@@ -257,8 +265,7 @@ class MAD:  # Review private and public
         """Enter a string, which will be send in a separate file for MAD to run"""
         os.ftruncate(self.__madScriptFd, 0)
         os.lseek(self.__madScriptFd, 0, os.SEEK_SET)
-        if wait:
-            fileInput += "\nwriteToPipe('finished\\n')\n"
+        fileInput += "\nwriteToPipe('finished\\n')\n"
         if self.log:
             self.inputFile.write(fileInput)
         os.write(self.__madScriptFd, fileInput.encode("utf-8"))
@@ -281,9 +288,12 @@ class MAD:  # Review private and public
         """Directly run by MAD, never used by user"""
         return self.readMADMatrix(dType, [1, 1], valueList)[0][0]
 
-    def getMADTable(self):  # Needs improvement!
+    def getMADTable(self, name):  # Needs improvement!
         """Directly run by MAD, never used by user"""
-        return madObject("MADTABLE" + str(self.__pagesWritten), self)
+        if name:
+            return madObject(name, self)
+        else:
+            return madObject("MADTABLE", self)
 
     def readMADMatrix(self, DType, dims, valueList):
         """Directly run by MAD, never used by user"""
@@ -320,7 +330,7 @@ class MAD:  # Review private and public
                 varTypes.append(vars[i].dtype)
 
         # ---------------------Data size checks----------------------#
-        totalDataSize = self.__PAGE_SIZE * self.__pagesWritten
+        totalDataSize = 0
         for i in range(len(vars)):
             totalDataSize += (vars[i].nbytes // self.__PAGE_SIZE + 1) * self.__PAGE_SIZE
             if totalDataSize + self.__PAGE_SIZE > self.RAM_LIMIT:
@@ -385,11 +395,18 @@ class MAD:  # Review private and public
     def runCommands(self, commands:str):
         evaluatedList = []
         for i in range(len(commands)):
-            evaluatedValue = eval(
-                commands[i],
-                self.globalVars,
-                {"self": self},
-            )
+            if self.execCheck.match(commands[i]):
+                evaluatedValue = exec(
+                    commands[i],
+                    self.globalVars,
+                    {"self": self},
+                ) #Always returns None
+            else:
+                evaluatedValue = eval(
+                    commands[i],
+                    self.globalVars,
+                    {"self": self},
+                )
             if isinstance(evaluatedValue, tuple):
                 evaluatedList += evaluatedValue
             else:
@@ -401,29 +418,27 @@ class MAD:  # Review private and public
             return tuple(self.runCommands(file.read().split("\n")[:-1]))
 
     def runPipeContents(self):
-        status, pipeRead = None, ""
-        while status != "finished":
-            pipeRead += self.readPipe()
-            instructionSet = re.match(self.pipeMatch, pipeRead)
-            status = instructionSet.group("status")
-        if instructionSet.group("commands") is not None:
-            commands = instructionSet.group("commands").split("pyCommand:")[1:]
+        status = None
+        while not status:
+            self.pipeRead += self.readPipe()
+            matchedString = self.pipeMatch.match(self.pipeRead)
+            status = matchedString.group("status")
+            self.pipeRead = self.pipeRead[matchedString.end("status")+1:]
+        if status == "finished":
+            self.mad_is_running_scipt = False
+        if matchedString.group("commands") is not None:
+            commands = matchedString.group("commands").split("pyCommand:")[1:]
             evaluatedList = self.runCommands(commands)
         return evaluatedList
 
     def receiveVariables(self, varNameList: list[str], is_table: bool = False) -> Any:
         """Given a list of variable names, receive the variables from the MAD process, and save into the MAD dictionary"""
         # Split the reading to only 20 variables are read at once, significantly improves performance:
-        self.__varNameList = varNameList
-        madReturn = self.sendScript(
+        self.sendScript(
             f"""
-        local offset = sharedata({self.__pyToLuaLst(varNameList).replace("'", "")}, {self.__getAsMADString(is_table)})                  --This mmaps to shared memory
+        local offset = sharedata({self.__pyToLuaLst(varNameList).replace("'", "")}, {self.__pyToLuaLst(varNameList)}, {self.__getAsMADString(is_table)})                  --This mmaps to shared memory
             """
         )
-        for i in range(len(madReturn)):
-            if isinstance(madReturn[i], madObject):
-                madReturn[i].__name__ = self.__varNameList[i]
-            self.__dict__[varNameList[i]] = madReturn[i]
         return self[tuple(varNameList)]
 
     def receiveVar(self, var: str) -> Any:
@@ -464,9 +479,10 @@ class MAD:  # Review private and public
     ):
         """Call the method methName of the variable varName and store the result in resultName, then retreive the result into the MAD dictionary"""
         if isinstance(resultName, list):
-            resultName = self.__pyToLuaLst(resultName)
-        if resultName:
             stringStart = f"{self.__getAsMADString(resultName)} = "
+        elif resultName:
+            stringStart = f"{self.__getAsMADString(resultName)} = "
+            resultName = [resultName]
         else:
             stringStart = ""
         self.sendScript(
@@ -474,7 +490,7 @@ class MAD:  # Review private and public
             + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
         )
         if resultName:
-            return self.receiveVar(resultName)
+            return self.receiveVariables(resultName)
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -486,12 +502,11 @@ class MAD:  # Review private and public
                 newArray = np.empty_like(self.__dict__[key])
                 newArray[:] = self.__dict__[key][:]
                 self.__dict__[key] = newArray
-    # ---------------------------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#
-    def __getKwargAsString(
-        self, **kwargs
-    ):  # Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup
+    def __getKwargAsString(self, **kwargs):  
+    # Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup
         """Convert a kwargs input to a string used by MAD, should not be required by the user"""
         kwargsString = "{"
         for key, item in kwargs.items():
@@ -524,7 +539,7 @@ class MAD:  # Review private and public
         else:
             return str(var).replace("False", "false").replace("True", "true")
 
-    def __pyToLuaLst(self, lst: list[Any], split=False) -> str:
+    def __pyToLuaLst(self, lst: list[Any]) -> str:
         """Convert a python list to a lua list in a string, used when sending information to MAD, should not need to be accessed by user"""
         luaString = "{"
         for item in lst:
@@ -635,8 +650,6 @@ class MAD:  # Review private and public
         os.rmdir(self.__tmpFldr)
 
     def __del__(self):  # Should not be relied on
-        if self.shm.file.buf:
-            self.shm.close()
         if os.path.exists(self.pipeDir):
             os.unlink(self.pipeDir)
         if os.path.exists(self.__madScriptDir):
