@@ -1,10 +1,3 @@
---[[
-    Influence from https://github.com/luapower/mmap/blob/master/mmap.lua
-]]
-
-local ffi = require 'ffi'
-local bit = require 'bit'
-local istype in ffi
 local tostring, imatrix, matrix, cmatrix in MAD
 local is_matrix, is_cmatrix, is_imatrix, is_string, is_number, is_nil, is_element, is_boolean, is_rawtable, is_table, is_object, is_complex in MAD.typeid
 local type, assert, ipairs, tonumber, tostring, table, string = --Not all necessary (check)
@@ -13,7 +6,6 @@ local type, assert, ipairs, tonumber, tostring, table, string = --Not all necess
 local pipe = nil
 local scriptDir = nil
 local pyCommandFormat = "pyCommand:"
-local pyInstructionFormat = "pyInstruction:"
 
 ---------------------------------SETUP--------------------------------
 local function openPipe(pipeName)
@@ -132,7 +124,6 @@ end
 ----------------------------end-----------------------------
 return{ 
     sharedata = sharedata, 
-    sharetable = sharetable,
     readCMatrix = readCMatrix,
     readIMatrix = readIMatrix,
     readMatrix = readMatrix,

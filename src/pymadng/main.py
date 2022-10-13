@@ -18,8 +18,6 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: Allow looping through objects (Not just elements)
 # TODO: don't pollute MAD environment, place into MAD's MADX environment
 # TODO: Have error if when importing, thing isn't found
-# TODO: Improve method syntax
-# TODO: Have every string send to mad go through the same converter - prevent duplication
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 # TODO: Lamdba and kwargs is a botched fix, not a fan of it
 # TODO: Recursive dot indexing
@@ -181,6 +179,7 @@ class MAD:  # Review private and public
         self.sendScript(f"{varName} = {moduleName}.{varName}\n")
 
     def importClasses(self, moduleName: str, classesToImport: list[str] = []):
+        #Maybe not have this and have init function instead?
         """Import uninitialised variables into the local environment (necessary?)"""
         self.retrieveMADClasses(moduleName, True, classesToImport)
 
@@ -383,7 +382,7 @@ class MAD:  # Review private and public
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
     def readPipe(self):
         """Read up to 8.912 MB from the pipe and return the result"""
-        if self.pollIn.poll(120000) == []:  # 2 Minute poll!
+        if self.pollIn.poll(1000*60*10) == []:  # 10 Minute poll!
             warnings.warn(
                 "Either no data in PIPE or PIPE between MAD and python unavailable, may cause errors elsewhere"
             )
