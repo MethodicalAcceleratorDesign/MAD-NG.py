@@ -65,7 +65,7 @@ class madObject(object):
             self.__mad__.sendVar(self.__name__ + "." + item, value)
 
     def __str__(self):
-        return str(self.__mad__.receiveVariables([self.__name__], shareType="table")[0])
+        return str(self.__mad__.receiveVariables([self.__name__], True)[0])
 
     def method(self, methodName: str, resultName: str, *args):
         return self.__mad__.callMethod(resultName, self.__name__, methodName, *args)
