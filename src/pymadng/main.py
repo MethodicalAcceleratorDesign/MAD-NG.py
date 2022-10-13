@@ -33,6 +33,7 @@ from .pymadClasses import madObject, madElement, deferred
 # TODO: fix madl_mmap int, float and complex sizes to not be constant!
 # TODO: Allow sending of integers not always cast to float
 
+
 class MAD:  # Review private and public
     __pagesWritten = 0
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
@@ -40,7 +41,7 @@ class MAD:  # Review private and public
 
     def __init__(
         self,
-        srcdir: str = None,
+        srcdir: str = None, #need to be optional?
         log: bool = False,
         ram_limit: int = 2**30 + 2**12,
         copyOnRetreive: bool = True,
@@ -55,28 +56,28 @@ class MAD:  # Review private and public
         # Init shared memory related variables
         self.RAM_LIMIT = int(ram_limit)
         self.copyOnRetreive = copyOnRetreive
-        self.__scriptFd, self.__scriptDir = tempfile.mkstemp()
-        if not srcdir: 
+        self.__tmpFldr = tempfile.mkdtemp(prefix="pymadng-") + "/"
+        self.__madScriptFd, self.__madScriptDir = tempfile.mkstemp(prefix="madscript-", dir=self.__tmpFldr)
+        self.__pyScriptFd, self.__pyScriptDir = tempfile.mkstemp(prefix="pyscript-", dir=self.__tmpFldr)
+        os.close(self.__pyScriptFd)
+        if not srcdir:
             srcdir = os.path.dirname(os.path.abspath(__file__)) + "/"
         if srcdir[-1] != "/":
             srcdir += "/"
-        self.SRC_DIR = srcdir  # Must be run in directory where mad executable or a sub folder called pyMAD  ##Have this can be changed on install?
-        if srcdir[-1] != "/":
-            srcdir += "/"
-        self.SRC_DIR = srcdir  # Must be run in directory where mad executable or a sub folder called pyMAD  ##Have this can be changed on install?
-        # Path to mad executable -- this line will be changed to be more flexible
+        self.SRC_DIR = srcdir 
         self.PATH_TO_MAD = srcdir + "mad"
         self.globalVars = {"np": np}
-        self.pipeDir = srcdir + self.__scriptDir.split("/")[2].replace("tmp", "pipe")
+        self.pipeDir = self.__tmpFldr + "pipe"
 
         # Setup communication pipe
         os.mkfifo(self.pipeDir)
 
         # Create initial file when MAD process is created
         INITIALISE_SCRIPT = f"""
-        sharedata, sharetable, close, writeToPipe = require ("madl_buffer").sharedata, require ("madl_buffer").sharetable, require ("madl_buffer").close, require ("madl_buffer").writeToPipe\n
+        sharedata, sharetable, close, writeToPipe, setupScript = require ("madl_buffer").sharedata, require ("madl_buffer").sharetable, require ("madl_buffer").close, require ("madl_buffer").writeToPipe, require ("madl_buffer").setupScript\n
         local openPipe in require("madl_buffer")
         openPipe("{self.pipeDir}")
+        setupScript("{self.__pyScriptDir}")
        """
 
         # shell = True; security problems?
@@ -100,7 +101,7 @@ class MAD:  # Review private and public
             pass
         if log:
             # ----------Optional Logging-------------#
-            self.inputFile = open(srcdir + "inLog.txt", "w")
+            self.inputFile = open(os.getcwd() + "/inLog.txt", "w")
             self.process.logfile_send = self.inputFile
             # ---------------------------------------#
         self.log = log
@@ -114,7 +115,7 @@ class MAD:  # Review private and public
         self.pollIn = select.poll()
         self.pollIn.register(self.pipe, select.POLLIN)
         self.pipeMatch = re.compile(
-            r"(?P<instruction>pyInstruction:.*\n)*(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>continue|finished)?"
+            r"(?P<commands>(pyCommand:.*\n)*)\n*(?P<status>finished)?"
         )
 
         # --------------------------------Retrieve the modules of MAD-------------------------------#
@@ -207,7 +208,9 @@ class MAD:  # Review private and public
                 )  # So the user isn't forced to initialise the array as numpy
             self.__dict__[nameList[i]] = varList[i]
             if not isinstance(varList[i], madObject):
-                self.userVars[nameList[i]] = None  #####Double check if this is necessary
+                self.userVars[
+                    nameList[i]
+                ] = None  #####Double check if this is necessary
         self.sendVariables(list(self.userVars.keys()))
 
     def __getitem__(self, varName: str) -> Any:
@@ -249,14 +252,14 @@ class MAD:  # Review private and public
 
     def sendScript(self, fileInput: str, wait: bool = True) -> int:
         """Enter a string, which will be send in a separate file for MAD to run"""
-        os.ftruncate(self.__scriptFd, 0)
-        os.lseek(self.__scriptFd, 0, os.SEEK_SET)
+        os.ftruncate(self.__madScriptFd, 0)
+        os.lseek(self.__madScriptFd, 0, os.SEEK_SET)
         if wait:
             fileInput += "\nwriteToPipe('finished\\n')\n"
         if self.log:
             self.inputFile.write(fileInput)
-        os.write(self.__scriptFd, fileInput.encode("utf-8"))
-        return self.writeToProcess(f'assert(loadfile("{self.__scriptDir}"))()', wait)
+        os.write(self.__madScriptFd, fileInput.encode("utf-8"))
+        return self.writeToProcess(f'assert(loadfile("{self.__madScriptDir}"))()', wait)
 
     def eval(self, input: str):
         if input[0] == "=":
@@ -270,9 +273,6 @@ class MAD:  # Review private and public
 
     def MADXInput(self, input: str):
         return self.sendScript("MADX:open_env()\n" + input + "\nMADX:close_env()")
-    # def input(self, input: str): #Same as sendScript
-    #     self.writeToProcess("do " + input + " end")
-
     # ----------------------------------------------------------------------------------------------#
 
     # -----------------------------------------MAD Commands-----------------------------------------#
@@ -291,11 +291,6 @@ class MAD:  # Review private and public
     def readMADString(self, string):
         """Directly run by MAD, never used by user"""
         return string
-
-    def readMADTable(self, tableLength) -> list:  # Not doing named tables yet
-        """Reads a table from MAD and returns a list"""
-        return f"TABLE|STARTS|HERE|{tableLength}"
-
     # ---------------------------------------------------------------------------------------------------#
 
     # ----------------------------------Sending variables across to MAD----------------------------------------#
@@ -316,11 +311,14 @@ class MAD:  # Review private and public
                 elif isinstance(vars[i], list):
                     vars[i] = np.array(vars[i], ndmin=2)
                     varTypes.append(vars[i].dtype)
+                elif isinstance(vars[i], str):
+                    vars[i] = np.array((vars[i]), ndmin=1)
+                    varTypes.append(vars[i].dtype)
             else:
                 vars[i] = np.atleast_2d(vars[i])
                 varTypes.append(vars[i].dtype)
 
-        # ---------------------Data size checks----------------------# (Currently not used, file is opened at max memory size)
+        # ---------------------Data size checks----------------------#
         totalDataSize = self.__PAGE_SIZE * self.__pagesWritten
         for i in range(len(vars)):
             totalDataSize += (vars[i].nbytes // self.__PAGE_SIZE + 1) * self.__PAGE_SIZE
@@ -331,7 +329,7 @@ class MAD:  # Review private and public
                     )
                 )  # Next step would be to send in chunks
         # -----------------------------------------------------------#
-        fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar in require ("madl_buffer")\n'
+        fileInput = 'local readIMatrix, readMatrix, readCMatrix, readScalar, readString in require ("madl_buffer")\n'
         for i in range(len(vars)):
             if varTypes[i] == np.int32:
                 functionToCall = "readIMatrix"
@@ -345,8 +343,10 @@ class MAD:  # Review private and public
                 functionToCall = "readCMatrix"
             elif varTypes[i] == "scalar":
                 functionToCall = "readScalar"
+            elif str(varTypes[i])[:2] == "<U":
+                functionToCall = "readString"
             else:
-                print(varTypes[i])
+                print("got var type", varTypes[i])
                 raise (
                     NotImplementedError(
                         "received type:",
@@ -355,7 +355,6 @@ class MAD:  # Review private and public
                     )
                 )
             fileInput += f"{varNames[i]} = {functionToCall}({self.__pyToLuaLst(vars[i].shape)}, {self.__pyToLuaLst(vars[i])})\n"  # Process return
-            print(fileInput)
         self.sendScript(fileInput)
 
     def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list] = None):
@@ -379,62 +378,51 @@ class MAD:  # Review private and public
                 "Either no data in PIPE or PIPE between MAD and python unavailable, may cause errors elsewhere"
             )
         else:
-            return os.read(self.pipe, 8912).decode("utf-8").replace("\x00", "")
+            return os.read(self.pipe, 8192).decode("utf-8").replace("\x00", "")
 
     # Read all types of contents
+    def runCommands(self, commands:str):
+        evaluatedList = []
+        for i in range(len(commands)):
+            evaluatedValue = eval(
+                commands[i],
+                self.globalVars,
+                {"self": self},
+            )
+            if isinstance(evaluatedValue, tuple):
+                evaluatedList += evaluatedValue
+            else:
+                evaluatedList.append(evaluatedValue)
+        return evaluatedList
+
+    def readScript(self):
+        with open(self.__pyScriptDir, "r") as file:
+            return tuple(self.runCommands(file.read().split("\n")[:-1]))
+
     def runPipeContents(self):
-        status, pipeRead = "start", ""
-        instruction = None
-        self.evaluatedList = []
+        status, pipeRead = None, ""
         while status != "finished":
             pipeRead += self.readPipe()
             instructionSet = re.match(self.pipeMatch, pipeRead)
             status = instructionSet.group("status")
-            instruction = instruction or instructionSet.group("instruction")
-            if status == "finished" or status == "continue":
-                if instructionSet.group("commands") is not None:
-                    commands = instructionSet.group("commands").split("pyCommand:")[1:]
-                    tableStart, tableLength = 0, 0
-                    for i in range(len(commands)):
-                        evaluatedValue = eval(
-                            commands[i],
-                            self.globalVars,
-                            {"self": self},
-                        )
-                        if (
-                            isinstance(evaluatedValue, str)
-                            and evaluatedValue[:17] == "TABLE|STARTS|HERE"
-                        ):
-                            tableLength, tableStart = int(evaluatedValue[18:]), i
-                            self.evaluatedList.append([])
-                        elif tableLength > 0 and i <= tableStart + tableLength:
-                            self.evaluatedList[-1].append(evaluatedValue)
-                        else:
-                            self.evaluatedList.append(evaluatedValue)
-                            tableStart, tableLength = 0, 0
-            if status == "continue":
-                self.evaluatedList.pop()
-                pipeRead = ""
-        if instruction == "pyInstruction:Save\n":
-            return self.evaluatedList
+        if instructionSet.group("commands") is not None:
+            commands = instructionSet.group("commands").split("pyCommand:")[1:]
+            evaluatedList = self.runCommands(commands)
+        return evaluatedList
 
-    def receiveVariables(self, varNameList: list[str], shareType="data") -> Any:
+    def receiveVariables(self, varNameList: list[str], is_table: bool = False) -> Any:
         """Given a list of variable names, receive the variables from the MAD process, and save into the MAD dictionary"""
-        numVars = len(varNameList)
-        y = min(numVars, 20)
         # Split the reading to only 20 variables are read at once, significantly improves performance:
-        for x in range(0, numVars, 20):
-            self.__varNameList = varNameList[x:y]
-            madReturn = self.sendScript(
-                f"""
-            local offset = share{shareType}({self.__pyToLuaLst(varNameList[x:y]).replace("'", "")})                  --This mmaps to shared memory
-                """
-            )
-            for i in range(len(madReturn)):
-                if isinstance(madReturn[i], madObject):
-                    madReturn[i + x].__name__ = self.__varNameList[i + x]
-                self[varNameList[i + x]] = madReturn[i]
-            y += min(20, numVars - y)
+        self.__varNameList = varNameList
+        madReturn = self.sendScript(
+            f"""
+        local offset = sharedata({self.__pyToLuaLst(varNameList).replace("'", "")}, {self.__getAsMADString(is_table)})                  --This mmaps to shared memory
+            """
+        )
+        for i in range(len(madReturn)):
+            if isinstance(madReturn[i], madObject):
+                madReturn[i].__name__ = self.__varNameList[i]
+            self.__dict__[varNameList[i]] = madReturn[i]
         return self[tuple(varNameList)]
 
     def receiveVar(self, var: str) -> Any:
@@ -558,11 +546,7 @@ class MAD:  # Review private and public
             for arg in arguments:
                 result += self.__getAsMADString(arg) + ","
             result = result[:-1]
-        return (
-            result
-            + " -> "
-            + expression
-        )
+        return result + " -> " + expression
 
     # ---------------------------------------------------------------------------------------------------#
 
@@ -594,9 +578,11 @@ class MAD:  # Review private and public
             if moduleName == "MAD.element":
                 self[resultName] = madElement(resultName, self)
                 returnElm = (
-                lambda _,**kwargs: f"""{resultName} {self.__getKwargAsString(**kwargs)}"""
+                    lambda _, **kwargs: f"""{resultName} {self.__getKwargAsString(**kwargs)}"""
                 )
-                setattr(self[resultName], "set", MethodType(returnElm, self[resultName]))
+                setattr(
+                    self[resultName], "set", MethodType(returnElm, self[resultName])
+                )
             else:
                 self[resultName] = madObject(resultName, self)
 
@@ -640,17 +626,22 @@ class MAD:  # Review private and public
         self.convertMmapToData()
         self.userVars.clear()
         if self.process:
-            # self.writeToProcess("do close() end", wait = False)
             self.process.terminate()  # ctrl-c (stops mad)
             self.process.wait()
-        os.unlink(self.__scriptDir)
+        os.unlink(self.__madScriptDir)
+        os.unlink(self.__pyScriptDir)
         os.unlink(self.pipeDir)
+        os.rmdir(self.__tmpFldr)
 
     def __del__(self):  # Should not be relied on
         if os.path.exists(self.pipeDir):
             os.unlink(self.pipeDir)
-        if os.path.exists(self.__scriptDir):
-            os.unlink(self.__scriptDir)
+        if os.path.exists(self.__madScriptDir):
+            os.unlink(self.__madScriptDir)
+        if os.path.exists(self.__pyScriptDir):
+            os.unlink(self.__pyScriptDir)
+        if os.path.exists(self.__tmpFldr):
+            os.rmdir(self.__tmpFldr)
         if self.process:
             self.process.terminate()
             self.process.wait()
