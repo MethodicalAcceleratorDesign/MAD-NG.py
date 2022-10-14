@@ -56,13 +56,7 @@ end
 
 --------------------------WRITING-------------------------------------
 local function madMatrixToPyList(m)
-    r = "["
-    for i, v in ipairs(m) do
-        if is_complex(v) then  r = r .. string.gsub(tostring(v), "i", "j") ..","
-        else                   r = r .. v .."," 
-        end
-    end
-    return r .. "]"
+    return "[" .. string.gsub(m:tostring(",", ","), "i", "j") .. "]"
 end
 
 local function sortData(data, name) 
