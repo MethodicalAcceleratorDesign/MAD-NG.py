@@ -1,24 +1,18 @@
-local tostring, imatrix, matrix, cmatrix in MAD
-local is_matrix, is_cmatrix, is_imatrix, is_string, is_number, is_nil, is_element, is_boolean, is_rawtable, is_table, is_object, is_complex in MAD.typeid
-local type, assert, ipairs, tonumber, tostring, table, string = --Not all necessary (check)
-      type, assert, ipairs, tonumber, tostring, table, string    --Any others here?
-
 local pipe = nil
 local scriptDir = nil
-local pyCommandFormat = "pyCommand:"
+-- local pyCommandFormat = "pyCommand:"
 
----------------------------------SETUP--------------------------------
 local function openPipe(pipeName)
     pipe = assert(io.open(pipeName, "w"))
     pipe:setvbuf("no")
 end
 
-local function writeToPipe(string)
-    pipe:write(string)
-end
-
 local function setupScript(scriptName)
     scriptDir = scriptName
+end
+
+local function writeToPipe(string)
+    pipe:write(string)
 end
 
 local function sendScript(text)
@@ -26,103 +20,12 @@ local function sendScript(text)
     file:write(text)
     file:flush()
     file:close()
-    writeToPipe(pyCommandFormat .. "self.readScript()\n")
+    writeToPipe("self.readScript()\n")
+    -- writeToPipe(pyCommandFormat .. "self.readScript()\n")
 end
 
-----------------------------------READING------------------------------
-local function readCMatrix(dims, values)
-    data = cmatrix(dims[1], dims[2])
-    return data:fill(values)
-end
-
-local function readMatrix(dims, values)
-    data = matrix(dims[1], dims[2])
-    return data:fill(values)
-end
-
-local function readIMatrix(dims, values)
-    data = matrix(dims[1], dims[2])
-    return data:fill(values)
-end
-
-local function readScalar(dims, value)
-    return value[1][1]
-end
-
-local function readString(dims, string)
-    return string[1]
-end
------------------------------------------------------------------------
-
---------------------------WRITING-------------------------------------
-local function madMatrixToPyList(m)
-    return "[" .. string.gsub(m:tostring(",", ","), "i", "j") .. "]"
-end
-
-local function sortData(data, name) 
-    --This will try to call method "getBufData" (or something better), and only check for number, string and table (Table is seperate because) delegating is only way to separate mflow (or similar) and {1, 2, 3}
-    local command = ""  
-    if is_number(data) then
-        command = command .. "self.readMADScalar(np.float64, [" .. data .. "], " .. ")"
-    elseif is_boolean(data) then
-        command = command .. "self.readMADScalar(bool, [" .. data .. "], " .. ")"
-    elseif is_string(data) then 
-        command = command .. "self.readMADString('".. data .."'," .. ")"
-    elseif is_imatrix(data) then
-        command = command .. "self.readMADMatrix(np.int32,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", " .. ")"
-    elseif is_matrix(data) then
-        command = command .. "self.readMADMatrix(np.float64,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", " .. ")"
-    elseif is_cmatrix(data) then
-        command = command .. "self.readMADMatrix(np.complex128,["..data.nrow..","..data.ncol.."], " .. madMatrixToPyList(data) .. ", " .. ")"
-    elseif is_table(data) then --temp before it knows its own name
-        if name then 
-            command = command .. "self.getMADTable('".. name .. "')"
-        else
-            command = command .. "self.getMADTable(None)"
-        end
-    else
-        writeToPipe(data)
-    end 
-    return data, command
-end
-
-
-local function sortTable(data)
-    command = "["
-    dataList = {}
-    for i, v in ipairs(data) do 
-        newValue, newCmd, none = sortData(v)
-        dataList[i]= newValue
-        command = command .. newCmd .. ","
-    end
-    command = command .. "]"
-    data = dataList
-    islist = true
-    return data, command
-end
-
-local function sharedata(dataList, dataNames, istable) --Can't do tables of tables
-    if #dataList == 0 then 
-        writeToPipe(pyCommandFormat .. 'None\n')
-    end 
-    entireCommand = ""
-    for i, data in ipairs(dataList) do 
-        if istable then data, command, islist = sortTable(data) --temporary
-        else data, command, islist = sortData(data, dataNames[i]) end
-
-        if islist then else end -- mapping would be here
-        entireCommand = entireCommand .. "self.__dict__['" .. dataNames[i] .. "'] = ".. command .. "\n"
-    end
-    sendScript(entireCommand)
-end
-----------------------------end-----------------------------
 return{ 
     sharedata = sharedata, 
-    readCMatrix = readCMatrix,
-    readIMatrix = readIMatrix,
-    readMatrix = readMatrix,
-    readScalar = readScalar,
-    readString = readString,
     setupScript = setupScript,
     openPipe = openPipe,
     writeToPipe = writeToPipe,
