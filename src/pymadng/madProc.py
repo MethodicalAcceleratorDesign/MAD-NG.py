@@ -3,6 +3,7 @@ import numpy as np
 
 #Working: mad.send("""MAD.send([==[mad.send('''MAD.send([=[mad.send("MAD.send([[print('hello world')]])")]=])''')]==])""")
 #Working: mad.send("""MAD.send([=[mad.send("MAD.send([[print('hello')]])")]=])""")
+#Working for me: mad.send("""send([==[mad.send(\"\"\"send([=[mad.send("send([[print('hello world')]])")]=])\"\"\")]==])""")
 
 class madProcess:
     globalVars = {"np": np}
@@ -23,8 +24,8 @@ class madProcess:
             text=True
         )
         self.send(f"""
-        MAD.send = require ("madl_buffer").send
-        local openPipeToPython in require("madl_buffer")
+        send = require ("madl_pymad").send
+        local openPipeToPython in require("madl_pymad")
         openPipeToPython("{self.pipeDir}")
         """)
 
@@ -35,7 +36,7 @@ class madProcess:
         self.process.stdin.write(("load([==========[" + input + "]==========])()\n"))
     
     def read(self):
-        pipeText = os.read(self.pipe, 8192)
+        pipeText = os.read(self.MADToPyPipe, 8192)
         code = compile(pipeText, "pipe", "exec")
         exec(code, self.globalVars, {self.className: self})
 
