@@ -1,34 +1,15 @@
 local pipe = nil
-local scriptDir = nil
--- local pyCommandFormat = "pyCommand:"
 
 local function openPipe(pipeName)
     pipe = assert(io.open(pipeName, "w"))
-    print(pipeName)
     pipe:setvbuf("no")
-end
-
-local function setupScript(scriptName)
-    scriptDir = scriptName
 end
 
 local function send(string)
     pipe:write(string .. "\n")
-    pipe:flush()
-end
-
-local function sendScript(text)
-    file = assert(io.open(scriptDir, "w"))
-    file:write(text)
-    file:flush()
-    file:close()
-    send("self.readScript()\n")
-    -- send(pyCommandFormat .. "self.readScript()\n")
 end
 
 return{ 
-    sharedata = sharedata, 
-    setupScript = setupScript,
     openPipe = openPipe,
     send = send,
 }
