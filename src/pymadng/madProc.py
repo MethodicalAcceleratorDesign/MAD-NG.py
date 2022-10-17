@@ -1,60 +1,64 @@
 import tempfile, select, os, re, subprocess, sys
 import numpy as np
 
+#Working: mad.send("""send([==[self.send('''send([=[self.send("send([[print('hello world')]])")]=])''')]==])""")
+#Working: mad.send("""send([=[self.send("send([[print('hello')]])")]=])""")
+
 class madProcess:
-    process = None
-    mad_is_running_scipt = False
-    pipeRead = ""
     globalVars = {"np": np}
+    # pipe = None
 
     def __init__(self) -> None:
-        # Init temp files
-        self.__tmpFldr = tempfile.TemporaryDirectory(prefix="pymadng-")
-        self.__madScript = tempfile.NamedTemporaryFile(prefix="madscript-", dir=self.__tmpFldr)
-        self.__pyScript = tempfile.NamedTemporaryFile(prefix="pyscript-", dir=self.__tmpFldr)
+        self.__tmpFldr = tempfile.TemporaryDirectory(prefix="pymadng-") #I don't need temp files, with a temp dir
+        self.__madScript = tempfile.mkstemp(prefix="madscript-", dir=self.__tmpFldr.name) #If named temporary file is used, cleanup errors occur
+        self.__pyScript = tempfile.mkstemp(prefix="pyscript-", dir=self.__tmpFldr.name)
         
-        self.PATH_TO_MAD = os.path.dirname(os.path.abspath(__file__)) + "/mad"
-        self.pipeDir = self.__tmpFldr + "pipe"
-
-        # Setup communication pipe
+        self.pipeDir = self.__tmpFldr.name + "/pipe"
         os.mkfifo(self.pipeDir)
 
-        # Create initial file when MAD process is created
-        INITIALISE_SCRIPT = f"""
-        writeToPipe, setupScript = require ("madl_buffer").writeToPipe, require ("madl_buffer").setupScript
-        local openPipe in require("madl_buffer")
-        openPipe("{self.pipeDir}")
-        setupScript("{self.__pyScript.name}")
-        """
-
-        # shell = True; security problems?
         self.process = subprocess.Popen(
-            self.PATH_TO_MAD + " -q" + " -i",
+            os.path.dirname(os.path.abspath(__file__)) + "/mad" + " -q" + " -i",
             shell=True,
             bufsize=0,
             stdout=sys.stdout,
             stderr=sys.stdout,
             stdin=subprocess.PIPE,
-        )  # , universal_newlines=True)
-        try:  # See if it closes in 10 ms (1 ms is too quick)
-            self.process.wait(0.1)
-            self.close()
-            raise (
-                OSError(
-                    f"Unsuccessful opening of {self.PATH_TO_MAD}, process closed immediately"
-                )
-            )
-        except subprocess.TimeoutExpired:
-            pass
+        )
+        self.sendScript(f"""
+        send = require ("madl_buffer").send
+        local openPipe, setupScript in require("madl_buffer")
+        openPipe("{self.pipeDir}")
+        setupScript("{self.__pyScript[1]}")
+        """)
 
-        # Wait for mad to be ready for input
-        self.sendScript(INITIALISE_SCRIPT, False)
-
-        # Now read from pipe as write end is open
         self.pipe = os.open(self.pipeDir, os.O_RDONLY)
         self.pollIn = select.poll()
         self.pollIn.register(self.pipe, select.POLLIN)
-        self.writeToProcess("_PROMPT = ''") #Change this to change how output works
+        self.send("_PROMPT = ''") #Change this to change how output works
 
-        def __del__(self):
-            self.__tmpFldr.cleanup()
+    def send(self, input: str) -> int:
+        self.process.stdin.write((input+"\n").encode("utf-8"))
+        self.process.stdin.flush()
+
+    def sendScript(self, fileInput: str) -> int:  
+        with open(self.__madScript[1], "w") as file:
+            file.write(fileInput)
+        self.send(f'assert(loadfile("{self.__madScript[1]}"))()')
+    
+    def readPipe(self):
+        if self.pollIn.poll(1000*60*1) == []:  # 1 Minute poll!
+            raise(TimeoutError("Mad has not sent anything"))
+        else:
+            pipeText = os.read(self.pipe, 8192)#.decode("utf-8").replace("\x00", "")
+            code = compile(pipeText, "pipe", "exec")
+            exec(code, self.globalVars, {"self": self})
+
+    def readScript(self):
+        with open(self.__pyScript[1], "r") as file:
+            code = compile(file.read(), self.__pyScript[1], "exec")
+            exec(code, self.globalVars, {"self": self})
+
+    def __del__(self):
+        self.__tmpFldr.cleanup()
+        self.process.terminate()
+        self.process.wait()

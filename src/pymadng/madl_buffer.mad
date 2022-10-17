@@ -4,6 +4,7 @@ local scriptDir = nil
 
 local function openPipe(pipeName)
     pipe = assert(io.open(pipeName, "w"))
+    print(pipeName)
     pipe:setvbuf("no")
 end
 
@@ -11,8 +12,9 @@ local function setupScript(scriptName)
     scriptDir = scriptName
 end
 
-local function writeToPipe(string)
-    pipe:write(string)
+local function send(string)
+    pipe:write(string .. "\n")
+    pipe:flush()
 end
 
 local function sendScript(text)
@@ -20,13 +22,13 @@ local function sendScript(text)
     file:write(text)
     file:flush()
     file:close()
-    writeToPipe("self.readScript()\n")
-    -- writeToPipe(pyCommandFormat .. "self.readScript()\n")
+    send("self.readScript()\n")
+    -- send(pyCommandFormat .. "self.readScript()\n")
 end
 
 return{ 
     sharedata = sharedata, 
     setupScript = setupScript,
     openPipe = openPipe,
-    writeToPipe = writeToPipe,
+    send = send,
 }
