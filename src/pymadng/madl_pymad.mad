@@ -1,0 +1,15 @@
+local MADToPyPipe = nil
+
+local function openPipeToPython(pipeName)
+    MADToPyPipe = assert(io.open(pipeName, "w"))
+    MADToPyPipe:setvbuf("no")
+end
+
+local function send(string)
+    MADToPyPipe:write(string .. "\n")
+end
+
+return{ 
+    openPipeToPython = openPipeToPython,
+    send = send,
+}
