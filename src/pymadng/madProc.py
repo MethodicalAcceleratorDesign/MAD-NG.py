@@ -32,7 +32,7 @@ class madProcess:
         self.process.stdin.write(("load([==========[" + input + "]==========])()\n").encode("utf-8"))
         self.process.stdin.flush()
     
-    def readPipe(self):
+    def read(self):
         pipeText = os.read(self.pipe, 8192)
         code = compile(pipeText, "pipe", "exec")
         exec(code, self.globalVars, {"self": self})
