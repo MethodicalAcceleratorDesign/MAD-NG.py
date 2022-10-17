@@ -1,4 +1,6 @@
 local MADToPyPipe = nil
+local is_string in MAD.typeid
+local assert = assert
 
 local function openPipeToPython(pipeName)
     MADToPyPipe = assert(io.open(pipeName, "w"))
@@ -6,6 +8,7 @@ local function openPipeToPython(pipeName)
 end
 
 local function send(string)
+    assert(is_string(string), "expected string")
     MADToPyPipe:write(string .. "\n")
 end
 
