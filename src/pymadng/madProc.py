@@ -6,7 +6,6 @@ import numpy as np
 
 class madProcess:
     globalVars = {"np": np}
-    # pipe = None
 
     def __init__(self) -> None:
         self.__tmpFldr = tempfile.TemporaryDirectory(prefix="pymadng-")
@@ -14,7 +13,7 @@ class madProcess:
         os.mkfifo(self.pipeDir)
 
         self.process = subprocess.Popen(
-            [os.path.dirname(os.path.abspath(__file__)) + "/mad",  "-q",  "-i",],
+            [os.path.dirname(os.path.abspath(__file__)) + "/mad",  "-q",  "-i"],
             bufsize=0,
             stdout=sys.stdout,
             stderr=sys.stdout,
@@ -32,11 +31,12 @@ class madProcess:
         self.send("_PROMPT = ''") #Change this to change how output works
 
     def send(self, input: str) -> int:
-        self.process.stdin.write(("load([=======[" + input + "]=======])()\n").encode("utf-8"))
+        self.process.stdin.write(("load([==========[" + input + "]==========])()\n").encode("utf-8"))
         self.process.stdin.flush()
     
-    def readPipe(self):
-        if self.pollIn.poll(1000*60*1) == []:  # 1 Minute poll!
+    def readPipe(self, timeout = 60):
+        """Read the pipe, timing out after 'timeout' seconds."""
+        if self.pollIn.poll(1000*timeout) == []:  # 1 Minute poll!
             raise(TimeoutError("Mad has not sent anything"))
         else:
             pipeText = os.read(self.pipe, 8192)
