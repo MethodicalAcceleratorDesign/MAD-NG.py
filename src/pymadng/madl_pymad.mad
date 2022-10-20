@@ -24,6 +24,7 @@
 -- locals ---------------------------------------------------------------------o
 
 local is_string in MAD.typeid
+local fprintf in MAD.utility
 
 local assert = assert
 
@@ -33,6 +34,7 @@ local pymad = MAD.object 'pymad' {}
 
 local function send(self, str)
   assert(is_string(str), "invalid argument #2 (string expected)")
+  str = ("%08d"):format(#str) .. str
   self.__py_out:write(str, "\n")
   return self
 end

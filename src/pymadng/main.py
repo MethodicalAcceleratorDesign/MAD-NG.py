@@ -25,6 +25,7 @@ from .madProc import madProcess
 # TODO: fix madl_mmap int, float and complex sizes to not be constant!
 # TODO: Allow sending of integers not always cast to float
 # TODO: Fix what happens if mad trys to write too much to the buffer! Then make ability to send in chunks
+# TODO: Look into how to use repr!!!!!!! (May simplify string iterpolation)
 
 class MAD(object):  # Review private and public
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
@@ -32,29 +33,29 @@ class MAD(object):  # Review private and public
     pipeRead = ""
 
     def __init__(
-        self, madName: str = "mad", pyName: str = "py", madPath: str = None
+        self, pyName: str = "py", madPath: str = None
     ) -> None:
         """Initialise MAD Object.
         """
-        self.madProcess = madProcess(madName, pyName, madPath)
+        self.process = madProcess(pyName, madPath)
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
-        modulesToImport = [
-            # "MAD", #Need MAD.MAD?
-            "elements",
-            "sequence",
-            "mtable",
-            "twiss",
-            "beta0",
-            "beam",
-            "survey",
-            "object",
-            "track",
-            "match",
-        ]
-        self.importClasses("MAD", modulesToImport)
-        self.importClasses("MAD.element")
-        self.__dict__["MADX"] = madObject("MADX", self)
+        # modulesToImport = [
+        #     # "MAD", #Need MAD.MAD?
+        #     "elements",
+        #     "sequence",
+        #     "mtable",
+        #     "twiss",
+        #     "beta0",
+        #     "beam",
+        #     "survey",
+        #     "object",
+        #     "track",
+        #     "match",
+        # ]
+        # self.importClasses("MAD", modulesToImport)
+        # self.importClasses("MAD.element")
+        # self.__dict__["MADX"] = madObject("MADX", self)
 
     # ------------------------------------------------------------------------------------------#
 
@@ -73,7 +74,7 @@ class MAD(object):  # Review private and public
         else:
             for className in classNames:
                 script += f"""py:send('pyCommand:self._import("{moduleName}", "{className}", "'.. tostring({moduleName}.{className}) .. '", {requireInitialisation})\\n')\n"""
-        self.madProcess.send(script)
+        self.process.send(script)
 
     # CLEAN UP THIS FUNCTION:
     def _import(self, moduleName, varName, varType, requireInitialisation):
@@ -138,13 +139,13 @@ class MAD(object):  # Review private and public
     def eval(self, input: str):
         if input[0] == "=":
             input = "_" + input
-        self.madProcess.send(input)
+        self.process.send(input)
         if input[0] == "_":
             result = self.receiveVar("_")
             return result
 
     def MADXInput(self, input: str):
-        return self.madProcess.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
+        return self.process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
 
     # ----------------------------------------------------------------------------------------------#
 
@@ -228,7 +229,7 @@ class MAD(object):  # Review private and public
                     )
                 )
             fileInput += f"{varNames[i]} = {functionToCall}({self.__pyToLuaLst(vars[i].shape)}, {self.__pyToLuaLst(vars[i])})\n"  # Process return
-        self.madProcess.send(fileInput)
+        self.process.send(fileInput)
 
     def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list]):
         """Send a variable to the MAD process, either send a varName that already exists in the python MAD class or a varName along with data"""
@@ -238,7 +239,7 @@ class MAD(object):  # Review private and public
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
     def receiveVariables(self, varNameList: list[str], is_table: bool = False) -> Any:
         """Given a list of variable names, receive the variables from the MAD process, and save into the MAD dictionary"""
-        madReturn = self.madProcess.send(
+        madReturn = self.process.send(
             f"""
         local offset = sharedata({self.__pyToLuaLst(varNameList).replace("'", "")}, {self.__pyToLuaLst(varNameList)})                  --This mmaps to shared memory
             """
@@ -260,7 +261,7 @@ class MAD(object):  # Review private and public
             stringStart = f"{self.__getAsMADString(resultName)} = "
         else:
             stringStart = ""
-        self.madProcess.send(
+        self.process.send(
             stringStart
             + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"""
         )
@@ -278,7 +279,7 @@ class MAD(object):  # Review private and public
             resultName = [resultName]
         else:
             stringStart = ""
-        self.madProcess.send(
+        self.process.send(
             stringStart
             + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
         )
@@ -371,7 +372,7 @@ class MAD(object):  # Review private and public
             self.receiveVariables(resultName)  # Make this optional, or not do it
 
         else:
-            self.madProcess.send(
+            self.process.send(
                 f"""
     {resultName} = {className} '{resultName}' {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} 
                 """
@@ -393,7 +394,7 @@ class MAD(object):  # Review private and public
 
     def deferred(self, varName: str, **kwargs):
         """Create a deffered expression object with the name "varName" where the kwargs are used as the deffered expressions, specified using strings"""
-        self.madProcess.send(
+        self.process.send(
             f"""
             local deferred in MAD.typeid
             {varName} = deferred {{{self.defExpr(**kwargs)}}}
@@ -410,7 +411,7 @@ class MAD(object):  # Review private and public
         if ".mad" not in targetFile:
             targetFile += ".mad"
         # Potential failure below - if *args does not contain element set, " may be removed unnecessarily
-        self.madProcess.send(
+        self.process.send(
             f"""
             MADX:load("{seqFilename}", "{targetFile}")
             {seqName} = MADX.seq

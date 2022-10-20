@@ -1,4 +1,4 @@
-import tempfile, os, subprocess, sys, select
+import tempfile, os, subprocess, sys, select, inspect
 import numpy as np
 
 # Working: mad.send("""MAD.send([==[mad.send('''MAD.send([=[mad.send("MAD.send([[print('hello world')]])")]=])''')]==])""")
@@ -8,14 +8,13 @@ import numpy as np
 
 class madProcess:
     def __init__(
-        self, madName: str = "mad", pyName: str = "py", madPath: str = None
+        self, pyName: str = "py", madPath: str = None,
     ) -> None:
-        self.madName = madName
         self.pyName = pyName
 
         madPath = madPath or os.path.dirname(os.path.abspath(__file__)) + "/mad"
 
-        self.process = subprocess.Popen(
+        self.__process = subprocess.Popen(
             [madPath, "-q", "-i"],
             bufsize=0,
             stdout=sys.stdout,
@@ -28,7 +27,7 @@ class madProcess:
         self.tmpFldr = tempfile.TemporaryDirectory(prefix="pymadng-")
         self.pipeName = self.tmpFldr.name + "/pipe"
 
-        if self.process.poll():
+        if self.__process.poll():
             raise(OSError(
                 f"Unsuccessful opening of {madPath}, process closed immediately"
             ))
@@ -49,7 +48,7 @@ class madProcess:
         self.send("_PROMPT2 = ''")  # Change this to change how output works
 
     def send(self, input: str) -> int:
-        self.process.stdin.write(
+        self.__process.stdin.write(
             "assert(load([==========[" + input + "]==========]))()\n"
         )
 
@@ -57,11 +56,17 @@ class madProcess:
         if self.pyInPoll.poll(1000 * timeout) == []:  # timeout seconds poll!
             raise(TimeoutError("No commands have been send to from MAD to Py!"))
         else:
-            cmds = os.read(self.pyInput, 8192)
+            bytesToRead = int(os.read(self.pyInput, 8))
+            cmds = os.read(self.pyInput, bytesToRead)
+            while len(cmds) < bytesToRead:
+                cmds += os.read(self.pyInput, bytesToRead - len(cmds))
             code = compile(cmds, "pyInput", "exec")
-            exec(code, self.globalVars, {self.madName: self})
+            # What happens on fork? What becomes top stack? Will user scope always be 1 level above this scope? (instead)
+            userFrame = inspect.stack()[-1][0] 
+            exec(code, userFrame.f_globals, userFrame.f_locals)
+            del userFrame # prevent reference cycle
 
     def __del__(self):
-        self.process.terminate()
-        self.process.wait()
+        self.__process.terminate()
+        self.__process.wait()
         self.tmpFldr.cleanup()
