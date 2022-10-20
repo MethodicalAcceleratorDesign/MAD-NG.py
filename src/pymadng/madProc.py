@@ -1,4 +1,4 @@
-import tempfile, os, subprocess, sys
+import tempfile, os, subprocess, sys, select
 import numpy as np
 
 # Working: mad.send("""MAD.send([==[mad.send('''MAD.send([=[mad.send("MAD.send([[print('hello world')]])")]=])''')]==])""")
@@ -37,8 +37,9 @@ class madProcess:
             + self.pipeName
             + "')"
         )
-
         self.pyInput = os.open(self.pipeName, os.O_RDONLY)
+        self.pyInPoll = select.poll()
+        self.pyInPoll.register(self.pyInput, select.POLLIN)
         self.send("_PROMPT = ''")  # Change this to change how output works
 
     def send(self, input: str) -> int:
@@ -46,10 +47,13 @@ class madProcess:
             "assert(load([==========[" + input + "]==========]))()\n"
         )
 
-    def read(self):
-        cmds = os.read(self.pyInput, 8192)
-        code = compile(cmds, "pyInput", "exec")
-        exec(code, self.globalVars, {self.madName: self})
+    def read(self, timeout = 10):
+        if self.pyInPoll.poll(1000 * timeout) == []:  # timeout seconds poll!
+            raise(TimeoutError("No commands have been send to from MAD to Py!"))
+        else:
+            cmds = os.read(self.pyInput, 8192)
+            code = compile(cmds, "pyInput", "exec")
+            exec(code, self.globalVars, {self.madName: self})
 
     def __del__(self):
         self.process.terminate()
