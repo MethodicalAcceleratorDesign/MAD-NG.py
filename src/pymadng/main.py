@@ -7,9 +7,7 @@ import os, tempfile, warnings, sys, select, time, re, subprocess
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from resource import getpagesize  # To get page size
 from typing import Any, Union, Tuple  # To make stuff look nicer
-from types import MethodType
-
-from sympy import var  # Used to attach functions to the class
+from types import MethodType # Used to attach functions to the class
 
 # Custom Classes:
 from .pymadClasses import madObject, madElement, deferred
@@ -35,11 +33,8 @@ from .sharedMemoryClass import shmBuffer
 # TODO: Allow sending of integers not always cast to float
 # TODO: Fix what happens if mad trys to write too much to the buffer! Then make ability to send in chunks
 
-class MAD:  # Review private and public
-    __pagesWritten = 0
+class MAD(object):  # Review private and public
     __PAGE_SIZE = getpagesize()  # To allow to work on multiple different machines
-    userVars = {}
-    process = None
 
     def __init__(
         self,
@@ -69,6 +64,9 @@ class MAD:  # Review private and public
         self.PATH_TO_MAD = srcdir + "mad"
         self.globalVars = {"np": np}
         self.pipeDir = srcdir + self.__scriptDir.split("/")[2].replace("tmp", "pipe")
+
+        self.process = None
+        self.__pagesWritten = 0
 
         # Setup communication pipe
         os.mkfifo(self.pipeDir)
@@ -186,6 +184,12 @@ class MAD:  # Review private and public
         """Import initialised variables into the local environment (necessary?)"""
         self.retrieveMADClasses(moduleName, False, varsToImport)
 
+    def __getattribute__(self, item):
+        try:
+            return super(MAD, self).__getattribute__(item)
+        except AttributeError:
+            return self.receiveVar(item)
+            
     # -----------------------------Make the class work like a dictionary----------------------------#
     def __setitem__(self, varName: str, var: Any) -> None:
         if isinstance(varName, tuple):
@@ -202,40 +206,10 @@ class MAD:  # Review private and public
         else:
             nameList = [varName]
             varList = [var]
-        for i in range(len(nameList)):
-            if type(varList[i]) == list:
-                varList[i] = np.array(
-                    varList[i]
-                )  # So the user isn't forced to initialise the array as numpy
-            self.__dict__[nameList[i]] = varList[i]
-            if not isinstance(varList[i], madObject):
-                self.userVars[nameList[i]] = None  #####Double check if this is necessary
-        self.sendVariables(list(self.userVars.keys()))
+        self.sendVariables(nameList, varList)
 
     def __getitem__(self, varName: str) -> Any:
-        if isinstance(varName, tuple):
-            if self.copyOnRetreive:
-                itemList = []
-                for name in list(varName):
-                    if isinstance(self.__dict__[name], np.ndarray):
-                        var = np.empty_like(self.__dict__[name])
-                        var[:] = self.__dict__[name][:]
-                        itemList.append(var)
-                    else:
-                        itemList.append(self.__dict__[name])
-                return tuple(itemList)
-            else:
-                return tuple([self.__dict__[name] for name in list(varName)])
-        else:
-            if self.copyOnRetreive:
-                var = np.empty_like(self.__dict__[varName])
-                if isinstance(self.__dict__[varName], np.ndarray):
-                    var[:] = self.__dict__[varName][:]
-                    return var
-                else:
-                    return self.__dict__[varName]
-            else:
-                return self.__dict__[varName]
+        return self.receiveVariables(varName)
 
     # ----------------------------------------------------------------------------------------------#
 
@@ -280,10 +254,10 @@ class MAD:  # Review private and public
         """Directly run by MAD, never used by user"""
         return self.readMADMatrix(dType, [1, 1])[0][0]
 
-    def getMADTable(self):  # Needs improvement!
+    def getMADTable(self, name):  # Needs improvement!
         """Directly run by MAD, never used by user"""
         self.shm.read(1)
-        return madObject("MADTABLE" + str(self.__pagesWritten), self)
+        return madObject(name, self)
 
     def readMADMatrix(self, DType, dims):
         """Directly run by MAD, never used by user"""
@@ -312,11 +286,9 @@ class MAD:  # Review private and public
     def sendVariables(
         self,
         varNames: list[str],
-        vars: list[Union[np.ndarray, int, float, list]] = None,
+        vars: list[Union[np.ndarray, int, float, list]],
     ):
         """Send variables to the MAD process, either send a list of varNames that already exist in the python MAD class or the varNames along with a list of the data"""
-        if not vars:
-            vars = list(self[tuple(varNames)])
         varTypes = []
         for i in range(len(vars)):
             if not isinstance(vars[i], np.ndarray):
@@ -370,17 +342,9 @@ class MAD:  # Review private and public
             # self.output.write(f'{varNames[j]} = {functionToCall}({self.__pyToLuaLst(vars[j].shape)})\n') #Process return (debug)
         self.sendScript(fileInput)
 
-    def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list] = None):
+    def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list]):
         """Send a variable to the MAD process, either send a varName that already exists in the python MAD class or a varName along with data"""
-        if var is not None:
-            self.sendVariables([varName], [var])
-        else:
-            self.sendVariables([varName])
-
-    def sendall(self):
-        """Send all the variables that currently exist in the MAD dictionary, will overwrite variables in the MAD environment, use with caution"""
-        self.sendVariables(list(self.userVars.keys()))
-
+        self.sendVariables([varName], [var])
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
@@ -432,32 +396,16 @@ class MAD:  # Review private and public
 
     def receiveVariables(self, varNameList: list[str], shareType="data") -> Any:
         """Given a list of variable names, receive the variables from the MAD process, and save into the MAD dictionary"""
-        self.__varNameList = varNameList
         madReturn = self.sendScript(
             f"""
-        local offset = share{shareType}({self.__pyToLuaLst(varNameList).replace("'", "")})                  --This mmaps to shared memory
+        local offset = share{shareType}({self.__pyToLuaLst(varNameList).replace("'", "")}, {self.__pyToLuaLst(varNameList)})                  --This mmaps to shared memory
             """
         )
-        for i in range(len(madReturn)):
-            if isinstance(madReturn[i], madObject):
-                madReturn[i].__name__ = self.__varNameList[i]
-            self.__dict__[varNameList[i]] = madReturn[i]
-        return self[tuple(varNameList)]
+        return madReturn
 
     def receiveVar(self, var: str) -> Any:
         """Recieve a single variable from the MAD process"""
         return self.receiveVariables([var])[0]
-
-    def updateVariables(self):
-        """Update all the variables that currently exist in the MAD dictionary from MAD"""
-        keyList = list(self.userVars.keys())
-        recievedVars = self.receiveVariables(keyList)
-        if len(keyList) > 1:
-            for i in range(len(keyList)):
-                self.__dict__[keyList[i]] = recievedVars[i]
-        else:
-            self.__dict__[keyList[0]] = recievedVars
-
     # -------------------------------------------------------------------------------------------------------------#
 
     # ----------------------------------Calling functions(WIP)-----------------------------------------------------#
@@ -495,16 +443,6 @@ class MAD:  # Review private and public
             return self.receiveVar(resultName)
 
     # -------------------------------------------------------------------------------------------------------------#
-
-    # ------------------------------------------Stored Data Manipulation-------------------------------------------#
-    def convertMmapToData(self):
-        """Convert the memory mappings in the MAD dictionary into data in the python environment"""
-        for key in self.userVars.keys():
-            if isinstance(self.__dict__[key], np.ndarray):
-                newArray = np.empty_like(self.__dict__[key])
-                newArray[:] = self.__dict__[key][:]
-                self.__dict__[key] = newArray
-    # ---------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#
     def __getKwargAsString(
@@ -607,13 +545,13 @@ class MAD:  # Review private and public
                 """
             )
             if moduleName == "MAD.element":
-                self[resultName] = madElement(resultName, self)
+                self.__dict__[resultName] = madElement(resultName, self)
                 returnElm = (
                 lambda _,**kwargs: f"""{resultName} {self.__getKwargAsString(**kwargs)}"""
                 )
-                setattr(self[resultName], "set", MethodType(returnElm, self[resultName]))
+                setattr(self.__dict__[resultName], "set", MethodType(returnElm, self.__dict__[resultName]))
             else:
-                self[resultName] = madObject(resultName, self)
+                self.__dict__[resultName] = madObject(resultName, self)
 
     def defExpr(self, **kwargs):
         """Create a deffered expression object where the kwargs are used as the deffered expressions, specified using strings"""
@@ -652,8 +590,6 @@ class MAD:  # Review private and public
     def close(self):
         # After calling this, the variables within MAD are still accessible but communication has ended
         """Close the shared memory, MAD process"""
-        self.convertMmapToData()
-        self.userVars.clear()
         self.shm.close()
         if self.process:
             # self.writeToProcess("do close() end", wait = False)
