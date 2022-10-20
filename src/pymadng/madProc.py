@@ -28,6 +28,11 @@ class madProcess:
         self.tmpFldr = tempfile.TemporaryDirectory(prefix="pymadng-")
         self.pipeName = self.tmpFldr.name + "/pipe"
 
+        if self.process.poll():
+            raise(OSError(
+                f"Unsuccessful opening of {madPath}, process closed immediately"
+            ))
+            
         os.mkfifo(self.pipeName)
 
         self.send(
@@ -40,7 +45,8 @@ class madProcess:
         self.pyInput = os.open(self.pipeName, os.O_RDONLY)
         self.pyInPoll = select.poll()
         self.pyInPoll.register(self.pyInput, select.POLLIN)
-        self.send("_PROMPT = ''")  # Change this to change how output works
+        self.send("_PROMPT  = ''")  # Change this to change how output works
+        self.send("_PROMPT2 = ''")  # Change this to change how output works
 
     def send(self, input: str) -> int:
         self.process.stdin.write(
