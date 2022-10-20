@@ -1,46 +1,57 @@
 import tempfile, os, subprocess, sys
 import numpy as np
 
-#Working: mad.send("""MAD.send([==[mad.send('''MAD.send([=[mad.send("MAD.send([[print('hello world')]])")]=])''')]==])""")
-#Working: mad.send("""MAD.send([=[mad.send("MAD.send([[print('hello')]])")]=])""")
-#Working for me: mad.send("""send([==[mad.send(\"\"\"send([=[mad.send("send([[print('hello world')]])")]=])\"\"\")]==])""")
+# Working: mad.send("""MAD.send([==[mad.send('''MAD.send([=[mad.send("MAD.send([[print('hello world')]])")]=])''')]==])""")
+# Working: mad.send("""py.send([=[mad.send("py.send([[print('hello')]])")]=])""")
+# Working for me: mad.send("""send([==[mad.send(\"\"\"send([=[mad.send("send([[print('hello world')]])")]=])\"\"\")]==])""")
+
 
 class madProcess:
-    globalVars = {"np": np}
+    def __init__(
+        self, madName: str = "mad", pyName: str = "py", madPath: str = None
+    ) -> None:
+        self.madName = madName
+        self.pyName = pyName
 
-    def __init__(self, className: str = "mad", pathToMAD: str = None) -> None:
-        self.className = className
-        self.tmpFldr = tempfile.TemporaryDirectory(prefix="pymadng-")
-        self.pipeDir = self.tmpFldr.name + "/pipe"
-        os.mkfifo(self.pipeDir)
-        
-        pathToMAD = pathToMAD or os.path.dirname(os.path.abspath(__file__)) + "/mad"
+        madPath = madPath or os.path.dirname(os.path.abspath(__file__)) + "/mad"
+
         self.process = subprocess.Popen(
-            [pathToMAD,  "-q",  "-i"],
+            [madPath, "-q", "-i"],
             bufsize=0,
             stdout=sys.stdout,
-            stderr=sys.stdout,
+            stderr=sys.stderr,
             stdin=subprocess.PIPE,
-            text=True
+            text=True,
         )
-        self.send(f"""
-        send = require ("madl_pymad").send
-        local openPipeToPython in require("madl_pymad")
-        openPipeToPython("{self.pipeDir}")
-        """)
 
-        self.MADToPyPipe = os.open(self.pipeDir, os.O_RDONLY)
-        self.send("_PROMPT = ''") #Change this to change how output works
+        self.globalVars = {"np": np}
+        self.tmpFldr = tempfile.TemporaryDirectory(prefix="pymadng-")
+        self.pipeName = self.tmpFldr.name + "/pipe"
+
+        os.mkfifo(self.pipeName)
+
+        self.send(
+            "MAD.pymad '"
+            + pyName
+            + "' {} :publish() :open_pipe('"
+            + self.pipeName
+            + "')"
+        )
+
+        self.pyInput = os.open(self.pipeName, os.O_RDONLY)
+        self.send("_PROMPT = ''")  # Change this to change how output works
 
     def send(self, input: str) -> int:
-        self.process.stdin.write(("load([==========[" + input + "]==========])()\n"))
-    
+        self.process.stdin.write(
+            "assert(load([==========[" + input + "]==========]))()\n"
+        )
+
     def read(self):
-        pipeText = os.read(self.MADToPyPipe, 8192)
-        code = compile(pipeText, "pipe", "exec")
-        exec(code, self.globalVars, {self.className: self})
+        cmds = os.read(self.pyInput, 8192)
+        code = compile(cmds, "pyInput", "exec")
+        exec(code, self.globalVars, {self.madName: self})
 
     def __del__(self):
-        self.tmpFldr.cleanup()
         self.process.terminate()
         self.process.wait()
+        self.tmpFldr.cleanup()
