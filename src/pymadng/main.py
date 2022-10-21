@@ -33,11 +33,11 @@ class MAD(object):  # Review private and public
     pipeRead = ""
 
     def __init__(
-        self, pyName: str = "py", madPath: str = None
+        self, pyName: str = "py", madPath: str = None, debug = False
     ) -> None:
         """Initialise MAD Object.
         """
-        self.process = madProcess(pyName, madPath)
+        self.process = madProcess(pyName, madPath, debug)
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
         # modulesToImport = [
@@ -58,6 +58,12 @@ class MAD(object):  # Review private and public
         # self.__dict__["MADX"] = madObject("MADX", self)
 
     # ------------------------------------------------------------------------------------------#
+
+    def send(self, input: str):
+        self.process.send(input)
+    
+    def read(self, env = {}, timeout = 10) -> dict:
+        return self.process.read(env, timeout)
 
     def retrieveMADClasses(
         self, moduleName: str, requireInitialisation: bool, classNames: list[str] = []

@@ -25,17 +25,26 @@
 
 local is_string in MAD.typeid
 local fprintf in MAD.utility
+local format in string
+local min, max in math
 
 local assert = assert
 
 -- implementation -------------------------------------------------------------o
 
-local pymad = MAD.object 'pymad' {}
+local pymad = MAD.object 'pymad' { dispdbgf = false }
+
+local function dispdbg (str)
+  io.write("***mad.send: '", str:sub(1, min(32,#str)))
+  if #str > 32 then io.write("' .. '", str:sub(max(32,#str-32),-1)) end
+  io.write("' ***\n")
+end
 
 local function send(self, str)
   assert(is_string(str), "invalid argument #2 (string expected)")
-  str = ("%08d%s"):format(#str + 1, str) --see ffi docs
-  self.__py_out:write(str, "\n")
+  if self.dispdbgf then dispdbg(str) end
+  local strn = format("%08d", #str)
+  self.__py_out:write(strn, str)
   return self
 end
 
