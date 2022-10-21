@@ -46,6 +46,7 @@ class madProcess:
         self.pyInPoll.register(self.pyInput, select.POLLIN)
         self.send("_PROMPT  = ''")  # Change this to change how output works
         self.send("_PROMPT2 = ''")  # Change this to change how output works
+        print()
 
     def send(self, input: str) -> int:
         self.__process.stdin.write(
@@ -61,8 +62,8 @@ class madProcess:
             while len(cmds) < bytesToRead:
                 cmds += os.read(self.pyInput, bytesToRead - len(cmds))
             code = compile(cmds, "pyInput", "exec")
-            # What happens on fork? What becomes top stack? Will user scope always be 1 level above this scope? (instead)
-            userFrame = inspect.stack()[-1][0] 
+            # This will only change the scope that this function was called from
+            userFrame = inspect.stack()[1][0] 
             exec(code, userFrame.f_globals, userFrame.f_locals)
             del userFrame # prevent reference cycle
 

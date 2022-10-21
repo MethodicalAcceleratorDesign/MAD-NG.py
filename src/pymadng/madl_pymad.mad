@@ -34,7 +34,7 @@ local pymad = MAD.object 'pymad' {}
 
 local function send(self, str)
   assert(is_string(str), "invalid argument #2 (string expected)")
-  str = ("%08d"):format(#str) .. str
+  str = ("%08d%s"):format(#str + 1, str) --see ffi docs
   self.__py_out:write(str, "\n")
   return self
 end
