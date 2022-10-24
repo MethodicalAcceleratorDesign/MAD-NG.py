@@ -23,12 +23,28 @@
 
 -- locals ---------------------------------------------------------------------o
 
-local is_string in MAD.typeid
-local fprintf in MAD.utility
-local format in string
-local min, max in math
+local ffi = require "ffi"
+local _C                                            in MAD
+local is_string, isy_matrix, get_metatable          in MAD.typeid
+local fprintf                                       in MAD.utility
+local format                                        in string
+local min, max                                      in math
 
 local assert = assert
+
+ffi.cdef [[
+FILE *fdopen(int fd, const char *mode);
+size_t fwrite(const void *restrict buffer, size_t size, size_t count, FILE *restrict stream);
+size_t fread( void *restrict buffer, size_t size, size_t count, FILE *restrict stream );
+void setbuf( FILE *restrict stream, char *restrict buffer );
+int close(int fildes);
+]]
+
+local np_mat_elem_type = {
+  [get_metatable(MAD.imatrix(1))] = "int32",
+  [get_metatable(MAD. matrix(1))] = "float64",
+  [get_metatable(MAD.cmatrix(1))] = "complex128",
+}
 
 -- implementation -------------------------------------------------------------o
 
@@ -40,18 +56,45 @@ local function dispdbg (str)
   io.write("' ***\n")
 end
 
-local function send(self, str)
+local function send (self, str)
   assert(is_string(str), "invalid argument #2 (string expected)")
   if self.dispdbgf then dispdbg(str) end
-  local strn = format("%08d", #str)
-  self.__py_out:write(strn, str)
+  local strn = format("%010d", #str)
+  _C.fwrite(strn, #strn, 1, self.__py_out)
+  _C.fwrite(str , #str , 1, self.__py_out)
   return self
 end
 
-local function open_pipe (self, name)
-  self.__py_name = name
-  self.__py_out = assert(io.open(name, "w"))
-  self.__py_out:setvbuf("no")
+local function send_mat (self, mat, name, elmSize)
+  assert(isy_matrix(mat), "invalid argument #2 matrix expected)")
+  local mattypestr = np_mat_elem_type[get_metatable(mat)]
+  local pycmd = name .. "=np.frombuffer(mad.rawRead(), dtype=np." .. mattypestr .. ").reshape("..mat.nrow..","..mat.ncol..")"
+  local strn = format("%010d", mat:bytesize())
+  if self.dispdbgf then
+    dispdbg(tostring(mat).." ["..mat.nrow.."x"..mat.ncol.."] " .. strn .. " bytes")
+  end
+  self:send(pycmd)
+  _C.fwrite(strn, #strn, 1, self.__py_out)
+  local result = _C.fwrite(mat._dat, mat:bytesize(), 1, self.__py_out)
+  return self
+end
+
+local function read_mat(self, nrow, ncol, bytesize)
+  mat = MAD.matrix(nrow, ncol)
+  _C.fread(mat._dat, bytesize, 1, io.stdin)
+  return mat
+end
+
+local function read_cmat(self, nrow, ncol, bytesize)
+  cmat = MAD.cmatrix(nrow, ncol)
+  _C.fread(cmat._dat, bytesize, 1, io.stdin)
+  return cmat
+end
+
+local function open_pipe (self, py_out_fd)
+  self.__py_out_fd = py_out_fd
+  self.__py_out = _C.fdopen(py_out_fd, "wb")
+  _C.setbuf(self.__py_out, nil)
   return self
 end
 
@@ -63,6 +106,9 @@ end
 
 pymad:set_methods {
   send      = send,
+  send_mat  = send_mat,
+  read_mat  = read_mat,
+  read_cmat = read_cmat,
   publish   = publish,
   open_pipe = open_pipe,
 } :set_readonly()
