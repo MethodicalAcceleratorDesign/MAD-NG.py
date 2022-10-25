@@ -65,8 +65,8 @@ local function send (self, str)
   return self
 end
 
-local function send_mat (self, mat, name, elmSize)
-  assert(isy_matrix(mat), "invalid argument #2 matrix expected)")
+local function send_mat (self, mat, name)
+  assert(isy_matrix(mat), "invalid argument #2 (matrix expected)")
   local mattypestr = np_mat_elem_type[get_metatable(mat)]
   local pycmd = name .. "=np.frombuffer(mad.rawRead(), dtype=np." .. mattypestr .. ").reshape("..mat.nrow..","..mat.ncol..")"
   local strn = format("%010d", mat:bytesize())
