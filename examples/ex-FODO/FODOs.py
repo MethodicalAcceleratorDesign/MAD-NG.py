@@ -1,9 +1,11 @@
-from xml.sax.handler import LexicalHandler
 from pymadng import MAD
 import matplotlib.pyplot as plt
+import os
 
-with MAD(log=True) as mad:
-    mad.loadsequence("seq", "fodo.seq", "fodo.mad")
+current_dir = os.path.dirname(__file__) + "/"
+
+with MAD(debug=True) as mad:
+    mad.loadsequence("seq", current_dir + "fodo.seq", current_dir + "fodo.mad")
     mad.beam("beam1")
     mad.seq.beam = mad.beam1
     mad.twiss(["mtbl", "mflw"], sequence=mad.seq, method=4)
@@ -45,8 +47,9 @@ with MAD() as mad:
     plt.xlabel("s")
     plt.ylabel("beta11")
     plt.show()
+
 with MAD() as mad:
-    mad.sendScript(
+    mad.send(
         """
     local beam, twiss in MAD
     MADX:load("fodo.seq", "fodo.mad")
@@ -55,25 +58,9 @@ with MAD() as mad:
     local cols = {'name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'}
     mtbl = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
     mtbl:write("twiss_mad_tfs", cols)
-    sharedata({mtbl}, {"mtbl"})
+    py:send_data(mtbl, 'mtbl')
     """
     )
-    plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
-    plt.show()
-
-
-with MAD() as mad:
-    mad.sendScript(
-        """
-    local beam, twiss in MAD
-    MADX:load("fodo.seq", "fodo.mad")
-    local seq in MADX
-    seq.beam = beam -- use default beam
-    local cols = {'name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'}
-    mtbl = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
-    mtbl:write("twiss_mad_tfs", cols)
-    """
-    )
-    mad.importVariables("_G", ["mtbl"])
+    mtbl = mad.read()["mtbl"]
     plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
     plt.show()

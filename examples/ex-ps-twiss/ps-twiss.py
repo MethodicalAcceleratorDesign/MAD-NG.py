@@ -1,16 +1,12 @@
-# from pymadng import MAD
-import sys
-
-sys.path.insert(0, "/home/joshua/Documents/MADpy/src/pymadng")
 from pymadng import MAD
 
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+#######################---DOES NOT WORK - A MAD PROBLEM----##################
+current_dir = os.path.dirname(__file__)
 
-current_dir = os.getcwd()
-
-with MAD(log=True) as mad:
+with MAD(debug=True) as mad:
     mad.beam("psbeam", particle="proton", pc=2.794987)
     mad.MADX.BEAM = mad.psbeam
     mad.MADX.BRHO = mad.psbeam.brho

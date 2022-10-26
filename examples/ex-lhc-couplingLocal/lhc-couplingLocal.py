@@ -7,9 +7,11 @@ import os
 # NOTE: MADX, open environement is not fun
 # NOTE: lamdba is a quick fix and would prefer, actual usability in script rather than just string
 
-current_dir = os.getcwd()
+###########NOT WORKING - A MAD PROBLEM###################
 
-with MAD(log=True) as mad:
+current_dir = os.path.dirname(__file__)
+
+with MAD(debug=True) as mad:
     mad.importVariables("MAD.element.flags", ["observed"])
     mad.importVariables("MAD.utility", ["assertf", "printf"])
     mad.importVariables("MAD.gphys", ["mchklost"])
