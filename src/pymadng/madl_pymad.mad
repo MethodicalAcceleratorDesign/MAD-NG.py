@@ -24,13 +24,13 @@
 -- locals ---------------------------------------------------------------------o
 
 local ffi = require "ffi"
-local _C                                            in MAD
+local _C, matrix, cmatrix, imatrix                  in MAD
 local is_string, isy_matrix, get_metatable          in MAD.typeid
 local fprintf                                       in MAD.utility
 local format                                        in string
 local min, max                                      in math
 
-local assert = assert
+local assert, tonumber = assert, tonumber
 
 ffi.cdef [[
 FILE *fdopen(int fd, const char *mode);
@@ -44,6 +44,12 @@ local np_mat_elem_type = {
   [get_metatable(MAD.imatrix(1))] = "int32",
   [get_metatable(MAD. matrix(1))] = "float64",
   [get_metatable(MAD.cmatrix(1))] = "complex128",
+}
+
+local ctor_by_elemsize = {
+  [ matrix(1):bytesize()] = matrix,
+  [cmatrix(1):bytesize()] = cmatrix,
+  [imatrix(1):bytesize()] = imatrix,
 }
 
 -- implementation -------------------------------------------------------------o
@@ -79,28 +85,29 @@ local function send_mat (self, mat, name)
   return self
 end
 
-local function read_mat(self, nrow, ncol, bytesize)
-  mat = MAD.matrix(nrow, ncol)
+local function read_mat(self, nrow, ncol)
+  local bytesize = io.read("*number")
+  local mat = ctor_by_elemsize[bytesize / (nrow * ncol)](nrow, ncol)
   _C.fread(mat._dat, bytesize, 1, io.stdin)
   return mat
 end
 
-local function read_cmat(self, nrow, ncol, bytesize)
-  cmat = MAD.cmatrix(nrow, ncol)
-  _C.fread(cmat._dat, bytesize, 1, io.stdin)
-  return cmat
-end
-
-local function open_pipe (self, py_out_fd)
+local function open_pipe (self, py_out_fd, py_in_fd)
   self.__py_out_fd = py_out_fd
   self.__py_out = _C.fdopen(py_out_fd, "wb")
   _C.setbuf(self.__py_out, nil)
+  while true do
+    local strLength = io.read("*number")
+    local input = io.read(tonumber(strLength))
+    assert(load(input, nil, nil, self.env))()
+  end
   return self
 end
 
 local function publish (self, env_)
-  local env = env_ or _G
-  env[self.name] = self
+  self.env = env_ or {}
+  setmetatable(self.env, {__index = _G})
+  self.env[self.name] = self
   return self
 end
 
@@ -108,7 +115,6 @@ pymad:set_methods {
   send      = send,
   send_mat  = send_mat,
   read_mat  = read_mat,
-  read_cmat = read_cmat,
   publish   = publish,
   open_pipe = open_pipe,
 } :set_readonly()
