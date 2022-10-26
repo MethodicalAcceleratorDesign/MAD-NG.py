@@ -24,11 +24,11 @@
 -- locals ---------------------------------------------------------------------o
 
 local ffi = require "ffi"
-local _C, matrix, cmatrix, imatrix                  in MAD
-local is_string, isy_matrix, get_metatable          in MAD.typeid
-local fprintf                                       in MAD.utility
-local format                                        in string
-local min, max                                      in math
+local _C, matrix, cmatrix, imatrix                    in MAD
+local is_string, isy_matrix, get_metatable, is_number, is_table, has_metatable in MAD.typeid
+local fprintf                                         in MAD.utility
+local format                                          in string
+local min, max                                        in math
 
 local assert, tonumber = assert, tonumber
 
@@ -71,25 +71,60 @@ local function send (self, str)
   return self
 end
 
-local function send_mat (self, mat, name)
-  assert(isy_matrix(mat), "invalid argument #2 (matrix expected)")
-  local mattypestr = np_mat_elem_type[get_metatable(mat)]
-  local pycmd = name .. "=np.frombuffer(mad.rawRead(), dtype=np." .. mattypestr .. ").reshape("..mat.nrow..","..mat.ncol..")"
-  local strn = format("%010d", mat:bytesize())
+local function send_instruction_set (self, pycmd, data, data_size)
+  local strn = format("%010d", data_size)
   if self.dispdbgf then
-    dispdbg(tostring(mat).." ["..mat.nrow.."x"..mat.ncol.."] " .. strn .. " bytes")
+    dispdbg(pycmd .. " for " .. tostring(data).. " with ".. strn .. " bytes")
   end
   self:send(pycmd)
   _C.fwrite(strn, #strn, 1, self.__py_out)
-  local result = _C.fwrite(mat._dat, mat:bytesize(), 1, self.__py_out)
-  return self
+  _C.fwrite(data, data_size, 1, self.__py_out)
 end
 
-local function read_mat(self, nrow, ncol)
-  local bytesize = io.read("*number")
+local function send_mat (self, mat, name)
+  -- assert(isy_matrix(mat), "invalid argument #2 (matrix expected)") -- not needed if exposed
+  local mattypestr = np_mat_elem_type[get_metatable(mat)]
+  local pycmd = name .. "=np.frombuffer(mad.rawRead(), dtype=np." .. mattypestr .. ").reshape("..mat.nrow..","..mat.ncol..")"
+  send_instruction_set(self, pycmd, mat._dat, mat:bytesize())
+end
+
+local function send_str(self, str, name)
+  local pycmd = name .. "=mad.rawRead().decode('utf-8')"
+  send_instruction_set(self, pycmd, str, #str)
+end
+
+local function send_num(self, num, name)
+  local mat = matrix(1):fill(num)
+  local pycmd = name .. "=struct.unpack('d', mad.rawRead())[0]"
+  send_instruction_set(self, pycmd, mat._dat, mat:bytesize())
+end
+
+local function send_data (self, data, name)
+  if isy_matrix(data) then
+    send_mat(self, data, name)
+  elseif is_string(data) then 
+    send_str(self, data, name)
+  elseif is_number(data) then 
+    send_num(self, data, name)
+  elseif has_metatable(data) then
+    self:send(name .. "=madObject('" .. name .. "',superClass)")
+  elseif is_table(data) then
+    self:send(name .. "=mad.readTable("..#data..")")
+    for i, v in ipairs(data) do
+      self:send_data(v, "tabledataval")
+    end
+  end
+end
+
+local function read_mat (self, nrow, ncol)
+  local bytesize = tonumber(io.read(10))
   local mat = ctor_by_elemsize[bytesize / (nrow * ncol)](nrow, ncol)
   _C.fread(mat._dat, bytesize, 1, io.stdin)
   return mat
+end
+
+local function catch_err(err)
+  print(err, "\n", debug.traceback())
 end
 
 local function open_pipe (self, py_out_fd, py_in_fd)
@@ -97,9 +132,9 @@ local function open_pipe (self, py_out_fd, py_in_fd)
   self.__py_out = _C.fdopen(py_out_fd, "wb")
   _C.setbuf(self.__py_out, nil)
   while true do
-    local strLength = io.read("*number")
-    local input = io.read(tonumber(strLength))
-    assert(load(input, nil, nil, self.env))()
+    local strLength = tonumber(io.read(10))
+    local input = io.read(strLength)
+    local status, err = xpcall(load(input, nil, nil, self.env), catch_err)
   end
   return self
 end
@@ -113,7 +148,7 @@ end
 
 pymad:set_methods {
   send      = send,
-  send_mat  = send_mat,
+  send_data = send_data,
   read_mat  = read_mat,
   publish   = publish,
   open_pipe = open_pipe,
