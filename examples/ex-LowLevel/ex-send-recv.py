@@ -25,7 +25,7 @@ start_time = time.time()
 
 cmatrixString = """
     {0} = {0} {1} {2}
-    py:send_mat({0}, '{0}')
+    py:send_data({0}, '{0}')
     """
 
 start_time = time.time()

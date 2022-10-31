@@ -8,14 +8,14 @@ mad = MAD(debug = False)
 
 matrixString = """
     local m1 = MAD.matrix(1000, 1000):seq()
-    py:send_mat(m1, 'm1')"""
+    py:send_data(m1, 'm1')"""
 mad.send(matrixString)
 
 mad.send("cm1 = (MAD.cmatrix(10000, 1000) + 1i)")
 
 cmatrixString = """
     {0} = cm1 {1} {2}
-    py:send_mat({0}, '{0}')"""
+    py:send_data({0}, '{0}')"""
 
 mad.send(cmatrixString.format("cm4", "*", 1))
 mad.send(cmatrixString.format("cm1", "*", 2))
@@ -24,7 +24,7 @@ mad.send(cmatrixString.format("cm3", "/", 3))
 
 vectorString = """
 local v1 = (MAD.vector(45):seq()*2 + 1)/3
-py:send_mat(v1, 'v1')"""
+py:send_data(v1, 'v1')"""
 mad.send(vectorString)
 start_time = time.time()
 
