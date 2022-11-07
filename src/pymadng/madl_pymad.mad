@@ -134,7 +134,10 @@ local function open_pipe (self, py_out_fd, py_in_fd)
   while true do
     local strLength = tonumber(io.read(10))
     local input = io.read(strLength)
-    local status, err = xpcall(load(input, nil, nil, self.env), catch_err)
+    local func, err = load(input, nil, nil, self.env)
+    if func then xpcall(func, catch_err) --Catch runtime error
+    else         catch_err(err) --Catch load error
+    end
   end
   return self
 end
