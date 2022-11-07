@@ -25,7 +25,9 @@ class madObject(object):
             or "__" == item[:2]
         ):
             return super(madObject, self).__getattribute__(item)
-        return self.__mad__.receiveVariables([self.__name__ + "." + item], [self.__name__ + item])[self.__name__ + item]
+        return self.__mad__.receiveVariables(
+            [self.__name__ + "." + item], [self.__name__ + item]
+        )[self.__name__ + item]
 
     def __setattr__(self, item, value):
         if (
@@ -42,24 +44,23 @@ class madObject(object):
         ):
             return super(madObject, self).__setattr__(item, value)
         if isinstance(value, madObject):
-            self.__mad__.send(
-                f"{self.__name__ + '.' + item} = {value.__name__}\n"
-            )
+            self.__mad__.send(f"{self.__name__ + '.' + item} = {value.__name__}\n")
         elif isinstance(value, np.ndarray):
             self.__mad__.sendVar(self.__name__ + "." + item, value)
 
     def __getitem__(self, item: Union[str, int]):
         if isinstance(item, str):
-            return self.__mad__.receiveVariables([self.__name__ + "." + item], [self.__name__ + item])[self.__name__ + item]
+            return self.__mad__.receiveVariables(
+                [self.__name__ + "." + item], [self.__name__ + item]
+            )[self.__name__ + item]
         elif isinstance(item, int):
-            return self.__mad__.receiveVariables([self.__name__ + "[" + str(item) + "]"], [self.__name__ + str(item)])[self.__name__ + str(item)]
-
+            return self.__mad__.receiveVariables(
+                [self.__name__ + "[" + str(item) + "]"], [self.__name__ + str(item)]
+            )[self.__name__ + str(item)]
 
     def __setitem__(self, item, value):
         if isinstance(value, madObject):
-            self.__mad__.send(
-                f"{self.__name__ + '.' + item} = {value.__name__}\n"
-            )
+            self.__mad__.send(f"{self.__name__ + '.' + item} = {value.__name__}\n")
         elif isinstance(value, np.ndarray):
             self.__mad__.sendVar(self.__name__ + "." + item, value)
 

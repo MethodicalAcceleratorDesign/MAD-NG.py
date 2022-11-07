@@ -1,7 +1,7 @@
 import warnings
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, Tuple  # To make stuff look nicer
-from types import MethodType # Used to attach functions to the class
+from types import MethodType  # Used to attach functions to the class
 
 # Custom Classes:
 from .pymadClasses import madObject, madElement, deferred
@@ -29,7 +29,7 @@ class MAD(object):  # Review private and public
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
         modulesToImport = [
-            "MAD", #Need MAD.MAD?
+            "MAD",  # Need MAD.MAD?
             "elements",
             "sequence",
             "mtable",
@@ -44,6 +44,7 @@ class MAD(object):  # Review private and public
         self.importClasses("MAD", modulesToImport)
         self.importClasses("MAD.element")
         self.__dict__["MADX"] = madObject("MADX", self)
+
     # ------------------------------------------------------------------------------------------#
 
     def send(self, input: str):
@@ -145,6 +146,7 @@ class MAD(object):  # Review private and public
 
     def MADXInput(self, input: str):
         return self.process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
+
     # ----------------------------------------------------------------------------------------------#
 
     # ----------------------------------Sending variables across to MAD----------------------------------------#
@@ -159,43 +161,53 @@ class MAD(object):  # Review private and public
                 self.process.send(f"{varNames[i]} = {vars[i]}")
             elif isinstance(vars[i], list):
                 vars[i] = np.array(vars[i], ndmin=2)
-            elif not isinstance(vars[i], np.ndarray): 
+            elif not isinstance(vars[i], np.ndarray):
                 raise (
-                NotImplementedError(
-                    "received type:",
-                    type(vars[i]),
-                    "Only int32, float64, complex128 and string types implemented",
+                    NotImplementedError(
+                        "received type:",
+                        type(vars[i]),
+                        "Only int32, float64, complex128 and string types implemented",
+                    )
                 )
-            )
             if isinstance(vars[i], np.ndarray):
                 vars[i] = np.atleast_2d(vars[i])
                 if vars[i].dtype == np.int64:
-                    warnings.warn("64bit integers not supported by MAD, casting to float64")
-                    vars[i] = np.asarray(vars[i], dtype=np.float64) 
+                    warnings.warn(
+                        "64bit integers not supported by MAD, casting to float64"
+                    )
+                    vars[i] = np.asarray(vars[i], dtype=np.float64)
                 dataShape = vars[i].shape
-                self.process.send(f"{varNames[i]} = {self.process.pyName}:read_mat({dataShape[0]}, {dataShape[1]})\n")  # Process return
+                self.process.send(
+                    f"{varNames[i]} = {self.process.pyName}:read_mat({dataShape[0]}, {dataShape[1]})\n"
+                )  # Process return
                 self.process.rawSend(vars[i].tobytes())
 
     def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list]):
         """Send a variable to the MAD process, either send a varName that already exists in the python MAD class or a varName along with data"""
         self.sendVariables([varName], [var])
+
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
-    def receiveVariables(self, varNameList: list[str], namesInPython: list[str] = None, timeout=10) -> Any:
+    def receiveVariables(
+        self, varNameList: list[str], namesInPython: list[str] = None, timeout=10
+    ) -> Any:
         """Given a list of variable names, receive the variables from the MAD process"""
         variableEnv = {}
         if not namesInPython:
             namesInPython = varNameList
         for i in range(len(varNameList)):
             if varNameList[i][:2] != "__":
-                self.process.send(f"py:send_data({varNameList[i]}, '{namesInPython[i]}')")
+                self.process.send(
+                    f"py:send_data({varNameList[i]}, '{namesInPython[i]}')"
+                )
                 variableEnv = self.process.read(variableEnv, timeout)
         return variableEnv
 
     def receiveVar(self, var: str, timeout=10) -> Any:
         """Recieve a single variable from the MAD process"""
         return self.receiveVariables([var])[var]
+
     # -------------------------------------------------------------------------------------------------------------#
 
     # ----------------------------------Calling functions(WIP)-----------------------------------------------------#
@@ -369,7 +381,7 @@ class MAD(object):  # Review private and public
             """
         )
         self.__dict__[seqName] = madObject(seqName, self)
-    
+
     def __dir__(self) -> Iterable[str]:
         return [x for x in super(MAD, self).__dir__() if x[0] != "_"]
 
