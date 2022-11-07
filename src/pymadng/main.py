@@ -1,6 +1,6 @@
 import warnings
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
-from typing import Any, Union, Tuple  # To make stuff look nicer
+from typing import Any, Iterable, Union, Tuple  # To make stuff look nicer
 from types import MethodType # Used to attach functions to the class
 
 # Custom Classes:
@@ -29,7 +29,7 @@ class MAD(object):  # Review private and public
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
         modulesToImport = [
-            # "MAD", #Need MAD.MAD?
+            "MAD", #Need MAD.MAD?
             "elements",
             "sequence",
             "mtable",
@@ -90,7 +90,7 @@ class MAD(object):  # Review private and public
             if requireInitialisation:
                 exec(
                     f"""def {varName}(self, varName, *args, **kwargs): 
-                self.setupClass("{varName}", "{moduleName}", varName, *args, **kwargs) """
+                self._setupClass("{varName}", "{moduleName}", varName, *args, **kwargs) """
                 )
                 setattr(self, varName, MethodType(locals()[varName], self))
             else:
@@ -130,7 +130,7 @@ class MAD(object):  # Review private and public
             self.sendVar(varName, var)
 
     def __getitem__(self, varName: str) -> Any:
-        return self.receiveVar(varName)
+        return self.receiveVar(varName, 1)
 
     # ----------------------------------------------------------------------------------------------#
 
@@ -138,10 +138,10 @@ class MAD(object):  # Review private and public
     def eval(self, input: str):
         if input[0] == "=":
             input = "_" + input
-        self.process.send(input)
-        if input[0] == "_":
-            result = self.receiveVar("_")
-            return result
+            self.process.send(input)
+            return self._
+        else:
+            self.process.send(input)
 
     def MADXInput(self, input: str):
         return self.process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
@@ -182,7 +182,7 @@ class MAD(object):  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
-    def receiveVariables(self, varNameList: list[str], namesInPython: list[str] = None) -> Any:
+    def receiveVariables(self, varNameList: list[str], namesInPython: list[str] = None, timeout=10) -> Any:
         """Given a list of variable names, receive the variables from the MAD process"""
         variableEnv = {}
         if not namesInPython:
@@ -190,10 +190,10 @@ class MAD(object):  # Review private and public
         for i in range(len(varNameList)):
             if varNameList[i][:2] != "__":
                 self.process.send(f"py:send_data({varNameList[i]}, '{namesInPython[i]}')")
-                variableEnv = self.process.read(variableEnv)
+                variableEnv = self.process.read(variableEnv, timeout)
         return variableEnv
 
-    def receiveVar(self, var: str) -> Any:
+    def receiveVar(self, var: str, timeout=10) -> Any:
         """Recieve a single variable from the MAD process"""
         return self.receiveVariables([var])[var]
     # -------------------------------------------------------------------------------------------------------------#
@@ -213,7 +213,7 @@ class MAD(object):  # Review private and public
             + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"""
         )
         if resultName:
-            return self.receiveVar(resultName)
+            return self.receiveVar(resultName, 1000)
 
     def callMethod(
         self, resultName: Union[str, list[str]], varName: str, methName: str, *args
@@ -231,7 +231,7 @@ class MAD(object):  # Review private and public
             + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
         )
         if resultName:
-            return self.receiveVariables(resultName)
+            return self.receiveVariables(resultName, 1000)
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -300,7 +300,7 @@ class MAD(object):  # Review private and public
     # ---------------------------------------------------------------------------------------------------#
 
     # -------------------------------Setup MAD Classes---------------------------------------------------#
-    def setupClass(
+    def _setupClass(
         self,
         className: str,
         moduleName: str,
@@ -308,7 +308,7 @@ class MAD(object):  # Review private and public
         *args,
         **kwargs,
     ):
-        """Create a class 'className' from the module 'modulaName' and store into the variable 'varName'
+        """Create a class 'className' from the module 'moduleName' and store into the variable 'varName'
         the kwargs are used to as extra keyword arguments within MAD"""
         if isinstance(resultName, list):
             self.process.send(
@@ -316,7 +316,7 @@ class MAD(object):  # Review private and public
     {self.__pyToLuaLst(resultName)[1:-3].replace("'", "")} = {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }}
                 """
             )
-            self.receiveVariables(resultName)  # Make this optional, or not do it
+            self.receiveVariables(resultName, 1000)  # Make this optional, or not do it
 
         else:
             self.process.send(
@@ -369,6 +369,9 @@ class MAD(object):  # Review private and public
             """
         )
         self.__dict__[seqName] = madObject(seqName, self)
+    
+    def __dir__(self) -> Iterable[str]:
+        return [x for x in super(MAD, self).__dir__() if x[0] != "_"]
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
