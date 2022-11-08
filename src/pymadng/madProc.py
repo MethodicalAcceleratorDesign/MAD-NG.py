@@ -9,9 +9,10 @@ from .pymadClasses import madObject
 
 class madProcess:
     def __init__(
-        self, pyName: str = "py", madPath: str = None, debug=False, superClass=None
+        self, pyName: str = "py", madPath: str = None, readTimeout=10, debug=False, superClass=None
     ) -> None:
         self.pyName = pyName
+        self.readTimeout = readTimeout
         self.superClass = superClass
 
         madPath = madPath or os.path.dirname(os.path.abspath(__file__)) + "/mad"
@@ -73,10 +74,10 @@ class madProcess:
             )
         return cmds
 
-    def read(self, env={}, timeout=10, newData=True) -> dict:
+    def read(self, env={}, newData=True) -> dict:
         if newData:
             # Only checks if there is MORE data to read, if you read half the data and then read the other half, this will timeout as there is not NEW data
-            if self.pyInPoll.poll(1000 * timeout) == []:  # timeout seconds poll!
+            if self.readTimeout and self.pyInPoll.poll(1000 * self.readTimeout) == []:  # timeout seconds poll!
                 raise (TimeoutError("No commands have been send to from MAD to Py!"))
         code = compile(self.rawRead(), "pyInput", "exec")
         env.update({"mad": self})

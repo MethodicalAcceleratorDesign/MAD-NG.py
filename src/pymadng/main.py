@@ -23,9 +23,15 @@ from .madProc import madProcess
 
 
 class MAD(object):  # Review private and public
-    def __init__(self, pyName: str = "py", madPath: str = None, debug=False) -> None:
-        """Initialise MAD Object."""
-        self.process = madProcess(pyName, madPath, debug, self)
+    def __init__(self, pyName: str = "py", madPath: str = None, readTimeout:int =10, debug:bool =False) -> None:
+        """
+        Initialise MAD Object.
+        pyname: The name used to interact with the python process from MAD; default = "py"
+        madPath: The path to the mad executable; default = None (Use the one that comes with pymadng)
+        readTimeout: The timeout in seconds to use when looking in the pipe for data, setting to None removes timeout, but may read from the pipe indefinitely; default = 10
+        debug: Sets debug mode on or off; default = False
+        """
+        self.process = madProcess(pyName, madPath, readTimeout, debug, self)
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
         modulesToImport = [
@@ -131,7 +137,7 @@ class MAD(object):  # Review private and public
             self.sendVar(varName, var)
 
     def __getitem__(self, varName: str) -> Any:
-        return self.receiveVar(varName, 1)
+        return self.receiveVar(varName)
 
     # ----------------------------------------------------------------------------------------------#
 
@@ -146,7 +152,6 @@ class MAD(object):  # Review private and public
 
     def MADXInput(self, input: str):
         return self.process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
-
     # ----------------------------------------------------------------------------------------------#
 
     # ----------------------------------Sending variables across to MAD----------------------------------------#
@@ -190,7 +195,7 @@ class MAD(object):  # Review private and public
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
     def receiveVariables(
-        self, varNameList: list[str], namesInPython: list[str] = None, timeout=10
+        self, varNameList: list[str], namesInPython: list[str] = None
     ) -> Any:
         """Given a list of variable names, receive the variables from the MAD process"""
         variableEnv = {}
@@ -201,10 +206,10 @@ class MAD(object):  # Review private and public
                 self.process.send(
                     f"py:send_data({varNameList[i]}, '{namesInPython[i]}')"
                 )
-                variableEnv = self.process.read(variableEnv, timeout)
+                variableEnv = self.process.read(variableEnv)
         return variableEnv
 
-    def receiveVar(self, var: str, timeout=10) -> Any:
+    def receiveVar(self, var: str) -> Any:
         """Recieve a single variable from the MAD process"""
         return self.receiveVariables([var])[var]
 
@@ -225,7 +230,7 @@ class MAD(object):  # Review private and public
             + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"""
         )
         if resultName:
-            return self.receiveVar(resultName, 1000)
+            return self.receiveVar(resultName)
 
     def callMethod(
         self, resultName: Union[str, list[str]], varName: str, methName: str, *args
@@ -243,7 +248,7 @@ class MAD(object):  # Review private and public
             + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
         )
         if resultName:
-            return self.receiveVariables(resultName, 1000)
+            return self.receiveVariables(resultName)
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -328,7 +333,7 @@ class MAD(object):  # Review private and public
     {self.__pyToLuaLst(resultName)[1:-3].replace("'", "")} = {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }}
                 """
             )
-            self.receiveVariables(resultName, 1000)  # Make this optional, or not do it
+            self.receiveVariables(resultName)  # Make this optional, or not do it
 
         else:
             self.process.send(
