@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union  # To make stuff look nicer
+from typing import Iterable, Union  # To make stuff look nicer
 
 # TODO: Make each madObject have a list of objects that obeys a print function
 # TODO: How
@@ -25,9 +25,7 @@ class madObject(object):
             or "__" == item[:2]
         ):
             return super(madObject, self).__getattribute__(item)
-        return self.__mad__.receiveVariables(
-            [self.__name__ + "." + item], [self.__name__ + item]
-        )[self.__name__ + item]
+        return self.__mad__.receiveVar(self.__name__ + "." + item)
 
     def __setattr__(self, item, value):
         if (
@@ -49,23 +47,21 @@ class madObject(object):
             self.__mad__.sendVar(self.__name__ + "." + item, value)
 
     def __getitem__(self, item: Union[str, int]):
-        if isinstance(item, str):
-            return self.__mad__.receiveVariables(
-                [self.__name__ + "." + item], [self.__name__ + item]
-            )[self.__name__ + item]
-        elif isinstance(item, int):
-            return self.__mad__.receiveVariables(
-                [self.__name__ + "[" + str(item) + "]"], [self.__name__ + str(item)]
-            )[self.__name__ + str(item)]
+        return self.__mad__.receiveVar(self.__name__ + "[" + self.__mad__.getAsMADString(item, convertString=True) + "]") #Dictionary access
 
     def __setitem__(self, item, value):
         if isinstance(value, madObject):
             self.__mad__.send(f"{self.__name__ + '.' + item} = {value.__name__}\n")
         elif isinstance(value, np.ndarray):
             self.__mad__.sendVar(self.__name__ + "." + item, value)
-
-    def __str__(self):
-        return self.__name__
+        
+    def __dir__(self) -> Iterable[str]:
+        script = f"""
+            local modList={{}}; local i = 1;
+            for modname, mod in pairs({self.__name__}) do modList[i] = modname; i = i + 1; end
+            py:send(modList)"""
+        self.__mad__.send(script)
+        return [x for x in self.__mad__.recv() if x[:2] != "__"]
 
     def method(self, methodName: str, resultName: str, *args):
         return self.__mad__.callMethod(resultName, self.__name__, methodName, *args)
