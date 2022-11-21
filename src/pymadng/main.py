@@ -5,7 +5,7 @@ from types import MethodType  # Used to attach functions to the class
 
 # Custom Classes:
 from .pymadClasses import madObject, madElement, deferred
-from .madProc import madProcess
+from .madProc import mad_process
 
 # TODO: implement yield into MAD
 # TODO: Allow looping through objects (Not just elements)
@@ -23,15 +23,15 @@ from .madProc import madProcess
 
 
 class MAD(object):  # Review private and public
-    def __init__(self, pyName: str = "py", madPath: str = None, readTimeout:int =10, debug:bool =False) -> None:
+    def __init__(self, pyName: str = "py", madPath: str = None, debug:bool =False) -> None:
         """
         Initialise MAD Object.
         pyname: The name used to interact with the python process from MAD; default = "py"
         madPath: The path to the mad executable; default = None (Use the one that comes with pymadng)
-        readTimeout: The timeout in seconds to use when looking in the pipe for data, setting to None removes timeout, but may read from the pipe indefinitely; default = 10
         debug: Sets debug mode on or off; default = False
         """
-        self.process = madProcess(pyName, madPath, readTimeout, debug, self)
+        self.process = mad_process(pyName, madPath, debug, self)
+        self.pyName = pyName
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
         modulesToImport = [
@@ -53,14 +53,17 @@ class MAD(object):  # Review private and public
 
     # ------------------------------------------------------------------------------------------#
 
-    def send(self, input: str):
-        self.process.send(input)
+    def send(self, input: Union[str, int, float, np.ndarray, bool, list]) -> None:
+        return self.process.send(input)
+    
+    def send_data(self, input: Union[str, int, float, np.ndarray, bool, list]) -> None:
+        return self.process.send_data(input)
 
-    def rawSend(self, input: str):
-        self.process.rawSend(input)
-
-    def read(self, env={}, timeout=10) -> dict:
-        return self.process.read(env, timeout)
+    def recv(self) -> dict:
+        return self.process.recv()
+    
+    def recv_and_exec(self, env: dict = {}) -> dict:
+        return self.process.recv_and_exec(env)
 
     def retrieveMADClasses(
         self, moduleName: str, requireInitialisation: bool, classNames: list[str] = []
@@ -79,9 +82,9 @@ class MAD(object):  # Review private and public
         else:
             for className in classNames:
                 script += f"""superClass._import("{moduleName}", "{className}", "]].. tostring({moduleName}.{className}) .. [[", {requireInitialisation})\n"""
-            script = "py:send([[" + script + "]])"
+            script = f"py:send([[{script}]])"
         self.process.send(script)
-        self.process.read()
+        self.process.recv_and_exec()
 
     # CLEAN UP THIS FUNCTION:
     def _import(self, moduleName, varName, varType, requireInitialisation):
@@ -162,30 +165,8 @@ class MAD(object):  # Review private and public
     ):
         """Send variables to the MAD process, either send a list of varNames that already exist in the python MAD class or the varNames along with a list of the data"""
         for i in range(len(vars)):
-            if isinstance(vars[i], (int, float, str)):
-                self.process.send(f"{varNames[i]} = {vars[i]}")
-            elif isinstance(vars[i], list):
-                vars[i] = np.array(vars[i], ndmin=2)
-            elif not isinstance(vars[i], np.ndarray):
-                raise (
-                    NotImplementedError(
-                        "received type:",
-                        type(vars[i]),
-                        "Only int32, float64, complex128 and string types implemented",
-                    )
-                )
-            if isinstance(vars[i], np.ndarray):
-                vars[i] = np.atleast_2d(vars[i])
-                if vars[i].dtype == np.int64:
-                    warnings.warn(
-                        "64bit integers not supported by MAD, casting to float64"
-                    )
-                    vars[i] = np.asarray(vars[i], dtype=np.float64)
-                dataShape = vars[i].shape
-                self.process.send(
-                    f"{varNames[i]} = {self.process.pyName}:read_mat({dataShape[0]}, {dataShape[1]})\n"
-                )  # Process return
-                self.process.rawSend(vars[i].tobytes())
+            self.process.send(f"{varNames[i]} = {self.pyName}:recv()")
+            self.process.send(vars[i])
 
     def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list]):
         """Send a variable to the MAD process, either send a varName that already exists in the python MAD class or a varName along with data"""
@@ -195,23 +176,21 @@ class MAD(object):  # Review private and public
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
     def receiveVariables(
-        self, varNameList: list[str], namesInPython: list[str] = None
+        self, varNameList: list[str]
     ) -> Any:
         """Given a list of variable names, receive the variables from the MAD process"""
-        variableEnv = {}
-        if not namesInPython:
-            namesInPython = varNameList
+        returnVars = []
         for i in range(len(varNameList)):
-            if varNameList[i][:2] != "__":
+            if varNameList[i][:2] != "__": # Check for private variables
                 self.process.send(
-                    f"py:send_data({varNameList[i]}, '{namesInPython[i]}')"
+                    f"py:send({varNameList[i]})"
                 )
-                variableEnv = self.process.read(variableEnv)
-        return variableEnv
+                returnVars.append(self.process.recv(varNameList[i]))
+        return tuple(returnVars)
 
     def receiveVar(self, var: str) -> Any:
         """Recieve a single variable from the MAD process"""
-        return self.receiveVariables([var])[var]
+        return self.receiveVariables([var])[0]
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -222,12 +201,12 @@ class MAD(object):  # Review private and public
         if isinstance(resultName, list):
             resultName = self.__pyToLuaLst(resultName)
         if resultName:
-            stringStart = f"{self.__getAsMADString(resultName)} = "
+            stringStart = f"{self.getAsMADString(resultName)} = "
         else:
             stringStart = ""
         self.process.send(
             stringStart
-            + f"""{self.__getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"""
+            + f"""{self.getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"""
         )
         if resultName:
             return self.receiveVar(resultName)
@@ -237,15 +216,15 @@ class MAD(object):  # Review private and public
     ):
         """Call the method methName of the variable varName and store the result in resultName, then retreive the result into the MAD dictionary"""
         if isinstance(resultName, list):
-            stringStart = f"{self.__getAsMADString(resultName)} = "
+            stringStart = f"{self.getAsMADString(resultName)} = "
         elif resultName:
-            stringStart = f"{self.__getAsMADString(resultName)} = "
+            stringStart = f"{self.getAsMADString(resultName)} = "
             resultName = [resultName]
         else:
             stringStart = ""
         self.process.send(
             stringStart
-            + f"""{self.__getAsMADString(varName)}:{self.__getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
+            + f"""{self.getAsMADString(varName)}:{self.getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
         )
         if resultName:
             return self.receiveVariables(resultName)
@@ -261,17 +240,17 @@ class MAD(object):  # Review private and public
             keyString = str(key).replace("'", "")
             if isinstance(item, str):  # Need to keep strings in kwargs
                 item = "'" + item + "'"
-            itemString = self.__getAsMADString(item)
+            itemString = self.getAsMADString(item)
             kwargsString += keyString + " = " + itemString + ", "
         return kwargsString + "}"
 
     def __getArgsAsString(self, *args):
         argStr = ""
         for arg in args:
-            argStr += self.__getAsMADString(arg) + ", "
+            argStr += self.getAsMADString(arg) + ", "
         return argStr[:-2]  # Assumes args is always put last
 
-    def __getAsMADString(self, var: Any, convertString=False):
+    def getAsMADString(self, var: Any, convertString=False):
         if isinstance(var, (list, np.ndarray)):
             return self.__pyToLuaLst(var)
         elif not var:
@@ -293,7 +272,7 @@ class MAD(object):  # Review private and public
         """Convert a python list to a lua list in a string, used when sending information to MAD, should not need to be accessed by user"""
         luaString = "{"
         for item in lst:
-            luaString += self.__getAsMADString(item, True) + ", "
+            luaString += self.getAsMADString(item, True) + ", "
         return luaString + "}"
 
     def MADKwargs(self, varName: str, *args, **kwargs):
@@ -307,10 +286,10 @@ class MAD(object):  # Review private and public
         )
 
     def MADLambda(self, varName: str, arguments: list[str], expression: str):
-        result = self.__getAsMADString(varName) + " = \\"
+        result = self.getAsMADString(varName) + " = \\"
         if arguments:
             for arg in arguments:
-                result += self.__getAsMADString(arg) + ","
+                result += self.getAsMADString(arg) + ","
             result = result[:-1]
         return result + " -> " + expression
 
@@ -334,7 +313,7 @@ class MAD(object):  # Review private and public
                 """
             )
             self.receiveVariables(resultName)  # Make this optional, or not do it
-
+                    
         else:
             self.process.send(
                 f"""
