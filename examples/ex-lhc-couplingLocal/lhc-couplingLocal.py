@@ -9,7 +9,7 @@ import os
 
 current_dir = os.path.dirname(__file__)
 
-with MAD(readTimeout=None) as mad:
+with MAD() as mad:
     mad.importVariables("MAD.element.flags", ["observed"])
     mad.importVariables("MAD.utility", ["assertf", "printf"])
     mad.importVariables("MAD.gphys", ["mchklost"])
