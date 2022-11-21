@@ -36,22 +36,27 @@ if pid > 0:
     with MAD() as mad:  # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
         numVars = 25000
         varNameList = []
-        values = [12345] * numVars
+        values = [12345.0] * numVars
         for i in range(numVars):
             varNameList.append(f"var{i}")
 
         start_time = time.time()
-        mad[tuple(varNameList)] = values
+        for i in range(numVars):
+            mad.sendVar(varNameList[i], values[i])
         print(f"send {numVars} vals", time.time() - start_time)
-        start_time = time.time()
 
         start_time = time.time()
         mad.sendVariables(list(varNameList), values)
         print(f"send {numVars} vals v2", time.time() - start_time)
 
         start_time = time.time()
-        mad.receiveVariables(list(varNameList))
+        for i in range(numVars):
+            mad.receiveVar(varNameList[i])
         print(f"receive {numVars} vals", time.time() - start_time)
+
+        start_time = time.time()
+        mad.receiveVariables(list(varNameList))
+        print(f"receive {numVars} vals v2", time.time() - start_time)
     print("proc1 ended", time.time() - start_time)
 else:
     with MAD(debug=False) as mad:
