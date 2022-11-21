@@ -50,17 +50,16 @@ with MAD() as mad:
 
 with MAD() as mad:
     mad.send(
-        """
+        f"""
     local beam, twiss in MAD
-    MADX:load("fodo.seq", "fodo.mad")
+    MADX:load("{current_dir + "fodo.seq"}", "{current_dir + "fodo.mad"}")
     local seq in MADX
     seq.beam = beam -- use default beam
-    local cols = {'name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'}
-    mtbl = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
+    local cols = {{'name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'}}
+    mtbl = twiss {{sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}}
     mtbl:write("twiss_mad_tfs", cols)
-    py:send_data(mtbl, 'mtbl')
     """
     )
-    mtbl = mad.read()["mtbl"]
+    mad.receiveVar("mtbl") # Highly recommend using this for objects, as this deals with dot indexing and 
     plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
     plt.show()
