@@ -4,26 +4,21 @@ from typing import Any, Iterable, Union, Tuple  # To make stuff look nicer
 from types import MethodType  # Used to attach functions to the class
 
 # Custom Classes:
-from .pymadClasses import madObject, madElement, deferred
-from .madProc import mad_process
+from .pymadClasses import madObject, madFunctor, madReference
+from .mad_process import mad_process
 
 # TODO: implement yield into MAD
-# TODO: Allow looping through objects (Not just elements)
-# TODO: don't pollute MAD environment, place into MAD's MADX environment
-# TODO: Have error if when importing, thing isn't found
+# TODO: place into MAD's MADX environment
+# TODO: Have error if when importing, thing isn't found???
 # TODO: Make it so that MAD does the loop for variables not python (speed)
-# TODO: Lamdba and kwargs is a botched fix, not a fan of it
-# TODO: Recursive dot indexing
-# TODO: Add ability to make function asynchronous
-# TODO: Make shared memory more secure - flag at end, size and type in buffer, to deal with corrupted data
-# TODO: fix madl_mmap int, float and complex sizes to not be constant!
-# TODO: Allow sending of integers not always cast to float
-# TODO: Fix what happens if mad trys to write too much to the buffer! Then make ability to send in chunks
+# TODO: MADkwargs is a botched fix, not a fan of its
 # TODO: Look into how to use repr!!!!!!! (May simplify string iterpolation)
 
 
 class MAD(object):  # Review private and public
-    def __init__(self, pyName: str = "py", madPath: str = None, debug:bool =False) -> None:
+    def __init__(
+        self, pyName: str = "py", madPath: str = None, debug: bool = False
+    ) -> None:
         """
         Initialise MAD Object.
         pyname: The name used to interact with the python process from MAD; default = "py"
@@ -55,66 +50,40 @@ class MAD(object):  # Review private and public
 
     def send(self, input: Union[str, int, float, np.ndarray, bool, list]) -> None:
         return self.process.send(input)
-    
-    def send_data(self, input: Union[str, int, float, np.ndarray, bool, list]) -> None:
-        return self.process.send_data(input)
 
     def recv(self) -> dict:
         return self.process.recv()
-    
+
+    def receive(self) -> dict:
+        return self.process.recv()
+
     def recv_and_exec(self, env: dict = {}) -> dict:
         return self.process.recv_and_exec(env)
 
-    def retrieveMADClasses(
-        self, moduleName: str, requireInitialisation: bool, classNames: list[str] = []
-    ):
-        """Retrieve the classes in MAD from the module "moduleName", while only importing the classes in the list "classesToImport".
-        If no list is provided, it is assumed that you would like to import every class"""
+    def send_rng(self, rng: Union[np.ndarray, list]):
+        return self.process.send_rng(rng)
+
+    def send_lrng(self, lrng: Union[np.ndarray, list]):
+        return self.process.send_lrng(lrng)
+
+    def retrieveMADClasses(self, moduleName: str, classNames: list[str] = []):
+        """Retrieve the classes in MAD from the module "moduleName", while only importing the classes in the list "classNames".
+        If no list is provided, it is assumed that you would like to import every class from the module"""
         script = ""
         if classNames == []:
-            script += f"""
-                       local stringtosend=""
-                       function getModName(modname, mod)
-                           return [[superClass._import("{moduleName}", "]]..tostring(modname)..[[", "]]..tostring(mod)..[[", {requireInitialisation})\n]]
-                       end
-                       for modname, mod in pairs({moduleName}) do stringtosend = stringtosend .. getModName(modname, mod); end
-                       py:send(stringtosend)"""
-        else:
-            for className in classNames:
-                script += f"""superClass._import("{moduleName}", "{className}", "]].. tostring({moduleName}.{className}) .. [[", {requireInitialisation})\n"""
-            script = f"py:send([[{script}]])"
+            classNames = dir(madReference(moduleName, self))
+        for className in classNames:
+            script += f"""{className} = {moduleName}.{className}\n"""
         self.process.send(script)
-        self.process.recv_and_exec()
-
-    # CLEAN UP THIS FUNCTION:
-    def _import(self, moduleName, varName, varType, requireInitialisation):
-        """Only ever called by MAD - DO NOT USE"""
-        ##To be improved
-        if "function" in varType:
-            exec(
-                f"""def {varName}(self, resultName, *args): 
-            self.callFunc(resultName, "{varName}", *args) """
-            )
-            setattr(self, varName, MethodType(locals()[varName], self))
-        else:
-            if requireInitialisation:
-                exec(
-                    f"""def {varName}(self, varName, *args, **kwargs): 
-                self._setupClass("{varName}", "{moduleName}", varName, *args, **kwargs) """
-                )
-                setattr(self, varName, MethodType(locals()[varName], self))
-            else:
-                self.__dict__[varName] = madObject(varName, self)
-        self.process.send(f"{varName} = {moduleName}.{varName}")
 
     def importClasses(self, moduleName: str, classesToImport: list[str] = []):
         # Maybe not have this and have init function instead?
         """Import uninitialised variables into the local environment (necessary?)"""
-        self.retrieveMADClasses(moduleName, True, classesToImport)
+        self.retrieveMADClasses(moduleName, classesToImport)
 
     def importVariables(self, moduleName: str, varsToImport: list[str] = []):
         """Import initialised variables into the local environment (necessary?)"""
-        self.retrieveMADClasses(moduleName, False, varsToImport)
+        self.retrieveMADClasses(moduleName, varsToImport)
 
     def __getattribute__(self, item):
         try:
@@ -147,14 +116,15 @@ class MAD(object):  # Review private and public
     # --------------------------------Sending data to subprocess------------------------------------#
     def eval(self, input: str):
         if input[0] == "=":
-            input = "_" + input
+            input = "__last__" + input
             self.process.send(input)
-            return self._
+            return self["__last__"]
         else:
             self.process.send(input)
 
-    def MADXInput(self, input: str):
+    def MADX_env_send(self, input: str):
         return self.process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
+
     # ----------------------------------------------------------------------------------------------#
 
     # ----------------------------------Sending variables across to MAD----------------------------------------#
@@ -175,16 +145,14 @@ class MAD(object):  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
-    def receiveVariables(
-        self, varNameList: list[str]
-    ) -> Any:
+    def receiveVariables(self, varNameList: list[str]) -> Any:
         """Given a list of variable names, receive the variables from the MAD process"""
         returnVars = []
         for i in range(len(varNameList)):
-            if varNameList[i][:2] != "__": # Check for private variables
-                self.process.send(
-                    f"py:send({varNameList[i]})"
-                )
+            if (
+                varNameList[i][:2] != "__" or "__last__" in varNameList[i]
+            ):  # Check for private variables
+                self.process.send(f"py:send({varNameList[i]})")
                 returnVars.append(self.process.recv(varNameList[i]))
         return tuple(returnVars)
 
@@ -194,24 +162,14 @@ class MAD(object):  # Review private and public
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    # ----------------------------------Calling functions(WIP)-----------------------------------------------------#
-    # Should result name be provided? ALSO NOT TESTED -->
-    def callFunc(self, resultName: Union[str, list[str]], funcName: str, *args):
+    # ----------------------------------Calling/Creating functions-------------------------------------------------#
+    def callFunc(self, funcName: str, *args):
         """Call the function funcName and store the result in resultName, then retreive the result into the MAD dictionary"""
-        if isinstance(resultName, list):
-            resultName = self.__pyToLuaLst(resultName)
-        if resultName:
-            stringStart = f"{self.getAsMADString(resultName)} = "
-        else:
-            stringStart = ""
         self.process.send(
-            stringStart
-            + f"""{self.getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"""
+            f"__last__ = {self.getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"
         )
-        if resultName:
-            return self.receiveVar(resultName)
 
-    def callMethod(
+    def callMethod(  # Needed?
         self, resultName: Union[str, list[str]], varName: str, methName: str, *args
     ):
         """Call the method methName of the variable varName and store the result in resultName, then retreive the result into the MAD dictionary"""
@@ -226,8 +184,15 @@ class MAD(object):  # Review private and public
             stringStart
             + f"""{self.getAsMADString(varName)}:{self.getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
         )
-        if resultName:
-            return self.receiveVariables(resultName)
+
+    def MADLambda(self, arguments: list[str], expression: str):
+        result = "__last__ = \\"
+        if arguments:
+            for arg in arguments:
+                result += self.getAsMADString(arg) + ","
+            result = result[:-1]
+        self.send(result + " -> " + expression)
+        return madFunctor("__last__", None, self)
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -253,13 +218,13 @@ class MAD(object):  # Review private and public
     def getAsMADString(self, var: Any, convertString=False):
         if isinstance(var, (list, np.ndarray)):
             return self.__pyToLuaLst(var)
-        elif not var:
+        elif var == None:
             return "nil"
         elif isinstance(var, str) and convertString:
             return "'" + var + "'"
         elif isinstance(var, complex):
             return str(var).replace("j", "i")
-        elif isinstance(var, (madObject, madElement)):
+        elif isinstance(var, (madReference)):
             return var.__name__
         elif isinstance(var, dict):
             return self.__getKwargAsString(**var)
@@ -285,53 +250,22 @@ class MAD(object):  # Review private and public
             + f"""{{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} """
         )
 
-    def MADLambda(self, varName: str, arguments: list[str], expression: str):
-        result = self.getAsMADString(varName) + " = \\"
-        if arguments:
-            for arg in arguments:
-                result += self.getAsMADString(arg) + ","
-            result = result[:-1]
-        return result + " -> " + expression
-
     # ---------------------------------------------------------------------------------------------------#
 
     # -------------------------------Setup MAD Classes---------------------------------------------------#
     def _setupClass(
         self,
         className: str,
-        moduleName: str,
-        resultName: Union[str, list[str]],
         *args,
         **kwargs,
     ):
-        """Create a class 'className' from the module 'moduleName' and store into the variable 'varName'
+        """Create a class 'className' from the module 'moduleName' and store into the variable '__last__'
         the kwargs are used to as extra keyword arguments within MAD"""
-        if isinstance(resultName, list):
-            self.process.send(
-                f"""
-    {self.__pyToLuaLst(resultName)[1:-3].replace("'", "")} = {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }}
-                """
-            )
-            self.receiveVariables(resultName)  # Make this optional, or not do it
-                    
-        else:
-            self.process.send(
-                f"""
-    {resultName} = {className} '{resultName}' {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} 
-                """
-            )
-            if moduleName == "MAD.element":
-                self.__dict__[resultName] = madElement(resultName, self)
-                returnElm = (
-                    lambda _, **kwargs: f"""{resultName} {self.__getKwargAsString(**kwargs)}"""
-                )
-                setattr(
-                    self.__dict__[resultName],
-                    "set",
-                    MethodType(returnElm, self.__dict__[resultName]),
-                )
-            else:
-                self.__dict__[resultName] = madObject(resultName, self)
+        self.process.send(
+            f"""
+            __last__ = {{ {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} }}
+            """
+        )
 
     def defExpr(self, **kwargs):
         """Create a deffered expression object where the kwargs are used as the deffered expressions, specified using strings"""
@@ -339,35 +273,30 @@ class MAD(object):  # Review private and public
             self.__getKwargAsString(**kwargs).replace("=", ":=").replace("'", "")[1:-3]
         )  # Change := to equals, remove string identifers, and remove ", "
 
-    def deferred(self, varName: str, **kwargs):
-        """Create a deffered expression object with the name "varName" where the kwargs are used as the deffered expressions, specified using strings"""
+    def deferred(self, **kwargs):
+        """Create a deferred expression object with the name "varName" where the kwargs are used as the deffered expressions, specified using strings"""
         self.process.send(
-            f"""
-            local deferred in MAD.typeid
-            {varName} = deferred {{{self.defExpr(**kwargs)}}}
-            """
+            f"__last__ = {{ MAD.typeid.deferred {{{self.defExpr(**kwargs)}}} }}"
         )
-        self.__dict__[varName] = deferred(varName, self)
+        return madReference("__last__", self)
 
-    def loadsequence(self, seqName: str, seqFilename: str, targetFile: str = None):
+    def loadsequence(self, seqFilename: str, targetFile: str = None):
         """Load a MAD-X sequence from the file seqFilename and into the variable 'seqName'. Optionally add a targetFile, which is the MAD version of the sequence file"""
-        if ".seq" not in seqFilename:
-            seqFilename += ".seq"
         if not targetFile:
             targetFile = seqFilename.strip(".seq")
-        if ".mad" not in targetFile:
-            targetFile += ".mad"
-        # Potential failure below - if *args does not contain element set, " may be removed unnecessarily
         self.process.send(
             f"""
             MADX:load("{seqFilename}", "{targetFile}")
-            {seqName} = MADX.seq
+            __last__ = MADX.seq
             """
         )
-        self.__dict__[seqName] = madObject(seqName, self)
+        return madReference("__last__", self)
 
     def __dir__(self) -> Iterable[str]:
-        return [x for x in super(MAD, self).__dir__() if x[0] != "_"]
+        return [x for x in super(MAD, self).__dir__() if x[0] != "_"].extend(self.env())
+
+    def env(self) -> list[str]:
+        return dir(self.receiveVar("py._env"))
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
