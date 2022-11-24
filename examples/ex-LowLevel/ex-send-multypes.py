@@ -95,10 +95,10 @@ print("Nil/None", mad.recv() == None)
 
 #rngs
 mad.send("""
-py:send(MAD.nrange(3, 56, 12))
+py:send(3..11..2)
 py:send(MAD.nrange(3.5, 21.4, 12))
 py:send(MAD.nlogrange(1, 20, 20))
 """)
-print("rng", mad.recv() == np.linspace(3  , 56  , 12))
-print("irng", mad.recv() == np.linspace(3.5, 21.4, 12))
+print("irng", mad.recv() == range(3  , 11  , 2))
+print("rng", mad.recv() == np.linspace(3.5, 21.4, 12))
 print("lrng", np.allclose(mad.recv(), np.logspace(1, 20, 20)))
