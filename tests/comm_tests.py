@@ -2,6 +2,16 @@ import unittest
 from pymadng import MAD
 import numpy as np
 
+class TestExecution(unittest.TestCase):
+
+    def test_recv_and_exec(self):
+        with MAD() as mad:
+            mad.send("""py:send([==[mad.send('''py:send([=[mad.send("py:send([[a = 100/2]])")]=])''')]==])""")
+            mad.recv_and_exec()
+            mad.recv_and_exec()
+            a = mad.recv_and_exec()["a"]
+            self.assertEqual(a, 50)
+
 class TestStrings(unittest.TestCase):
 
     def test_recv(self):
