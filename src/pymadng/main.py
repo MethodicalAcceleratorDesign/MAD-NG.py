@@ -1,4 +1,3 @@
-import warnings
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, Tuple  # To make stuff look nicer
 from types import MethodType  # Used to attach functions to the class
@@ -25,7 +24,7 @@ class MAD(object):  # Review private and public
         madPath: The path to the mad executable; default = None (Use the one that comes with pymadng)
         debug: Sets debug mode on or off; default = False
         """
-        self.process = mad_process(pyName, madPath, debug, self)
+        self.__process = mad_process(pyName, madPath, debug, self)
         self.pyName = pyName
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
@@ -49,22 +48,22 @@ class MAD(object):  # Review private and public
     # ------------------------------------------------------------------------------------------#
 
     def send(self, input: Union[str, int, float, np.ndarray, bool, list]) -> None:
-        return self.process.send(input)
+        return self.__process.send(input)
 
     def recv(self) -> dict:
-        return self.process.recv()
+        return self.__process.recv()
 
     def receive(self) -> dict:
-        return self.process.recv()
+        return self.__process.recv()
 
     def recv_and_exec(self, env: dict = {}) -> dict:
-        return self.process.recv_and_exec(env)
+        return self.__process.recv_and_exec(env)
 
     def send_rng(self, rng: Union[np.ndarray, list]):
-        return self.process.send_rng(rng)
+        return self.__process.send_rng(rng)
 
     def send_lrng(self, lrng: Union[np.ndarray, list]):
-        return self.process.send_lrng(lrng)
+        return self.__process.send_lrng(lrng)
 
     def retrieveMADClasses(self, moduleName: str, classNames: list[str] = []):
         """Retrieve the classes in MAD from the module "moduleName", while only importing the classes in the list "classNames".
@@ -74,7 +73,7 @@ class MAD(object):  # Review private and public
             classNames = dir(madReference(moduleName, self))
         for className in classNames:
             script += f"""{className} = {moduleName}.{className}\n"""
-        self.process.send(script)
+        self.__process.send(script)
 
     def importClasses(self, moduleName: str, classesToImport: list[str] = []):
         # Maybe not have this and have init function instead?
@@ -117,13 +116,13 @@ class MAD(object):  # Review private and public
     def eval(self, input: str):
         if input[0] == "=":
             input = "__last__" + input
-            self.process.send(input)
+            self.__process.send(input)
             return self["__last__"]
         else:
-            self.process.send(input)
+            self.__process.send(input)
 
     def MADX_env_send(self, input: str):
-        return self.process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
+        return self.__process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
 
     # ----------------------------------------------------------------------------------------------#
 
@@ -135,8 +134,8 @@ class MAD(object):  # Review private and public
     ):
         """Send variables to the MAD process, either send a list of varNames that already exist in the python MAD class or the varNames along with a list of the data"""
         for i in range(len(vars)):
-            self.process.send(f"{varNames[i]} = {self.pyName}:recv()")
-            self.process.send(vars[i])
+            self.__process.send(f"{varNames[i]} = {self.pyName}:recv()")
+            self.__process.send(vars[i])
 
     def sendVar(self, varName: str, var: Union[np.ndarray, int, float, list]):
         """Send a variable to the MAD process, either send a varName that already exists in the python MAD class or a varName along with data"""
@@ -152,8 +151,8 @@ class MAD(object):  # Review private and public
             if (
                 varNameList[i][:2] != "__" or "__last__" in varNameList[i]
             ):  # Check for private variables
-                self.process.send(f"py:send({varNameList[i]})")
-                returnVars.append(self.process.recv(varNameList[i]))
+                self.__process.send(f"{self.pyName}:send({varNameList[i]})")
+                returnVars.append(self.__process.recv(varNameList[i]))
         return tuple(returnVars)
 
     def receiveVar(self, var: str) -> Any:
@@ -165,7 +164,7 @@ class MAD(object):  # Review private and public
     # ----------------------------------Calling/Creating functions-------------------------------------------------#
     def callFunc(self, funcName: str, *args):
         """Call the function funcName and store the result in resultName, then retreive the result into the MAD dictionary"""
-        self.process.send(
+        self.__process.send(
             f"__last__ = {self.getAsMADString(funcName)}({self.__getArgsAsString(*args)})\n"
         )
 
@@ -180,7 +179,7 @@ class MAD(object):  # Review private and public
             resultName = [resultName]
         else:
             stringStart = ""
-        self.process.send(
+        self.__process.send(
             stringStart
             + f"""{self.getAsMADString(varName)}:{self.getAsMADString(methName)}({self.__getArgsAsString(*args)})\n"""
         )
@@ -261,7 +260,7 @@ class MAD(object):  # Review private and public
     ):
         """Create a class 'className' from the module 'moduleName' and store into the variable '__last__'
         the kwargs are used to as extra keyword arguments within MAD"""
-        self.process.send(
+        self.__process.send(
             f"""
             __last__ = {{ {className} {{ {self.__getKwargAsString(**kwargs)[1:-1]} {self.__getArgsAsString(*args)} }} }}
             """
@@ -275,7 +274,7 @@ class MAD(object):  # Review private and public
 
     def deferred(self, **kwargs):
         """Create a deferred expression object with the name "varName" where the kwargs are used as the deffered expressions, specified using strings"""
-        self.process.send(
+        self.__process.send(
             f"__last__ = {{ MAD.typeid.deferred {{{self.defExpr(**kwargs)}}} }}"
         )
         return madReference("__last__", self)
@@ -284,7 +283,7 @@ class MAD(object):  # Review private and public
         """Load a MAD-X sequence from the file seqFilename and into the variable 'seqName'. Optionally add a targetFile, which is the MAD version of the sequence file"""
         if not targetFile:
             targetFile = seqFilename.strip(".seq")
-        self.process.send(
+        self.__process.send(
             f"""
             MADX:load("{seqFilename}", "{targetFile}")
             __last__ = MADX.seq
@@ -296,7 +295,7 @@ class MAD(object):  # Review private and public
         return [x for x in super(MAD, self).__dir__() if x[0] != "_"].extend(self.env())
 
     def env(self) -> list[str]:
-        return dir(self.receiveVar("py._env"))
+        return dir(self.receiveVar(f"{self.pyName}._env"))
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
