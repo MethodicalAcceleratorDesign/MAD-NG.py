@@ -1,17 +1,26 @@
 from pymadng import MAD
 import matplotlib.pyplot as plt
-import os
-
+import os 
 current_dir = os.path.dirname(__file__) + "/"
 
-with MAD(debug=True) as mad:
-    mad.loadsequence("seq", current_dir + "fodo.seq", current_dir + "fodo.mad")
-    mad.beam("beam1")
-    mad.seq.beam = mad.beam1
-    mad.twiss(["mtbl", "mflw"], sequence=mad.seq, method=4)
+with MAD() as mad:
+    mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
+    mad["seq"] = mad.MADX.seq
+    mad.seq.beam = mad.beam()
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="atbody")
+    plt.plot(mad.mtbl.s, mad.mtbl.beta11)
+    plt.show()
+
+with MAD() as mad:
+    mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
+    mad.importVariables("MADX", ["seq"])
+    mad.seq.beam = mad.beam()
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="atbody")
     cols = ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
-    mad.mtbl.method("write", None, "'twiss_py.tfs'", cols)
-    plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
+    mad.mtbl.write("'twiss_py.tfs'", cols)
+    for x in mad.seq:
+        print(x.name, x.kind)
+    plt.plot(mad.mtbl.s, mad.mtbl.beta11)
     plt.show()
 
 
@@ -19,28 +28,23 @@ with MAD() as mad:
     mad["circum", "lcell"] = 60, 20
 
     mad.importVariables("math", ["sin", "pi"])
-    mad.deferred("v", k="1/(lcell/sin(pi/4)/4)")
+    mad["v"] = mad.deferred(k="1/(lcell/sin(pi/4)/4)")
 
-    mad.quadrupole("qf", mad.defExpr(knl=[0, " v.k"]), l=1)
-    mad.quadrupole("qd", mad.defExpr(knl=[0, "-v.k"]), l=1)
-    mad.sequence(
-        "seq",
-        mad.qf.set(at=0 * mad.lcell),
-        mad.qd.set(at=0.5 * mad.lcell),
-        mad.qf.set(at=1 * mad.lcell),
-        mad.qd.set(at=1.5 * mad.lcell),
-        mad.qf.set(at=2 * mad.lcell),
-        mad.qd.set(at=2.5 * mad.lcell),
-        refer="entry",
-        l=mad.circum,
-    )
-    mad.beam("beam1")
-    mad.seq.beam = mad.beam1
-    mad.twiss(
-        "mtbl", sequence=mad.seq, method=4, nslice=10, implicit=True, save="atbody"
-    )
+    mad["qf"] = mad.quadrupole(mad.defExpr(knl=[0, " v.k"]), l=1)
+    mad["qd"] = mad.quadrupole(mad.defExpr(knl=[0, "-v.k"]), l=1)
+    mad.send("""
+        seq = sequence 'seq' { refer='entry', l=circum, -- assign to seq in scope!
+        qf { at = 0 },
+        qd { at = 0.5 * lcell },
+        qf { at = 1.0 * lcell },
+        qd { at = 1.5 * lcell },
+        qf { at = 2.0 * lcell },
+        qd { at = 2.5 * lcell },
+        }""")
+    mad.seq.beam = mad.beam()
+    mad["mtbl"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="atbody")
     cols = ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
-    mad.callMethod(None, "mtbl", "write", "'twiss_py.tfs'", cols)
+    mad.mtbl.write("'twiss_py.tfs'", cols)
 
     plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
     plt.title("FODO Cell")
@@ -49,17 +53,11 @@ with MAD() as mad:
     plt.show()
 
 with MAD() as mad:
-    mad.send(
-        f"""
-    local beam, twiss in MAD
-    MADX:load("{current_dir + "fodo.seq"}", "{current_dir + "fodo.mad"}")
+    mad.send("""
+    MADX:load("fodo.seq", "fodo.mad")
     local seq in MADX
     seq.beam = beam -- use default beam
-    local cols = {{'name', 's', 'beta11', 'beta22', 'mu1', 'mu2', 'alfa11', 'alfa22'}}
-    mtbl = twiss {{sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}}
-    mtbl:write("twiss_mad_tfs", cols)
-    """
-    )
-    mad.receiveVar("mtbl") # Highly recommend using this for objects, as this deals with dot indexing and 
-    plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
+    mtbl, mflw = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
+    """)
+    plt.plot(mad.mtbl.s, mad.mtbl.beta11)
     plt.show()
