@@ -40,9 +40,11 @@ if pid > 0:
         for i in range(numVars):
             varNameList.append(f"var{i}")
 
+        mad.send(f"myvector = MAD.vector({numVars})")
         start_time = time.time()
         for i in range(numVars):
-            mad.sendVar(varNameList[i], values[i])
+            mad.send(f"myvector[{i+1}] = py:recv()")
+            mad.send(12345.0)
         print(f"send {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
@@ -51,7 +53,8 @@ if pid > 0:
 
         start_time = time.time()
         for i in range(numVars):
-            mad.receiveVar(varNameList[i])
+            mad.send(f"py:send(myvector[{i+1}])")
+            mad.recv()
         print(f"receive {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
@@ -59,56 +62,37 @@ if pid > 0:
         print(f"receive {numVars} vals v2", time.time() - start_time)
     print("proc1 ended", time.time() - start_time)
 else:
-    with MAD(debug=False) as mad:
-
+    with MAD(debug=True) as mad:
         # METHOD 1
-        filepath = "/home/joshua/Documents/MAD-NGFork/MAD/examples/ex-fodo-madx/"
-        mad.loadsequence("seq", filepath + "fodo.seq")
-        mad.beam("beam1")
-        mad.seq.beam = mad.beam1
-        mad.twiss("mtbl", sequence=mad.seq, method=4, chrom=True)
-        plt.plot(
-            mad.mtbl.s, mad.mtbl["beta11"]
-        )  # Showing both methods of retrieving variables
-        # print(mad.mtbl.header)
+        mad.MADX.load("'fodo.seq'","'fodo.mad'")
+        mad["seq"] = mad.MADX.seq
+        mad.seq.beam = mad.beam()
+        mad["mtbl"] = mad.twiss(sequence=mad.seq, method=4, chrom=True)
+        plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
         plt.show()
 
         # METHOD 2
         mad["circum", "lcell"] = 60, 20
-        mad.deferred("v", f="lcell/math.sin(math.pi/4)/4", k="1/v.f")
-        # mad.multipole("qf", mad.defExpr(knl = {0,  mad.v.k}))
-        mad.multipole("qf", mad.defExpr(knl="{0,  v.k}"))
-        # mad.quadrupole("qf", mad.defExpr(k1 = "v.k"), l = 1)
+        mad["deferred"] = mad.MAD.typeid.deferred
+        mad["v"] = mad.deferred(f = "lcell/math.sin(math.pi/4)/4", k = "1/v.f")
 
-        # mad.multipole("qd", mad.defExpr(knl = {0, -mad.v.k}))
-        mad.multipole("qd", mad.defExpr(knl="{0, -v.k}"))
+        mad["qf"] = mad.multipole(mad.defExpr(knl="{0,  v.k}"))
+        # mad["qf"] = mad.quadrupole(mad.defExpr(k1 = "v.k"), l = 1)
 
-        # mad.quadrupole("qd", mad.defExpr(k1 = "-v.k"), l = 1)
-        mad.sequence(
-            "seq2",
-            mad.qf.set(at=0 * mad.lcell),
-            mad.qd.set(at=0.5 * mad.lcell),
-            mad.qf.set(at=1 * mad.lcell),
-            mad.qd.set(at=1.5 * mad.lcell),
-            mad.qf.set(at=2 * mad.lcell),
-            mad.qd.set(at=2.5 * mad.lcell),
-            refer="entry",
-            l=mad.circum,
-        )
-        mad.beam("beam1")
-        mad.seq2.beam = mad.beam1
-        mad.twiss(
-            "mtbl2",
-            sequence=mad.seq2,
-            method=4,
-            chrom=True,
-            nslice=10,
-            implicit=True,
-            save="atbody",
-        )
-        plt.plot(
-            mad.mtbl2.s, mad.mtbl2["beta11"]
-        )  # Showing both methods of retrieving variables
-        a = mad.mtbl2.header
-        print(a)
+        mad["qd"] = mad.multipole(mad.defExpr(knl="{0, -v.k}"))
+        # mad["qd"] = mad.quadrupole(mad.defExpr(k1 = "-v.k"), l = 1)
+
+        mad.send("""
+        seq2 = sequence 'seq2' { refer='entry', l=circum, -- assign to seq in scope!
+        qf { at = 0 },
+        qd { at = 0.5 * lcell },
+        qf { at = 1.0 * lcell },
+        qd { at = 1.5 * lcell },
+        qf { at = 2.0 * lcell },
+        qd { at = 2.5 * lcell },
+        }""")
+        mad.seq2.beam = mad.beam()
+        mad["mtbl2"] = mad.twiss(sequence=mad.seq2, method=4, nslice=10, implicit=True, save="atbody")
+        plt.plot(mad.mtbl2.s, mad.mtbl2["beta11"])
         plt.show()
+        print(mad.mtbl2.header)
