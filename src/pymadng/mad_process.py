@@ -4,14 +4,9 @@ from types import NoneType
 import numpy as np
 from .pymadClasses import madObject, madReference, madFunctor
 
-# Working: mad.send("""py:send([==[mad.send('''py:send([=[mad.send("py:send([[print('hello world')]])")]=])''')]==])""")
-# Working: mad.send("""py:send([=[mad.send("py:send([[print('hello')]])")]=])""")
-# Working for me: mad.send("""send([==[mad.send(\"\"\"send([=[mad.send("send([[print('hello world')]])")]=])\"\"\")]==])""")
-
-
 __all__ = ["mad_process"]
 
-data_types = {  # Proxy type means object cannot be changed
+data_types = { 
         NoneType                : "nil_",
         str                     : "str_",
         int                     : "int_",
@@ -64,7 +59,7 @@ class mad_process:
 
         self.globalVars = {
             "np"        : np        ,
-            "mad_class": mad_class,
+            "mad": mad_class,
         }
         self.ffrom_mad = os.fdopen(self.from_mad, "rb")
 
@@ -123,9 +118,7 @@ class mad_process:
 
     def recv_and_exec(self, env: dict = {}) -> dict:
         code = compile(self.recv(), "pyInput", "exec")
-        env.update({"mad": self})
         exec(code, self.globalVars, env)
-        # del env["mad"] # necessary?
         return env
 
     def __del__(self):
