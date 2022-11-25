@@ -11,20 +11,20 @@ import numpy as np
 
 
 with MAD() as mad:
-    mad.importVariables("MAD.element.flags", ["observed"])
-    mad.importVariables("MAD.utility", ["assertf", "printf"])
-    mad.importVariables("MAD.gphys", ["mchklost"])
+    mad.Import("MAD.element.flags", ["observed"])
+    mad.Import("MAD.utility", ["assertf", "printf"])
+    mad.Import("MAD.gphys", ["mchklost"])
 
     mad.MADX.load("'lhc_as-built.seq'", "'lhc_as-built.mad'")
     mad.MADX.load("'opticsfile.21'", "'opticsfile.21.mad'")
     mad.MADX.load("'lhc_unset_vars.mad'")
 
-    mad.importVariables("MADX", ["lhcb1", "nrj"])
+    mad.Import("MADX", ["lhcb1", "nrj"])
 
     mad.assertf("#lhcb1 == 6694",
         "'invalid number of elements %d in LHCB1 (6694 expected)'", "#lhcb1")
     
-    mad.lhcb1.beam = mad.beam(particle="proton", energy=mad.nrj)
+    mad.lhcb1.beam = mad.beam(particle="'proton'", energy=mad.nrj)
     mad.MADX_env_send("""
     ktqx1_r2 = -ktqx1_l2 ! remove the link between these 2 vars
     kqsx3_l2 = -0.0015
@@ -52,12 +52,12 @@ with MAD() as mad:
     mad.match(
         command=mad.twiss_and_send,
         variables = [
-            {"var":"MADX.dqx_b1", "name":"dQx.b1", "rtol":1e-6},
-            {"var":"MADX.dqy_b1", "name":"dQy.b1", "rtol":1e-6},
+            {"var":"'MADX.dqx_b1'", "name":"'dQx.b1'", "'rtol'":1e-6},
+            {"var":"'MADX.dqy_b1'", "name":"'dQy.b1'", "'rtol'":1e-6},
         ],
         equalities = [
-            {"expr": mad.expr1, "name": "q1", "tol":1e-3},
-            {"expr": mad.expr2, "name": "q2", "tol":1e-3},
+            {"expr": mad.expr1, "name": "'q1'", "tol":1e-3},
+            {"expr": mad.expr2, "name": "'q2'", "tol":1e-3},
         ],
         objective={"fmin": 1e-3}, maxcall=100, info=2,
     )

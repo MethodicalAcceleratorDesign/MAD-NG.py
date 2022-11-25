@@ -7,15 +7,15 @@ with MAD() as mad:
     mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
     mad["seq"] = mad.MADX.seq
     mad.seq.beam = mad.beam()
-    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="atbody")
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
     plt.plot(mad.mtbl.s, mad.mtbl.beta11)
     plt.show()
 
 with MAD() as mad:
     mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
-    mad.importVariables("MADX", ["seq"])
+    mad.Import("MADX", ["seq"])
     mad.seq.beam = mad.beam()
-    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="atbody")
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
     cols = ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
     mad.mtbl.write("'twiss_py.tfs'", cols)
     for x in mad.seq:
@@ -27,22 +27,21 @@ with MAD() as mad:
 with MAD() as mad:
     mad["circum", "lcell"] = 60, 20
 
-    mad.importVariables("math", ["sin", "pi"])
+    mad.Import("math", ["sin", "pi"])
     mad["v"] = mad.deferred(k="1/(lcell/sin(pi/4)/4)")
 
-    mad["qf"] = mad.quadrupole(mad.defExpr(knl=[0, " v.k"]), l=1)
-    mad["qd"] = mad.quadrupole(mad.defExpr(knl=[0, "-v.k"]), l=1)
-    mad.send("""
-        seq = sequence 'seq' { refer='entry', l=circum, -- assign to seq in scope!
+    mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l=1)
+    mad["qd"] = mad.quadrupole("knl:={0, -v.k}", l=1)
+    mad["seq"] = mad.sequence("""
         qf { at = 0 },
         qd { at = 0.5 * lcell },
         qf { at = 1.0 * lcell },
         qd { at = 1.5 * lcell },
         qf { at = 2.0 * lcell },
         qd { at = 2.5 * lcell },
-        }""")
+        """, refer="'entry'", l=mad.circum,)
     mad.seq.beam = mad.beam()
-    mad["mtbl"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="atbody")
+    mad["mtbl"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
     cols = ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
     mad.mtbl.write("'twiss_py.tfs'", cols)
 

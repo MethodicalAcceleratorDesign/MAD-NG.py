@@ -8,7 +8,7 @@ current_dir = os.path.dirname(__file__) + "/"
 
 
 with MAD(debug=False) as mad:
-    mad["psbeam"] = mad.beam(particle="proton", pc=2.794987)
+    mad["psbeam"] = mad.beam(particle="'proton'", pc=2.794987)
     mad.MADX.BEAM = mad.psbeam
     mad.MADX.BRHO = mad.psbeam.brho
     mad.MADX.load(f"'{current_dir}ps_unset_vars.mad'")
@@ -16,7 +16,7 @@ with MAD(debug=False) as mad:
     mad.MADX.load(f"'{current_dir}ps_ss.seq'")
     mad.MADX.load(f"'{current_dir}ps_fb_lhc.str'")
 
-    mad.importVariables("MADX", ["ps"])
+    mad.Import("MADX", ["ps"])
     mad.ps.beam = mad.psbeam
     mad["srv"] = mad.survey(sequence=mad.ps)
 
@@ -26,7 +26,7 @@ with MAD(debug=False) as mad:
 
     mad["tws"] = mad.twiss(sequence=mad.ps, method=6, nslice=3, chrom=True)
 
-    mad.importClasses("MAD.gphys", ["melmcol"])
+    mad.Import("MAD.gphys", ["melmcol"])
     #Add element properties as columns
     mad.melmcol(mad.tws,
         ["angle", "tilt", "k0l", "k1l", "k2l", "k3l", "k4l", "k5l", "k6l", "k0sl",
