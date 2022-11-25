@@ -70,8 +70,8 @@ class madObject(madReference):
         return varnames
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        self.__mad__._setupClass(self.__name__, *args, **kwargs)
-        return madReference("__last__", self.__mad__)
+        return self.__mad__._setupClass(self.__name__, *args, **kwargs)
+        
 
     def __iter__(self):
         self.__iterIndex__ = -1
@@ -89,7 +89,6 @@ class madObject(madReference):
 class madFunctor(madObject):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.__parent__ and isinstance(self.__mad__[self.__parent__], madObject):
-            self.__mad__.callFunc(self.__name__, self.__parent__, *args)
+            return self.__mad__.callFunc(self.__name__, self.__parent__, *args)
         else:
             return self.__mad__.callFunc(self.__name__, *args)
-        return madReference("__last__", self.__mad__)
