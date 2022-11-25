@@ -66,9 +66,9 @@ class TestList(unittest.TestCase):
             myList[1][0] = 10
             self.assertEqual(mad.recv(), myList)
     
-class TestInt(unittest.TestCase):
+class TestNums(unittest.TestCase):
 
-    def test_send_recv(self):
+    def test_send_recv_int(self):
         with MAD() as mad:
             myInt = 4
             mad.send("""
@@ -78,9 +78,7 @@ class TestInt(unittest.TestCase):
             mad.send(myInt)
             self.assertEqual(mad.recv(), 6)
 
-class TestFloat(unittest.TestCase):
-
-    def test_send_recv(self):
+    def test_send_recv_num(self):
         with MAD() as mad:
             myFloat = 6.612
             mad.send("""
@@ -90,9 +88,7 @@ class TestFloat(unittest.TestCase):
             mad.send(myFloat)
             self.assertEqual(mad.recv(), 6.612 + 0.56)
 
-class TestComplex(unittest.TestCase):
-
-    def test_send_recv(self):
+    def test_send_recv_cpx(self):
         with MAD() as mad:
             myCpx = 6.612 + 4j
             mad.send("""
@@ -146,6 +142,74 @@ class TestBool(unittest.TestCase):
             mad.send(False)
             self.assertEqual(mad.recv(), False)
             self.assertEqual(mad.recv(), True)
+
+class TestMono(unittest.TestCase):
+
+    def test_recv(self):
+        with MAD() as mad:
+            mad.send("""
+            local m = MAD.monomial({1, 2, 3, 4, 6, 20, 100})
+            py:send(m)
+            local m = MAD.monomial("WZ346oy")
+            py:send(m)
+            """)
+            
+            self.assertTrue(np.all(mad.recv() == [1, 2, 3, 4, 6, 20, 100]))
+            self.assertTrue(np.all(mad.recv() == [32, 35, 3, 4, 6, 50, 60]))
+    
+    def test_send_recv(self):
+        with MAD() as mad:
+            mad.send("""
+            local m1 = py:recv()
+            local m2 = py:recv()
+            py:send(m1 + m2)
+            """)
+            pym1 = np.random.randint(0, 255, 20, dtype=np.ubyte)
+            pym2 = np.random.randint(0, 255, 20, dtype=np.ubyte)
+            mad.send(pym1)
+            mad.send(pym2)
+            mad_res = mad.recv()
+            self.assertTrue(np.all(mad_res == pym1+pym2))
+            #Check the return is a monomial
+            self.assertEqual(mad_res.dtype, np.dtype("ubyte"))
+
+class TestTPSA(unittest.TestCase):
+
+    def test_recv_real(self):
+        with MAD() as mad:
+            mad.send("""
+            local d = MAD.gtpsad(3, 6)
+            res = MAD.tpsa(6):set(1,2):set(2, 1)
+            res2 = res:copy():set(3, 1)
+            res3 = res2:copy():set(4, 1)
+            py:send(res:axypbzpc(res2, res3, 1, 2, 3))
+            """)
+            monomials, coefficients = mad.recv()
+            self.assertTrue(np.all(monomials[0] == [0, 0, 0]))
+            self.assertTrue(np.all(monomials[1] == [1, 0, 0]))
+            self.assertTrue(np.all(monomials[2] == [0, 1, 0]))
+            self.assertTrue(np.all(monomials[3] == [0, 0, 1]))
+            self.assertTrue(np.all(monomials[4] == [2, 0, 0]))
+            self.assertTrue(np.all(monomials[5] == [1, 1, 0]))
+            self.assertTrue(np.all(coefficients == [11, 6, 4, 2, 1, 1]))
+
+    def test_recv_cpx(self):
+        with MAD() as mad:
+            mad.send("""
+            local d = MAD.gtpsad(3, 6)
+            res = MAD.ctpsa(6):set(1,2+1i):set(2, 1+2i)
+            res2 = res:copy():set(3, 1+2i)
+            res3 = res2:copy():set(4, 1+2i)
+            py:send(res:axypbzpc(res2, res3, 1, 2, 3))
+            """)
+            monomials, coefficients = mad.recv()
+            self.assertTrue(np.all(monomials[0] == [0, 0, 0]))
+            self.assertTrue(np.all(monomials[1] == [1, 0, 0]))
+            self.assertTrue(np.all(monomials[2] == [0, 1, 0]))
+            self.assertTrue(np.all(monomials[3] == [0, 0, 1]))
+            self.assertTrue(np.all(monomials[4] == [2, 0, 0]))
+            self.assertTrue(np.all(monomials[5] == [1, 1, 0]))
+            self.assertTrue(np.all(coefficients == [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]))
 
 
 if __name__ == '__main__':
