@@ -24,6 +24,7 @@ data_types = {
         madObject               : "obj_",
         madReference            : "ref_",
         madFunctor              : "fun_",
+        np.dtype("ubyte")       : "mono",
 }
 
 class mad_process:
@@ -64,22 +65,25 @@ class mad_process:
         self.ffrom_mad = os.fdopen(self.from_mad, "rb")
 
         self.fun = {
-            "nil_": {"recv": recv_nil , "send": send_nil      },
-            "bool": {"recv": recv_bool, "send": send_bool     },
-            "str_": {"recv": recv_str , "send": send_str      },
-            "tbl_": {"recv": recv_list, "send": send_list     },
-            "ref_": {"recv": recv_ref , "send": send_ref      },
-            "fun_": {"recv": recv_fun , "send": send_ref      },
-            "obj_": {"recv": recv_obj , "send": send_ref      },
-            "int_": {"recv": recv_int , "send": send_int      },
-            "num_": {"recv": recv_num , "send": send_num      },
-            "cnum": {"recv": recv_cpx , "send": send_cpx      },
-            "mat_": {"recv": recv_mat , "send": send_gmat     },
-            "cmat": {"recv": recv_cmat, "send": send_gmat     },
-            "imat": {"recv": recv_imat, "send": send_gmat     },
-            "rng_": {"recv": recv_rng ,                       },
-            "lrng": {"recv": recv_lrng,                       },
-            "irng": {"recv": recv_irng, "send": send_irng     },
+            "nil_": {"recv": recv_nil , "send": send_nil },
+            "bool": {"recv": recv_bool, "send": send_bool},
+            "str_": {"recv": recv_str , "send": send_str },
+            "tbl_": {"recv": recv_list, "send": send_list},
+            "ref_": {"recv": recv_ref , "send": send_ref },
+            "fun_": {"recv": recv_fun , "send": send_ref },
+            "obj_": {"recv": recv_obj , "send": send_ref },
+            "int_": {"recv": recv_int , "send": send_int },
+            "num_": {"recv": recv_num , "send": send_num },
+            "cnum": {"recv": recv_cpx , "send": send_cpx },
+            "mat_": {"recv": recv_mat , "send": send_gmat},
+            "cmat": {"recv": recv_cmat, "send": send_gmat},
+            "imat": {"recv": recv_imat, "send": send_gmat},
+            "rng_": {"recv": recv_rng ,                  },
+            "lrng": {"recv": recv_lrng,                  },
+            "irng": {"recv": recv_irng, "send": send_irng},
+            "mono": {"recv": recv_mono, "send": send_mono},
+            "tpsa": {"recv": recv_tpsa,                  },
+            "ctpa": {"recv": recv_ctpa,                  },
         }
         mad_return = 0
         try: 
@@ -182,6 +186,11 @@ def send_grng(self: mad_process, rng: Union[np.ndarray, list]):
 def send_irng(self: mad_process, rng: range):
     self.process.stdin.write(struct.pack("iii", rng.start, rng.stop, rng.step))
 
+def send_mono(self: mad_process, mono: np.ndarray):
+    send_int(self, mono.size)
+    self.process.stdin.write(mono.tobytes())
+    
+
 # --------------------------------------------------------------------------------------------#
 
 # --------------------------------------- Receiving data -------------------------------------#
@@ -241,4 +250,19 @@ def recv_rng(self: mad_process) -> np.ndarray:
 def recv_lrng(self: mad_process) -> np.ndarray:
     return np.logspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
 
+def recv_mono(self: mad_process) -> np.ndarray:
+    mono_len = recv_int(self)
+    return np.frombuffer(self.ffrom_mad.read(mono_len), dtype=np.ubyte)
+
+def recv_gtpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
+    num_mono, mono_len = np.frombuffer(self.ffrom_mad.read(8), dtype=np.int32)
+    mono_list = np.array_split(np.frombuffer(self.ffrom_mad.read(mono_len*num_mono), dtype=np.ubyte), num_mono)
+    coefficients = np.frombuffer(self.ffrom_mad.read(num_mono*dtype.itemsize), dtype=dtype)
+    return mono_list, coefficients
+
+def recv_ctpa(self):
+    return recv_gtpsa(self, np.dtype("complex128"))
+
+def recv_tpsa(self):
+    return recv_gtpsa(self, np.dtype("float64"))
 # --------------------------------------------------------------------------------------------#
