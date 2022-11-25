@@ -87,24 +87,25 @@ class mad_process:
             mad_return = self.recv()
         except:
             pass
-        if mad_return != 1:
+        if mad_return != 1: #Need to check number?
             raise (OSError(f"Unsuccessful starting of {madPath} process"))
 
-    # --------------------------------------- Sending data ---------------------------------------#
-
     def send_rng(self, rng: Union[np.ndarray, list]):
+        """Send a numpy array as a rng to MAD"""
         self.process.stdin.write(b"rng_")
         send_grng(self, rng)
 
     def send_lrng(self, lrng: Union[np.ndarray, list]):
+        """Send a numpy array as a logrange to MAD"""
         self.process.stdin.write(b"lrng")
         send_grng(self, lrng)
 
-    def send(self, input: Union[str, int, float, np.ndarray, bool, list]) -> None:
+    def send(self, data: Union[str, int, float, np.ndarray, bool, list]) -> None:
+        """Send data to MAD"""
         try:
-            typ = data_types[get_typestring(input)]
+            typ = data_types[get_typestring(data)]
             self.process.stdin.write(typ.encode("utf-8"))
-            self.fun[typ]["send"](self, input)
+            self.fun[typ]["send"](self, data)
             return
         except KeyError:  # raise not in exception to reduce error output
             raise TypeError(f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}")
@@ -112,13 +113,14 @@ class mad_process:
     def recv(
         self, varname: str = None
     ) -> Union[str, int, float, np.ndarray, bool, list]:
+        """Receive data from MAD"""
         typ = self.ffrom_mad.read(4).decode("utf-8")
-        self.varname = varname
+        self.varname = varname #For mad reference
         return self.fun[typ]["recv"](self)
 
     def recv_and_exec(self, env: dict = {}) -> dict:
-        code = compile(self.recv(), "pyInput", "exec")
-        exec(code, self.globalVars, env)
+        """Read data from MAD and execute it"""
+        exec(compile(self.recv(), "ffrom_mad", "exec"), self.globalVars, env)
         return env
 
     def __del__(self):
@@ -133,6 +135,7 @@ def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
     else:
         return type(a)
 
+# --------------------------------------- Sending data ---------------------------------------#
 send_nil = lambda self, input: None
 
 def send_ref(self: mad_process, obj: madReference):
