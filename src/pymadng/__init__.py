@@ -1,4 +1,4 @@
-from .main import MAD
+from .mad_object import MAD
 
 __title__ = "pymadng"
 __version__ = "0.2.0"
