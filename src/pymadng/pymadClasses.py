@@ -69,9 +69,16 @@ class madObject(madReference):
         varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
         return varnames
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.__mad__._setupClass(self.__name__, *args, **kwargs)
-        
+    def __call__(self, *args: Any, **kwargs: Any) -> madReference:
+        self.__mad__.send(
+            f"""
+            __last__ = {{ {self.__name__} {{ 
+                {self.__mad__._MAD__getKwargAsString(**kwargs)[1:-1]} 
+                {self.__mad__._MAD__getArgsAsString(*args)} }} 
+                }}
+            """
+        )
+        return madReference("__last__", self)
 
     def __iter__(self):
         self.__iterIndex__ = -1
