@@ -2,6 +2,9 @@ import unittest
 from pymadng import MAD
 import numpy as np
 
+# TODO: Why does this occur sometimes: /MADpy/src/pymadng/mad: /MADpy/src/pymadng/madl_pymad.mad:342: unsupported data type
+# TODO: Test sending of TPSA
+
 class TestExecution(unittest.TestCase):
 
     def test_recv_and_exec(self):
