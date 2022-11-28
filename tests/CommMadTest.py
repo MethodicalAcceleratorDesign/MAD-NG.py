@@ -76,11 +76,11 @@ else:
         mad["deferred"] = mad.MAD.typeid.deferred
         mad["v"] = mad.deferred(f = "lcell/math.sin(math.pi/4)/4", k = "1/v.f")
 
-        mad["qf"] = mad.multipole(mad.defExpr(knl="{0,  v.k}"))
-        # mad["qf"] = mad.quadrupole(mad.defExpr(k1 = "v.k"), l = 1)
+        mad["qf"] = mad.multipole("knl:={0,  v.k}")
+        # mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l = 1)
 
-        mad["qd"] = mad.multipole(mad.defExpr(knl="{0, -v.k}"))
-        # mad["qd"] = mad.quadrupole(mad.defExpr(k1 = "-v.k"), l = 1)
+        mad["qd"] = mad.multipole("knl:={0,  v.k}")
+        # mad["qd"] = mad.quadrupole("k1 := -v.k", l = 1)
 
         mad.send("""
         seq2 = sequence 'seq2' { refer='entry', l=circum, -- assign to seq in scope!
@@ -92,7 +92,7 @@ else:
         qd { at = 2.5 * lcell },
         }""")
         mad.seq2.beam = mad.beam()
-        mad["mtbl2"] = mad.twiss(sequence=mad.seq2, method=4, nslice=10, implicit=True, save="atbody")
+        mad["mtbl2"] = mad.twiss(sequence=mad.seq2, method=4, nslice=10, implicit=True, save="'atbody'")
         plt.plot(mad.mtbl2.s, mad.mtbl2["beta11"])
         plt.show()
         print(mad.mtbl2.header)
