@@ -4,8 +4,6 @@ import os
 import matplotlib.pyplot as plt
 import time
 
-# TODO: Make it so writing to variables is easy
-
 pid = os.fork()
 #Test 1
 if pid > 0:
@@ -21,7 +19,7 @@ if pid > 0:
 
         # Directly send to mad
         # mad.writeToProcess("arr = arr * 2")
-        mad.callMethod("arr", "arr", "mul", 2)
+        mad.send("arr = arr:mul(2)")
         print((mad["arr"] == arr0 * 2).all())
         mad.eval("arr2 = arr * 2")
         mad.eval("arr3 = arr / 3")
