@@ -1,4 +1,5 @@
-import sphinx_rtd_theme
+import sphinx_rtd_theme, os, sys
+sys.path.insert(0, os.path.abspath("../src/pymadng"))
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
