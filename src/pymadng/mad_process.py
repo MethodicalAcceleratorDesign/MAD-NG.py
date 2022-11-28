@@ -1,5 +1,5 @@
 import struct, os, subprocess, sys
-from typing import Union, Tuple
+from typing import Union, Tuple, Callable
 from types import NoneType
 import numpy as np
 from .pymadClasses import madObject, madReference, madFunctor
@@ -29,17 +29,17 @@ data_types = {
 
 class mad_process:
     def __init__(
-        self, pyName: str = "py", madPath: str = None, debug=False, mad_class=None
+        self, py_name: str, mad_path: str, debug: bool, mad_class
     ) -> None:
-        self.pyName = pyName
+        self.pyName = py_name
         self.mad_class = mad_class
 
-        madPath = madPath or os.path.dirname(os.path.abspath(__file__)) + "/mad"
+        mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad"
 
         self.from_mad, mad_side = os.pipe()
         startupChunk = (
             "MAD.pymad '"
-            + pyName
+            + py_name
             + "' {_dbgf = "
             + str(debug).lower()
             + "} :start("
@@ -48,7 +48,7 @@ class mad_process:
         )
 
         self.process = subprocess.Popen(
-            [madPath, "-q", "-e", startupChunk],
+            [mad_path, "-q", "-e", startupChunk],
             bufsize=0,
             stdout=sys.stdout,
             stderr=sys.stderr,
@@ -92,7 +92,7 @@ class mad_process:
         except:
             pass
         if mad_return != 1: #Need to check number?
-            raise (OSError(f"Unsuccessful starting of {madPath} process"))
+            raise (OSError(f"Unsuccessful starting of {mad_path} process"))
 
     def send_rng(self, rng: Union[np.ndarray, list]):
         """Send a numpy array as a rng to MAD"""
@@ -104,6 +104,16 @@ class mad_process:
         self.process.stdin.write(b"lrng")
         send_grng(self, lrng)
 
+    def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
+        """Send the monomials and coeeficients of a TPSA to MAD, creating a table representing the TPSA object"""
+        self.process.stdin.write(b"tpsa")
+        send_gtpsa(self, monos, coefficients, send_num)
+
+    def send_ctpsa(self, monos: np.ndarray, coefficients: np.ndarray):
+        """Send the monomials and coeeficients of a complex TPSA to MAD, creating a table representing the complex TPSA object"""
+        self.process.stdin.write(b"ctpa")
+        send_gtpsa(self, monos, coefficients, send_cpx)
+
     def send(self, data: Union[str, int, float, np.ndarray, bool, list]) -> None:
         """Send data to MAD"""
         try:
@@ -112,7 +122,8 @@ class mad_process:
             self.fun[typ]["send"](self, data)
             return
         except KeyError:  # raise not in exception to reduce error output
-            raise TypeError(f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}")
+            pass
+        raise TypeError(f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}")
 
     def recv(
         self, varname: str = None
@@ -142,54 +153,63 @@ def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
 # --------------------------------------- Sending data ---------------------------------------#
 send_nil = lambda self, input: None
 
-def send_ref(self: mad_process, obj: madReference):
+def send_ref(self: mad_process, obj: madReference) -> None:
     if obj.__name__ == "__last__":
-        self.send(f"return table.unpack({obj.__name__})")
+        send_str(self, f"return {obj.__name__}[1]")
     else:
-        self.send(f"return {obj.__name__}")
+        send_str(self, f"return {obj.__name__}")
 
-def send_str(self: mad_process, input: str):
+def send_str(self: mad_process, input: str) -> None:
     send_int(self, len(input))
     self.process.stdin.write(input.encode("utf-8"))
 
-def send_int(self: mad_process, input: int):
+def send_int(self: mad_process, input: int) -> None:
     self.process.stdin.write(struct.pack("i", input))  
 
-def send_num(self: mad_process, input: float):
+def send_num(self: mad_process, input: float) -> None:
     self.process.stdin.write(struct.pack("d", input))
 
-def send_cpx(self: mad_process, input: complex):
+def send_cpx(self: mad_process, input: complex) -> None:
     self.process.stdin.write(struct.pack("dd", input.real, input.imag))
 
-def send_bool(self: mad_process, input: bool):
+def send_bool(self: mad_process, input: bool) -> None:
     self.process.stdin.write(struct.pack("?", input))
 
 def send_shape(self: mad_process, shape: Tuple[int, int]) -> None:
     send_int(self, shape[0])
     send_int(self, shape[1])
 
-def send_gmat(self: mad_process, mat: np.ndarray) -> str:
+def send_gmat(self: mad_process, mat: np.ndarray) -> None:
     assert len(mat.shape) == 2, "Matrix must be of two dimensions"
     send_shape(self, mat.shape)
     self.process.stdin.write(mat.tobytes())
 
-def send_list(self: mad_process, lst: list):
+def send_list(self: mad_process, lst: list) -> None:
     n = len(lst)
     send_int(self, n)
     for i in range(n):
         self.send(lst[i])  # deep copy
     return self
 
-def send_grng(self: mad_process, rng: Union[np.ndarray, list]):
+def send_grng(self: mad_process, rng: Union[np.ndarray, list]) -> None:
     self.process.stdin.write(struct.pack("ddi", rng[0], rng[-1], len(rng)))
 
-def send_irng(self: mad_process, rng: range):
+def send_irng(self: mad_process, rng: range) -> None:
     self.process.stdin.write(struct.pack("iii", rng.start, rng.stop, rng.step))
 
-def send_mono(self: mad_process, mono: np.ndarray):
+def send_mono(self: mad_process, mono: np.ndarray) -> None:
     send_int(self, mono.size)
     self.process.stdin.write(mono.tobytes())
-    
+
+def send_gtpsa(self: mad_process, monos: np.ndarray, coefficients: np.ndarray, fsendNum: Callable[[mad_process, Union[float, complex]], None]) -> None:
+    assert len(monos.shape) == 2, "The list of monomials must have two dimensions"
+    assert len(monos) == len(coefficients), "The number of monomials must be equal to the number of coefficients"
+    send_int(self, len(monos))      #Num monomials
+    send_int(self, len(monos[0]))   #Monomial length
+    for mono in monos:
+        self.process.stdin.write(mono.tobytes())
+    for coefficient in coefficients:
+        fsendNum(self, coefficient)
 
 # --------------------------------------------------------------------------------------------#
 
