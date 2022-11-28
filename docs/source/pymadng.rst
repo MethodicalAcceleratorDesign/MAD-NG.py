@@ -1,5 +1,5 @@
-Pymadng package
-===============
+PyMAD-NG
+========
 
 Module contents
 ---------------

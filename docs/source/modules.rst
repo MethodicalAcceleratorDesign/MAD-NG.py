@@ -1,5 +1,5 @@
-pymadng
-=======
+API Reference
+=============
 
 .. toctree::
    :maxdepth: 4

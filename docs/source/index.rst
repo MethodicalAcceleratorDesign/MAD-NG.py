@@ -10,6 +10,7 @@ Welcome to pymadng's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   gettingstarted
    modules
 
 

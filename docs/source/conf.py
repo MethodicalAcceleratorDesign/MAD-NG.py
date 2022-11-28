@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath("../src/"))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'pymadng'
+project = 'PyMAD-NG'
 copyright = '2022, Joshua Gray, Laurent Deniau'
 author = 'Joshua Gray, Laurent Deniau'
 release = '0.2.0'
@@ -27,7 +27,7 @@ exclude_patterns = []
 
 
 #Napolean options
-napoleon_include_init_with_doc = False
+napoleon_include_init_with_doc = True
 napoleon_use_admonition_for_references = True
 
 
