@@ -46,7 +46,7 @@ if pid > 0:
         print(f"send {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
-        mad.sendVariables(list(varNameList), values)
+        mad.send_variables(list(varNameList), values)
         print(f"send {numVars} vals v2", time.time() - start_time)
 
         start_time = time.time()
@@ -56,7 +56,7 @@ if pid > 0:
         print(f"receive {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
-        mad.receiveVariables(list(varNameList))
+        mad.receive_variables(list(varNameList))
         print(f"receive {numVars} vals v2", time.time() - start_time)
     print("proc1 ended", time.time() - start_time)
 else:
