@@ -4,12 +4,12 @@ import time
 
 arr0 = np.zeros((10000, 1000)) + 1j  # 2*10000*1000*8 -> 160 MB
 
-mad = MAD(debug = False)
+mad = MAD()
 
-matrixString = """
+mad.send("""
     local m1 = MAD.matrix(1000, 1000):seq()
-    py:send(m1)"""
-mad.send(matrixString)
+    py:send(m1)
+    """)
 
 mad.send("cm1 = (MAD.cmatrix(10000, 1000) + 1i)")
 
@@ -22,10 +22,10 @@ mad.send(cmatrixString.format("cm1", "*", 2))
 mad.send(cmatrixString.format("cm2", "*", 2))
 mad.send(cmatrixString.format("cm3", "/", 3))
 
-vectorString = """
-local v1 = (MAD.vector(45):seq()*2 + 1)/3
-py:send(v1)"""
-mad.send(vectorString)
+mad.send("""
+    local v1 = (MAD.vector(45):seq()*2 + 1)/3
+    py:send(v1)
+    """)
 start_time = time.time()
 
 m1 = mad.recv()
@@ -35,15 +35,11 @@ cm2 = mad.recv()
 cm3 = mad.recv()
 v1 = mad.recv()
 
-
-
 print(time.time() - start_time)
 print(np.all(cm1 == arr0*2))
 print(np.all(cm2 == arr0*2*2))
 print(np.all(cm3 == arr0*2/3))
 print(np.all(cm4 == arr0))
-# print(v1, m1)
-
 
 # Lists
 myList = [[1, 2, 3, 4, 5, 6, 7, 8, 9]] * 2
