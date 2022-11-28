@@ -8,7 +8,7 @@ Installation
 
     pip install pymadng
 
-Each example can be running ``python3 ex-name.py`` inside the folder of the example. These examples give a range of uses available and show some techniques that are available with MAD-NG and pymadng.
+Each example can run by executing ``python3 ex-name.py`` inside the folder of the example. These examples give a range of uses available and show some techniques that are available with MAD-NG and pymadng.
 
 To start communication with MAD-NG, you simply are required to do:
 
