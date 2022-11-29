@@ -2,9 +2,6 @@ import unittest
 from pymadng import MAD
 import numpy as np
 
-# TODO: Why does this occur sometimes: /MADpy/src/pymadng/mad: /MADpy/src/pymadng/madl_pymad.mad:342: unsupported data type
-# TODO: Test sending of TPSA
-
 class TestExecution(unittest.TestCase):
 
     def test_recv_and_exec(self):
@@ -213,7 +210,28 @@ class TestTPSA(unittest.TestCase):
             self.assertTrue(np.all(monomials[4] == [2, 0, 0]))
             self.assertTrue(np.all(monomials[5] == [1, 1, 0]))
             self.assertTrue(np.all(coefficients == [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]))
-
+    
+    def test_send_tpsa(self):
+        with MAD() as mad:
+            mad.send("""
+            local tab = py:recv()
+            py:send(tab)
+            """)
+            monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
+            coefficients = [11, 6, 4, 2, 1, 1]
+            mad.send_tpsa(monos, coefficients)
+            self.assertTrue(mad.recv(), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
+    
+    def test_send_ctpsa(self):
+        with MAD() as mad:
+            mad.send("""
+            local tab = py:recv()
+            py:send(tab)
+            """)
+            monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
+            coefficients = [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]
+            mad.send_ctpsa(monos, coefficients)
+            self.assertTrue(mad.recv(), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
 
 if __name__ == '__main__':
     unittest.main()
