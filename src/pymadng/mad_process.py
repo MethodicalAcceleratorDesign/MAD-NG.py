@@ -123,7 +123,7 @@ class mad_process:
             return
         except KeyError:  # raise not in exception to reduce error output
             pass
-        raise TypeError(f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}")
+        raise TypeError(f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}")
 
     def recv(
         self, varname: str = None
@@ -140,9 +140,9 @@ class mad_process:
 
     def __del__(self):
         self.ffrom_mad.close()
-        self.process.stdin.close()
         self.process.terminate()
         self.process.wait()
+        self.process.stdin.close()
 
 def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
     if isinstance(a, np.ndarray): 
@@ -204,6 +204,7 @@ def send_mono(self: mad_process, mono: np.ndarray) -> None:
 def send_gtpsa(self: mad_process, monos: np.ndarray, coefficients: np.ndarray, fsendNum: Callable[[mad_process, Union[float, complex]], None]) -> None:
     assert len(monos.shape) == 2, "The list of monomials must have two dimensions"
     assert len(monos) == len(coefficients), "The number of monomials must be equal to the number of coefficients"
+    assert monos.dtype == np.uint8, "The monomials must be of type 8-bit unsigned integer "
     send_int(self, len(monos))      #Num monomials
     send_int(self, len(monos[0]))   #Monomial length
     for mono in monos:
@@ -255,8 +256,9 @@ def recv_imat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("int32"))
 
 def recv_list(self: mad_process) -> list:
+    varname = self.varname
     return [
-        self.recv(self.varname and self.varname + f"[{i+1}]")
+        self.recv(varname and varname + f"[{i+1}]")
         for i in range(recv_int(self))
     ]
 
