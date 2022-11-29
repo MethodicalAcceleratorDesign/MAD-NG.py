@@ -85,12 +85,8 @@ class mad_process:
             "tpsa": {"recv": recv_tpsa,                  },
             "ctpa": {"recv": recv_ctpa,                  },
         }
-        mad_return = 0
-        try: 
-            self.send(f"{self.pyName}:send(1)")
-            mad_return = self.recv()
-        except:
-            pass
+        self.send(f"{self.pyName}:send(1)")
+        mad_return = self.recv()
         if mad_return != 1: #Need to check number?
             raise (OSError(f"Unsuccessful starting of {mad_path} process"))
 
