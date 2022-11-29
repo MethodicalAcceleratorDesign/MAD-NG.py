@@ -1,55 +1,77 @@
 from typing import Iterable, Union, Any  # To make stuff look nicer
+import numpy as np
 
 
 class madReference(object):
     def __init__(self, name, mad):
         self.__name__ = name
         self.__parent__ = (
-            name and "." in name and ".".join(name.split(".")[:-1]) or None
-        )  # No need for or?
+            name and "[" in name and "[".join(name.split("[")[:-1]) or None 
+        )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
 
     def __getattribute__(self, item):
-        if (
-            item
-            in [
-                "iterVars",
-                "iterIndex",
-                "method",
-                "set",
-            ]
-            or "__" == item[:2]
-        ):
+        if "__" == item[:2]:
             return super(madReference, self).__getattribute__(item)
-        return self.__mad__.receiveVar(self.__name__ + "." + item)
+        return self[item]
 
     def __setattr__(self, item, value):
-        if (
-            item
-            in [
-                "iterVars",
-                "iterIndex",
-                "method",
-                "set",
-            ]
-            or "__" == item[:2]
-        ):
+        if "__" == item[:2]:
             return super(madReference, self).__setattr__(item, value)
-        self.__mad__.sendVar(self.__name__ + "." + item, value)
+        self[item] = value
 
     def __getitem__(self, item: Union[str, int]):
         if isinstance(item, int):
-            result = self.__mad__.receiveVar(self.__name__ + f"[ {item + 1} ]")
+            result = self.__mad__.receive_var(self.__name__ + f"[ {item + 1} ]")
         elif isinstance(item, str):
-            result = self.__mad__.receiveVar(self.__name__ + f"['{item    }']")
+            result = self.__mad__.receive_var(self.__name__ + f"['{item    }']")
         else:
-            result = None
+            raise(TypeError("Cannot index type of ", type(item)))
         if result is None:
             raise (IndexError(item))
         return result
 
-    def __setitem__(self, item, value):
-        self.__mad__.sendVar(self.__name__ + "." + item, value)
+    def __setitem__(self, item: Union[str, int], value: Union[str, int, float, np.ndarray, bool, list]): 
+        if isinstance(item, int):
+            self.__mad__.send_var(self.__name__ + f"[ {item + 1} ]", value)
+        elif isinstance(item, str):
+            self.__mad__.send_var(self.__name__ + f"['{item    }']", value)
+        else:
+            raise(TypeError("Cannot index type of ", type(item)))
+
+    def __add__(self, rhs):
+        return self.__gOp__(rhs, "+")
+
+    def __mul__(self, rhs):
+        return self.__gOp__(rhs, "*")
+    
+    def __pow__(self, rhs):
+        return self.__gOp__(rhs, "^")
+
+    def __sub__(self, rhs):
+        return self.__gOp__(rhs, "-")
+
+    def __truediv__(self, rhs):
+        return self.__gOp__(rhs, "/")
+    
+    def __mod__(self, rhs):
+        return self.__gOp__(rhs, "%")
+    
+    def __eq__(self, rhs):
+        if isinstance(rhs, type(self)) and self.__name__ == rhs.__name__: #Same reference
+            return True
+        else:
+            self.__gOp__(rhs, "==")
+            return self.__mad__["__last__"]
+    
+    def __gOp__(self, rhs, operator: str):
+        self.__mad__.send(f"__last__ = {self.__name__} {operator} py:recv()")
+        self.__mad__.send(rhs)
+        return madReference("__last__", self.__mad__)
+    
+    def __len__(self):
+        self.__mad__.send(f"py:send(#{self.__name__})")
+        return self.__mad__.recv()
 
     def __dir__(self) -> Iterable[str]:
         script = f"""
@@ -57,28 +79,31 @@ class madReference(object):
             for modname, mod in pairs({self.__name__}) do modList[i] = modname; i = i + 1; end
             py:send(modList)"""
         self.__mad__.send(script)
-        return [x for x in self.__mad__.recv() if x[:2] != "__"]
-
-    def method(self, methodName: str, resultName: str, *args):
-        return self.__mad__.callMethod(resultName, self.__name__, methodName, *args)
-
+        varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
+        for i in range(len(varnames)):
+            if isinstance(self[varnames[i]], madFunctor):
+                varnames[i] += "(..)"
+        return varnames
 
 class madObject(madReference):
     def __dir__(self) -> Iterable[str]:
-        self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object))")
+        self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
         varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
+        for i in range(len(varnames)):
+            if isinstance(self[varnames[i]], madFunctor):
+                varnames[i] += "(...)"
         return varnames
 
-    def __call__(self, *args: Any, **kwargs: Any) -> madReference:
+    def __call__(self, *args, **kwargs):
         self.__mad__.send(
             f"""
-            __last__ = {{ {self.__name__} {{ 
+            __last__ = __mklast__( {self.__name__} {{ 
                 {self.__mad__._MAD__getKwargAsString(**kwargs)[1:-1]} 
                 {self.__mad__._MAD__getArgsAsString(*args)} }} 
-                }}
+                )
             """
         )
-        return madReference("__last__", self)
+        return madObject("__last__", self.__mad__)
 
     def __iter__(self):
         self.__iterIndex__ = -1
@@ -89,13 +114,12 @@ class madObject(madReference):
             self.__iterIndex__ += 1
             return self[self.__iterIndex__]
         except IndexError:
-            pass
-        raise StopIteration
+            raise StopIteration
 
 
 class madFunctor(madObject):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        if self.__parent__ and isinstance(self.__mad__[self.__parent__], madObject):
-            return self.__mad__.callFunc(self.__name__, self.__parent__, *args)
+        if self.__parent__ and isinstance(self.__mad__[self.__parent__], (madObject, np.ndarray)):
+            return self.__mad__.call_func(self.__name__, self.__parent__, *args)
         else:
-            return self.__mad__.callFunc(self.__name__, *args)
+            return self.__mad__.call_func(self.__name__, *args)
