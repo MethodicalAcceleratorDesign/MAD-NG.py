@@ -31,7 +31,7 @@ with MAD() as mad:
     kqsx3_r2 = +0.0015
     """)
     t0 = time.time()
-    mad["tbl"] = mad.twiss(sequence=mad.lhcb1, method=4)
+    mad["tbl", "flw"] = mad.twiss(sequence=mad.lhcb1, method=4)
     # plt.plot(mad.tbl.s, mad.tbl.beta11)
     # plt.show()
     mad.tbl.write("'before_tune_correction_n'")
