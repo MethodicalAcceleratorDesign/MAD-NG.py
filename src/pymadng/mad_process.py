@@ -154,10 +154,7 @@ def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
 send_nil = lambda self, input: None
 
 def send_ref(self: mad_process, obj: madReference) -> None:
-    if obj.__name__ == "__last__":
-        send_str(self, f"return {obj.__name__}[1]")
-    else:
-        send_str(self, f"return {obj.__name__}")
+    send_str(self, f"return {obj.__name__}")
 
 def send_str(self: mad_process, input: str) -> None:
     send_int(self, len(input))
