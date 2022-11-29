@@ -130,4 +130,4 @@ dmypy.json
 
 #tfs tables and txt files
 *.tfs
-*.txt
+*/output.txt
