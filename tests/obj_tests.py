@@ -1,8 +1,6 @@
 import unittest
 from pymadng import MAD
-import pymadng
 from pymadng.pymadClasses import madReference, madObject, madFunctor
-import matplotlib.pyplot as plt
 
 import numpy as np
 import time
@@ -11,6 +9,7 @@ class TestObjects(unittest.TestCase):
     
     def test_get(self):
         with MAD() as mad:
+            self.assertEqual(mad.asdfg, None)
             mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1} py:send(qd) """) 
             mad.send("""qf = quadrupole {qd = qd} py:send(qf) """) 
             qd = mad.recv("qd")
@@ -102,10 +101,13 @@ class TestObjects(unittest.TestCase):
 
             mad["mat"] = mad.matrix(10).seq() + 2 / 3 * 4 ** 3 #bidmas
             self.assertTrue(np.all(mad.mat == pyMat + 2 / 3 * 4 ** 3))
-            
+
             #conversions
             self.assertTrue(np.all(np.array(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
             self.assertTrue(np.all(list(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
+            self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == pyMat))
+            self.assertEqual(np.sin(1), mad.math.sin(1).eval())
+            self.assertEqual(np.cos(0.5), mad.math.cos(0.5).eval())
 
     def test_benchmark(self):
         with MAD() as mad:
