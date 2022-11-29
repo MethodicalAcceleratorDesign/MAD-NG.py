@@ -41,7 +41,7 @@ with MAD() as mad:
         qd { at = 2.5 * lcell },
         """, refer="'entry'", l=mad.circum,)
     mad.seq.beam = mad.beam()
-    mad["mtbl"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
     cols = ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
     mad.mtbl.write("'twiss_py.tfs'", cols)
 
