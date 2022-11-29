@@ -18,22 +18,22 @@ with MAD(debug=False) as mad:
 
     mad.Import("MADX", ["ps"])
     mad.ps.beam = mad.psbeam
-    mad["srv"] = mad.survey(sequence=mad.ps)
+    mad["srv", "mflw"] = mad.survey(sequence=mad.ps)
 
     mad.srv.write("'PS_survey_py.tfs'",
         ["name", "kind", "s", "l", "angle", "x", "y", "z", "theta"],
         )
 
-    mad["tws"] = mad.twiss(sequence=mad.ps, method=6, nslice=3, chrom=True)
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.ps, method=6, nslice=3, chrom=True)
 
     mad.Import("MAD.gphys", ["melmcol"])
     #Add element properties as columns
-    mad.melmcol(mad.tws,
+    mad.melmcol(mad.mtbl,
         ["angle", "tilt", "k0l", "k1l", "k2l", "k3l", "k4l", "k5l", "k6l", "k0sl",
          "k1sl", "k2sl", "k3sl", "k4sl", "k5sl", "k6sl", "ksl", "hkick", "vkick" ],
         )
 
-    mad.tws.write("'PS_twiss_py.tfs'",
+    mad.mtbl.write("'PS_twiss_py.tfs'",
         ["name", "kind", "s", "x", "px", "beta11", "alfa11", "beta22", "alfa22","dx",
          "dpx", "mu1", "mu2", "l", "angle", "k0l", "k1l", "k2l", "k3l", "hkick", "vkick"],
         )
