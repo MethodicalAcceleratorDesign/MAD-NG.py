@@ -38,11 +38,19 @@ class MAD(object):  # Review private and public
             A MAD object, allowing for communication with MAD-NG 
         """
         self.__process = mad_process(py_name, mad_path, debug, self)
-        self.pyName = py_name
+        self.send("""
+        function __mklast__ (a, b, ...)
+            if MAD.typeid.is_nil(b) then return a
+            else return {a, b, ...}
+            end
+        end
+        """)
+        self.py_name = py_name
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
         modulesToImport = [
             "MAD",  # Need MAD.MAD?
+            "MADX",
             "elements",
             "sequence",
             "mtable",
@@ -56,7 +64,6 @@ class MAD(object):  # Review private and public
         ]
         self.Import("MAD", modulesToImport)
         self.Import("MAD.element")
-        self.__dict__["MADX"] = madObject("MADX", self)
 
     # ------------------------------------------------------------------------------------------#
 
@@ -72,17 +79,21 @@ class MAD(object):  # Review private and public
         """
         self.__process.send(data)
 
-    def recv(self) -> Union[str, int, float, np.ndarray, bool, list]:
+    def recv(self, varname: str = None) -> Union[str, int, float, np.ndarray, bool, list]:
         """Return received data from MAD.
+
+        Args:
+            varname(str): The name of the variable you are receiving (Only useful when receiving references)
+                (default is None)
 
         Returns:
             Data from MAD with type str/int/float/ndarray/bool/list, depending what was asked from MAD-NG.
         """
-        return self.__process.recv()
+        return self.__process.recv(varname)
 
-    def receive(self) -> Union[str, int, float, np.ndarray, bool, list]:
+    def receive(self, varname: str = None) -> Union[str, int, float, np.ndarray, bool, list]:
         """See recv"""
-        return self.__process.recv()
+        return self.__process.recv(varname)
 
     def recv_and_exec(self, env: dict = {}) -> dict:
         """Receive a string from MAD and execute it.
@@ -230,8 +241,11 @@ class MAD(object):  # Review private and public
             Errors: See :meth:`send`.
         """
         for i in range(len(vars)):
-            self.__process.send(f"{names[i]} = {self.pyName}:recv()")
-            self.__process.send(vars[i])
+            if isinstance(vars[i], madReference):
+                self.__process.send(f"{names[i]} = {vars[i].__name__}")
+            else:
+                self.__process.send(f"{names[i]} = {self.py_name}:recv()")
+                self.__process.send(vars[i])
 
     def send_var(self, name: str, var: Union[str, int, float, np.ndarray, bool, list]):
         """Send a variable to the MAD process.
@@ -266,7 +280,7 @@ class MAD(object):  # Review private and public
             if (
                 names[i][:2] != "__" or "__last__" in names[i]
             ):  # Check for private variables
-                self.__process.send(f"{self.pyName}:send({names[i]})")
+                self.__process.send(f"{self.py_name}:send({names[i]})")
                 returnVars.append(self.__process.recv(names[i]))
         return tuple(returnVars)
 
@@ -303,7 +317,7 @@ class MAD(object):  # Review private and public
         self.__process.send(
             f"__last__ = {self.get_MAD_string(funcName)}({self.__getArgsAsString(*args)})\n"
         )
-        return madReference("__last__", self)
+        return madObject("__last__", self)
 
     def MAD_lambda(self, arguments: list[str], expression: str):
         """Create a small anonymous function in MAD named ``__last__``.
@@ -324,7 +338,7 @@ class MAD(object):  # Review private and public
                 result += self.get_MAD_string(arg) + ","
             result = result[:-1]
         self.send(result + " -> " + expression)
-        return madFunctor("__last__", None, self)
+        return madFunctor("__last__", self)
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -398,12 +412,14 @@ class MAD(object):  # Review private and public
             A reference to the deffered expression object.
         """
         self.__process.send(
-            f"__last__ = {{ MAD.typeid.deferred {{ {self.__getKwargAsString(**kwargs).replace('=', ':=')[1:-3]} }} }}"
+            f"__last__ = __mklast__( MAD.typeid.deferred {{ {self.__getKwargAsString(**kwargs).replace('=', ':=')[1:-3]} }} )"
         )
         return madReference("__last__", self)
 
     def __dir__(self) -> Iterable[str]:
-        return [x for x in super(MAD, self).__dir__() if x[0] != "_"].extend(self.env())
+        pyObjs = [x for x in super(MAD, self).__dir__() if x[0] != "_"]
+        pyObjs.extend(self.env())
+        return pyObjs
 
     def env(self) -> list[str]:
         """Retreive the environment of MAD
@@ -411,7 +427,7 @@ class MAD(object):  # Review private and public
         Returns:
             A list of strings indicating the available variables and modules within the MAD-NG environment
         """
-        return dir(self.receive_var(f"{self.pyName}._env"))
+        return dir(self.receive_var(f"{self.py_name}._env"))
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
