@@ -11,7 +11,7 @@ class madReference(object):
         self.__mad__ = mad
 
     def __getattribute__(self, item):
-        if "__" == item[:2]:
+        if "__" == item[:2] or item == "eval":
             return super(madReference, self).__getattribute__(item)
         return self[item]
 
@@ -60,7 +60,7 @@ class madReference(object):
     def __eq__(self, rhs):
         if isinstance(rhs, type(self)) and self.__name__ == rhs.__name__: #Same reference
             return True
-        else:
+        else: #Ask mad if its the same
             self.__gOp__(rhs, "==")
             return self.__mad__["__last__"]
     
@@ -73,6 +73,19 @@ class madReference(object):
         self.__mad__.send(f"py:send(#{self.__name__})")
         return self.__mad__.recv()
 
+    def __str__(self):
+        val = self.__mad__[self.__name__]
+        if isinstance(val, madReference):
+            return repr(val)
+        else:
+            return str(val)
+
+    def eval(self):
+        return self.__mad__[self.__name__]
+
+    def __repr__(self):
+        return f"MAD-NG Object(Name: {self.__name__}, Parent: {self.__parent__})"
+
     def __dir__(self) -> Iterable[str]:
         script = f"""
             local modList={{}}; local i = 1;
@@ -82,7 +95,7 @@ class madReference(object):
         varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
         for i in range(len(varnames)):
             if isinstance(self[varnames[i]], madFunctor):
-                varnames[i] += "(..)"
+                varnames[i] += "(...)"
         return varnames
 
 class madObject(madReference):
