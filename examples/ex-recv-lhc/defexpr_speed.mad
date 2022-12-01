@@ -1,0 +1,50 @@
+local function LHC_load ()
+  local beam in MAD
+  local assertf in MAD.utility
+
+  MADX:load('lhc_as-built.seq', 'lhc_as-built.mad') -- convert and save on need
+  MADX:load('opt_400_10000_400_3000.madx', 'opt_400_10000_400_3000.mad') -- ditto
+  MADX:load('lhc_unset_vars.mad') -- handmade, cleaner than disabling warnings...
+
+  local lhcb1, lhcb2 in MADX
+
+  -- sanity checks
+  local n1, n2 = #lhcb1, #lhcb2
+  assertf(n1 == 6677, "invalid number of elements %d in LHCB1 (6677 expected)", n1)
+  assertf(n2 == 6676, "invalid number of elements %d in LHCB2 (6676 expected)", n2)
+end
+
+local is_number, is_string, is_function, is_table in MAD.typeid
+
+local expr = {} -- list of deferred expressions
+
+local function reg_expr(k,v) -- collect deferred expressions
+  if is_number(v) or is_string(v) then
+    ;
+  elseif is_function(v) then -- deferred expressions are functions
+    expr[#expr+1] = v
+  elseif is_table(v) then
+    for kk, vv in pairs(v) do reg_expr(kk,vv) end -- recursive call
+  else
+    print(k, v, type(v)) -- unexpected for MAD-X, just for debug
+  end
+end
+
+local t0, t1
+
+t0 = os.clock()
+LHC_load ()
+t1 = os.clock()
+io.write("load time = ", t1-t0, " sec\n")
+
+t0 = os.clock()
+reg_expr("MADX", MADX)
+t1 = os.clock()
+io.write("reg time = ", t1-t0, " sec\n")
+
+t0 = os.clock()
+for i=1,#expr do expr[i]() end
+t1 = os.clock()
+io.write("eval time = ", t1-t0, " sec\n")
+
+io.write("#expr = ", #expr, "\n")
