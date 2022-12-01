@@ -46,4 +46,4 @@ Then the second script explicitly sent to MAD-NG, extends the first script, so t
 .. literalinclude:: ../../examples/ex-LowLevel/ex-send-recv.py
     :lines: 59-68
 
-On success of both scripts, the print command will only be executed after the explicit print commands
+On success of both scripts, the print command sent by MAD-NG will only be executed after the explicit print commands, visible in python
