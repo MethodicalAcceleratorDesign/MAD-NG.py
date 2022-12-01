@@ -71,11 +71,16 @@ class MAD(object):  # Review private and public
         Args:
             data (str/int/float/ndarray/bool/list): The data to send to MAD-NG.
 
+        Returns:
+            self (the mad object) - so that you can do mad.send("...").recv()
+
         Raises:
             TypeError: An unsupported type was attempted to be sent to MAD-NG.
             AssertionError: If and np.ndarray is input, the matrix must be of two dimensions.
         """
         self.__process.send(data)
+        return self
+        
 
     def recv(self, varname: str = None) -> Union[str, int, float, np.ndarray, bool, list]:
         """Return received data from MAD-NG.
@@ -166,17 +171,17 @@ class MAD(object):  # Review private and public
             script += f"""{className} = {module}.{className}\n"""
         self.__process.send(script)
 
-    def __getattribute__(self, item):
-        try:
-            return super(MAD, self).__getattribute__(item)
-        except AttributeError:
-            return self.receive_var(item)
+    def __getattr__(self, item):
+        return self.receive_var(item)
 
     # -----------------------------Make the class work like a dictionary----------------------------#
     def __setitem__(self, varName: str, var: Any) -> None:
         if isinstance(varName, tuple):
             nameList = list(varName)
-            varList = list(var)
+            if isinstance(var, madReference):
+                varList = [type(var)(var.__name__ + f"[{i+1}]", self) for i in range(len(nameList))]  
+            else:              
+                varList = list(var)
             if len(varList) != len(nameList):
                 raise ValueError(
                     "Incorrect number of values to unpack, received",
@@ -315,7 +320,7 @@ class MAD(object):  # Review private and public
             A reference to a list of the return values of the function.
         """
         self.__process.send(
-            f"__last__ = {self.get_MAD_string(funcName)}({self.__getArgsAsString(*args)})\n"
+            f"__last__ = __mklast__({self.get_MAD_string(funcName)}({self.__getArgsAsString(*args)}))\n"
         )
         return madObject("__last__", self)
 
@@ -345,7 +350,8 @@ class MAD(object):  # Review private and public
     # -------------------------------String Conversions--------------------------------------------------#
     def __getKwargAsString(self, **kwargs):
         # Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup
-        """Convert a keyword argument input to a string used by MAD-NG"""
+        """Convert a keyword argument input to a string used by MAD-NG
+        THIS NEEDS TO BE IMPROVED!, WHAT IF USER WANTS BIG DATA AS ARGUMENT"""
         kwargsString = "{"
         for key, item in kwargs.items():
             keyString = str(key).replace("'", "")
@@ -354,7 +360,8 @@ class MAD(object):  # Review private and public
         return kwargsString + "}"
 
     def __getArgsAsString(self, *args):
-        """Convert an argument input to a string used by MAD-NG"""
+        """Convert an argument input to a string used by MAD-NG
+        THIS NEEDS TO BE IMPROVED!, WHAT IF USER WANTS BIG DATA AS ARGUMENT"""
         argStr = ""
         for arg in args:
             argStr += self.get_MAD_string(arg) + ", "
@@ -386,7 +393,7 @@ class MAD(object):  # Review private and public
         elif isinstance(var, str) and convertString:
             return "'" + var + "'"
         elif isinstance(var, complex):
-            return str(var).replace("j", "i")
+            return str(var)[1:-1].replace("j", "i") #Remove brackets and convert j to i
         elif isinstance(var, (madReference)):
             return var.__name__
         elif isinstance(var, dict):
