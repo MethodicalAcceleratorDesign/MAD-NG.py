@@ -252,5 +252,24 @@ class TestTPSA(unittest.TestCase):
             mad.send_ctpsa(monos, coefficients)
             self.assertTrue(mad.recv(), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
 
+    def test_send_recv_damap(self):
+        with MAD() as mad:
+            mad.send("""
+            local sin in MAD.gmath
+            MAD.gtpsad(6, 5)
+            local M = MAD.damap {xy = 5}
+            M.x  = 1 ; M.y  = 2 ; M.t  = 3
+            M.px = 2 ; M.py = 1 ; M.pt = 1
+            res = sin(M.x) * sin(M.y)
+            py:send(res)
+            recved = MAD.tpsa():fromtable(py:recv())
+            py:send(recved)
+            """)
+            init = mad.recv()
+            mad.send_tpsa(*init)
+            final = mad.recv()
+            self.assertTrue((init[0] == final[0]).all())
+            self.assertTrue((init[1] == final[1]).all())
+
 if __name__ == '__main__':
     unittest.main()
