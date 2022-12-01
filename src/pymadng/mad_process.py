@@ -249,11 +249,20 @@ def recv_imat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("int32"))
 
 def recv_list(self: mad_process) -> list:
-    varname = self.varname
-    return [
+    varname = self.varname          #cache
+    haskeys = recv_bool(self)
+    lstLen = recv_int(self)
+    vals = [
         self.recv(varname and varname + f"[{i+1}]")
-        for i in range(recv_int(self))
+        for i in range(lstLen)
     ]
+    self.varname = varname          #reset
+    if haskeys and lstLen == 0: 
+        return recv_ref(self)
+    elif haskeys:
+        return vals, recv_ref(self)
+    else:       
+        return vals
 
 def recv_irng(self: mad_process) -> range:
     start, stop, step = np.frombuffer(self.ffrom_mad.read(12), dtype=np.int32)
