@@ -10,10 +10,12 @@ class madReference(object):
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
 
-    def __getattribute__(self, item):
-        if "__" == item[:2] or item == "eval":
-            return super(madReference, self).__getattribute__(item)
-        return self[item]
+    def __getattr__(self, item):
+        try:
+            return self[item]
+        except (IndexError, KeyError):
+            pass
+        raise(AttributeError(item)) #For python
 
     def __setattr__(self, item, value):
         if "__" == item[:2]:
@@ -23,12 +25,15 @@ class madReference(object):
     def __getitem__(self, item: Union[str, int]):
         if isinstance(item, int):
             result = self.__mad__.receive_var(self.__name__ + f"[ {item + 1} ]")
+            if result is None:
+                raise (IndexError(item)) #For python
         elif isinstance(item, str):
             result = self.__mad__.receive_var(self.__name__ + f"['{item    }']")
+            if result is None:
+                raise (KeyError(item)) #For python
         else:
             raise(TypeError("Cannot index type of ", type(item)))
-        if result is None:
-            raise (IndexError(item))
+
         return result
 
     def __setitem__(self, item: Union[str, int], value: Union[str, int, float, np.ndarray, bool, list]): 
@@ -130,7 +135,7 @@ class madObject(madReference):
             raise StopIteration
 
 
-class madFunctor(madObject):
+class madFunctor(madReference):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.__parent__ and isinstance(self.__mad__[self.__parent__], (madObject, np.ndarray)):
             return self.__mad__.call_func(self.__name__, self.__parent__, *args)
