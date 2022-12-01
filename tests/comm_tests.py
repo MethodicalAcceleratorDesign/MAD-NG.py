@@ -65,6 +65,25 @@ class TestList(unittest.TestCase):
             myList[0][0] = 10
             myList[1][0] = 10
             self.assertEqual(mad.recv(), myList)
+
+    def test_send_recv_wref(self):
+        with MAD() as mad:
+            mad.send("""
+            list = {MAD.object "a" {a = 2}, MAD.object "b" {b = 2}}
+            list2 = {1, 2, 3, 4, 5, a = 10, b = 3, c = 4}
+            py:send(list)
+            py:send(list2)
+            """)
+            list1 = mad.recv("list")
+            list2 = mad.recv("list2")
+            self.assertEqual(len(list1), 2)
+            self.assertEqual(list2[0], [1, 2, 3, 4, 5])
+            self.assertEqual(list2[1].a, 10)
+            self.assertEqual(list2[1].b, 3)
+            self.assertEqual(list2[1].c, 4)
+            self.assertEqual(list1[0].a, 2)
+            self.assertEqual(list1[1].b, 2)
+
     
 class TestNums(unittest.TestCase):
 
