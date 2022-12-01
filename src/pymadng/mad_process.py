@@ -280,7 +280,7 @@ def recv_mono(self: mad_process) -> np.ndarray:
 
 def recv_gtpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
     num_mono, mono_len = np.frombuffer(self.ffrom_mad.read(8), dtype=np.int32)
-    mono_list = np.array_split(np.frombuffer(self.ffrom_mad.read(mono_len*num_mono), dtype=np.ubyte), num_mono)
+    mono_list = np.reshape(np.frombuffer(self.ffrom_mad.read(mono_len*num_mono), dtype=np.ubyte), (num_mono, mono_len))
     coefficients = np.frombuffer(self.ffrom_mad.read(num_mono*dtype.itemsize), dtype=dtype)
     return mono_list, coefficients
 
