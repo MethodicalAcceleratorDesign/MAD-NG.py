@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pymadng's documentation!
-===================================
+Welcome to the documentation for PyMAD-NG!
+==========================================
 
 .. toctree::
    :maxdepth: 2
@@ -13,6 +13,7 @@ Welcome to pymadng's documentation!
    gettingstarted
    modules
    ex-lowlevel
+   ex-limitations
 
 
 Indices and tables
