@@ -19,7 +19,9 @@ class TestObjects(unittest.TestCase):
             self.assertEqual(qd.__mad__, mad)
             self.assertEqual(qd.knl, [0, 0.25])
             self.assertEqual(qd.l, 1)
-            self.assertRaises(IndexError, lambda: qd.asdfg)
+            self.assertRaises(AttributeError, lambda: qd.asdfg)
+            self.assertRaises(KeyError, lambda: qd["asdfg"])
+            self.assertRaises(IndexError, lambda: qd[1])
             self.assertTrue(isinstance(qf.qd, madReference))
             self.assertEqual(qf.qd.knl, [0, 0.25])
             self.assertEqual(qf.qd.l, 1)
@@ -81,6 +83,40 @@ class TestObjects(unittest.TestCase):
             self.assertFalse(mad.qdSelected)
             mad.qd.set_variables({"l": 2})
             self.assertEqual(mad.qd.l, 2)
+    
+    def test_mult_retrn(self):
+        with MAD() as mad:
+            mad.send("""
+            obj = MAD.object "obj" {a = 1, b = 2}
+            local function mult_rtrn ()
+                obj2 = MAD.object "obj2" {a = 2, b = 3}
+                return obj, obj, obj, obj2
+            end
+            __last__ = __mklast__(mult_rtrn())
+            lastobj = __mklast__(obj)
+            notLast = {mult_rtrn()}
+            """)
+            mad["o11", "o12", "o13", "o2"] = madReference("__last__", mad)
+            mad["p11", "p12", "p13", "p2"] = madReference("notLast", mad)
+            mad["objCpy"] = madReference("lastobj", mad) #Test single object in __mklast__
+            self.assertEqual(mad.o11.a, 1)
+            self.assertEqual(mad.o11.b, 2)
+            self.assertEqual(mad.o12.a, 1)
+            self.assertEqual(mad.o12.b, 2)
+            self.assertEqual(mad.o13.a, 1)
+            self.assertEqual(mad.o13.b, 2)
+            self.assertEqual(mad.o2.a , 2)
+            self.assertEqual(mad.o2.b , 3)
+            self.assertEqual(mad.p11.a, 1)
+            self.assertEqual(mad.p11.b, 2)
+            self.assertEqual(mad.p12.a, 1)
+            self.assertEqual(mad.p12.b, 2)
+            self.assertEqual(mad.p13.a, 1)
+            self.assertEqual(mad.p13.b, 2)
+            self.assertEqual(mad.p2.a , 2)
+            self.assertEqual(mad.p2.b , 3)
+            self.assertEqual(mad.objCpy, mad.obj)
+
 
     def test_matrix(self):
         with MAD() as mad:
@@ -115,7 +151,7 @@ class TestObjects(unittest.TestCase):
             qd = quadrupole {knl={0,  0.25}, l = 1}
             py:send(qd)
             """) 
-            qd = mad.recv()
+            qd = mad.recv("qd")
             start = time.time()
             for i in range(int(1e5)):
                 mad["qf"] = qd
