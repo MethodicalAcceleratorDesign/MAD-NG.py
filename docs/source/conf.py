@@ -37,3 +37,17 @@ napoleon_use_admonition_for_references = True
 
 html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+
+##Code from https://github.com/readthedocs/readthedocs.org/issues/1139, for autogenerating w/ read the docs
+def run_apidoc(_):
+	from sphinx.ext.apidoc import main
+	import os
+	import sys
+	sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+	cur_dir = os.path.abspath(os.path.dirname(__file__))
+	module = os.path.join(cur_dir,"../../src","pymadng")
+	main(['-e', '-o', cur_dir, module, '--force'])
+
+def setup(app):
+	app.connect('builder-inited', run_apidoc)
