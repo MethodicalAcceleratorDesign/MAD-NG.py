@@ -39,6 +39,9 @@ Sending and Receiving Large Datasets
 
 The file `ex-LowLevel/ex-send-recv.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-LowLevel/ex-send-recv.py>`_ shows sending 960 MB arrays and then receiving manipulated versions of these arrays and verifies the manipulations.
 
+Sending and Receiving Scripts
+"""""""""""""""""""""""""""""
+
 Finally we test the receiving scripts and execution, where we find the first script sent to MAD-NG must be executed twice by python, as the first command sends a command back to MAD-NG, which sends a command to be executed by python.
 
 Then the second script explicitly sent to MAD-NG, extends the first script, so that python is required to execute the script 3 times. 
