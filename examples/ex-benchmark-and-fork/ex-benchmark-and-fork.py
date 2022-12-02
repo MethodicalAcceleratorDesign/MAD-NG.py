@@ -60,12 +60,12 @@ if pid > 0:
         print(f"receive {numVars} vals v2", time.time() - start_time)
     print("proc1 ended", time.time() - start_time)
 else:
-    with MAD(debug=True) as mad:
+    with MAD() as mad:
         # METHOD 1
         mad.MADX.load("'fodo.seq'","'fodo.mad'")
         mad["seq"] = mad.MADX.seq
         mad.seq.beam = mad.beam()
-        mad["mtbl"] = mad.twiss(sequence=mad.seq, method=4, chrom=True)
+        mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, chrom=True)
         plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
         plt.show()
 
@@ -74,11 +74,8 @@ else:
         mad["deferred"] = mad.MAD.typeid.deferred
         mad["v"] = mad.deferred(f = "lcell/math.sin(math.pi/4)/4", k = "1/v.f")
 
-        mad["qf"] = mad.multipole("knl:={0,  v.k}")
-        # mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l = 1)
-
-        mad["qd"] = mad.multipole("knl:={0,  v.k}")
-        # mad["qd"] = mad.quadrupole("k1 := -v.k", l = 1)
+        mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l = 1)
+        mad["qd"] = mad.quadrupole("knl:={0,  -v.k}", l = 1)
 
         mad.send("""
         seq2 = sequence 'seq2' { refer='entry', l=circum, -- assign to seq in scope!
@@ -90,7 +87,7 @@ else:
         qd { at = 2.5 * lcell },
         }""")
         mad.seq2.beam = mad.beam()
-        mad["mtbl2"] = mad.twiss(sequence=mad.seq2, method=4, nslice=10, implicit=True, save="'atbody'")
+        mad["mtbl2", "mflw2"] = mad.twiss(sequence=mad.seq2, method=4, nslice=10, implicit=True, save="'atbody'")
         plt.plot(mad.mtbl2.s, mad.mtbl2["beta11"])
         plt.show()
         print(mad.mtbl2.header)
