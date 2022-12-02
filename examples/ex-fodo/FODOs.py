@@ -57,6 +57,15 @@ with MAD() as mad:
     local seq in MADX
     seq.beam = beam -- use default beam
     mtbl, mflw = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
+    py:send(mtbl)
     """)
-    plt.plot(mad.mtbl.s, mad.mtbl.beta11)
+    mtbl = mad.recv("mtbl")
+    plt.plot(mtbl.s, mtbl.beta11, label="Method 1")
+
+    mad.send("""py:send(mtbl.s) ; py:send(mtbl.beta11)""")
+    plt.plot(mad.recv(), mad.recv(), label="Method 2") 
+
+    plt.plot(mad.mtbl.s, mad.mtbl.beta11, label="Method 3")
+    
+    plt.legend()
     plt.show()
