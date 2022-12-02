@@ -14,6 +14,7 @@ Welcome to the documentation for PyMAD-NG!
    modules
    ex-lowlevel
    ex-limitations
+   ex-fodo
 
 
 Indices and tables
