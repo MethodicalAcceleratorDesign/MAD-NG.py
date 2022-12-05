@@ -6,7 +6,7 @@ class madReference(object):
     def __init__(self, name, mad):
         self.__name__ = name
         self.__parent__ = (
-            name and "[" in name and "[".join(name.split("[")[:-1]) or None 
+            name and "[" in name and "[".join(name.split("[")[:-1]) or None
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
 
@@ -15,7 +15,7 @@ class madReference(object):
             return self[item]
         except (IndexError, KeyError):
             pass
-        raise(AttributeError(item)) #For python
+        raise (AttributeError(item))  # For python
 
     def __setattr__(self, item, value):
         if "__" == item[:2]:
@@ -26,30 +26,34 @@ class madReference(object):
         if isinstance(item, int):
             result = self.__mad__.receive_var(self.__name__ + f"[ {item + 1} ]")
             if result is None:
-                raise (IndexError(item)) #For python
+                raise (IndexError(item))  # For python
         elif isinstance(item, str):
             result = self.__mad__.receive_var(self.__name__ + f"['{item    }']")
             if result is None:
-                raise (KeyError(item)) #For python
+                raise (KeyError(item))  # For python
         else:
-            raise(TypeError("Cannot index type of ", type(item)))
+            raise (TypeError("Cannot index type of ", type(item)))
 
         return result
 
-    def __setitem__(self, item: Union[str, int], value: Union[str, int, float, np.ndarray, bool, list]): 
+    def __setitem__(
+        self,
+        item: Union[str, int],
+        value: Union[str, int, float, np.ndarray, bool, list],
+    ):
         if isinstance(item, int):
             self.__mad__.send_var(self.__name__ + f"[ {item + 1} ]", value)
         elif isinstance(item, str):
             self.__mad__.send_var(self.__name__ + f"['{item    }']", value)
         else:
-            raise(TypeError("Cannot index type of ", type(item)))
+            raise (TypeError("Cannot index type of ", type(item)))
 
     def __add__(self, rhs):
         return self.__gOp__(rhs, "+")
 
     def __mul__(self, rhs):
         return self.__gOp__(rhs, "*")
-    
+
     def __pow__(self, rhs):
         return self.__gOp__(rhs, "^")
 
@@ -58,22 +62,22 @@ class madReference(object):
 
     def __truediv__(self, rhs):
         return self.__gOp__(rhs, "/")
-    
+
     def __mod__(self, rhs):
         return self.__gOp__(rhs, "%")
-    
+
     def __eq__(self, rhs):
-        if isinstance(rhs, type(self)) and self.__name__ == rhs.__name__: #Same reference
+        if (isinstance(rhs, type(self)) and self.__name__ == rhs.__name__):
             return True
-        else: #Ask mad if its the same
+        else:
             self.__gOp__(rhs, "==")
             return self.__mad__["__last__"]
-    
+
     def __gOp__(self, rhs, operator: str):
         self.__mad__.send(f"__last__ = {self.__name__} {operator} py:recv()")
         self.__mad__.send(rhs)
         return madReference("__last__", self.__mad__)
-    
+
     def __len__(self):
         self.__mad__.send(f"py:send(#{self.__name__})")
         return self.__mad__.recv()
@@ -102,6 +106,7 @@ class madReference(object):
             if isinstance(self[varnames[i]], madFunctor):
                 varnames[i] += "(...)"
         return varnames
+
 
 class madObject(madReference):
     def __dir__(self) -> Iterable[str]:
@@ -137,7 +142,9 @@ class madObject(madReference):
 
 class madFunctor(madReference):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        if self.__parent__ and isinstance(self.__mad__[self.__parent__], (madObject, np.ndarray)):
+        if self.__parent__ and isinstance(
+            self.__mad__[self.__parent__], (madObject, np.ndarray)
+        ):
             return self.__mad__.call_func(self.__name__, self.__parent__, *args)
         else:
             return self.__mad__.call_func(self.__name__, *args)
