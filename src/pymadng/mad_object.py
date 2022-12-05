@@ -172,6 +172,7 @@ class MAD(object):  # Review private and public
         self.__process.send(script)
 
     def __getattr__(self, item):
+        if item[0] == "_" and not item == "__last__": raise(AttributeError(item))
         return self.receive_var(item)
 
     # -----------------------------Make the class work like a dictionary----------------------------#
