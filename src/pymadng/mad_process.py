@@ -1,13 +1,12 @@
 import struct, os, subprocess, sys
 from typing import Union, Tuple, Callable
-from types import NoneType
 import numpy as np
 from .pymadClasses import madObject, madReference, madFunctor
 
 __all__ = ["mad_process"]
 
-data_types = { 
-        NoneType                : "nil_",
+data_types = {
+        type(None)              : "nil_",
         str                     : "str_",
         int                     : "int_",
         np.int32                : "int_",
@@ -50,11 +49,9 @@ class mad_process:
         self.process = subprocess.Popen(
             [mad_path, "-q", "-e", startupChunk],
             bufsize=0,
-            stdout=sys.stdout,
-            stderr=sys.stderr,
             stdin=subprocess.PIPE,
             preexec_fn=os.setpgrp,  # Don't forward signals
-            pass_fds=[mad_side],
+            pass_fds=[mad_side, sys.stdout.fileno(), sys.stderr.fileno()],
         )
         os.close(mad_side)
 
@@ -85,7 +82,12 @@ class mad_process:
             "tpsa": {"recv": recv_tpsa,                  },
             "ctpa": {"recv": recv_ctpa,                  },
         }
-        self.send(f"{self.pyName}:send(1)")
+        #stdout should be line buffered by default, but for 
+        #jupyter notebook, stdout is redirected and not line buffered
+        self.send(f"""
+                   io.stdout:setvbuf('line')  
+                   {self.pyName}:send(1)
+                   """)
         mad_return = self.recv()
         if mad_return != 1: #Need to check number?
             raise (OSError(f"Unsuccessful starting of {mad_path} process"))
