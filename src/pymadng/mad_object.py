@@ -6,8 +6,7 @@ from types import MethodType  # Used to attach functions to the class
 from .pymadClasses import madObject, madFunctor, madReference
 from .mad_process import mad_process
 
-# TODO: implement yield into MAD - Why?
-# TODO: place into MAD's MADX environment - Still debating 
+# TODO: place into MAD's MADX environment - Still debating
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 
 
@@ -22,7 +21,7 @@ class MAD(object):  # Review private and public
         """Create a MAD Object to interface with MAD-NG.
 
         The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
-        the MAD-NG environment by default, along with all the elements in the elements module.        
+        the MAD-NG environment by default, along with all the elements in the elements module.
 
         Args:
             py_name (str): The name used to interact with the python process from MAD
@@ -31,18 +30,20 @@ class MAD(object):  # Review private and public
                 (default = None)
             debug (bool): Sets debug mode on or off
                 (default = False)
-        
+
         Returns:
-            A MAD object, allowing for communication with MAD-NG 
+            A MAD object, allowing for communication with MAD-NG
         """
         self.__process = mad_process(py_name, mad_path, debug, self)
-        self.send("""
+        self.send(
+            """
         function __mklast__ (a, b, ...)
             if MAD.typeid.is_nil(b) then return a
             else return {a, b, ...}
             end
         end
-        """)
+        """
+        )
         self.py_name = py_name
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
@@ -80,9 +81,10 @@ class MAD(object):  # Review private and public
         """
         self.__process.send(data)
         return self
-        
 
-    def recv(self, varname: str = None) -> Union[str, int, float, np.ndarray, bool, list]:
+    def recv(
+        self, varname: str = None
+    ) -> Union[str, int, float, np.ndarray, bool, list]:
         """Return received data from MAD-NG.
 
         Args:
@@ -94,7 +96,9 @@ class MAD(object):  # Review private and public
         """
         return self.__process.recv(varname)
 
-    def receive(self, varname: str = None) -> Union[str, int, float, np.ndarray, bool, list]:
+    def receive(
+        self, varname: str = None
+    ) -> Union[str, int, float, np.ndarray, bool, list]:
         """See :meth:`recv`"""
         return self.__process.recv(varname)
 
@@ -103,10 +107,10 @@ class MAD(object):  # Review private and public
 
         Note: Numpy and this object are available during the execution as ``np`` and ``mad`` respectively
 
-        Args: 
+        Args:
             env (dict): The environment you would like the string to be executed in.
                 (default = {})
-        
+
         Returns:
             The updated environment after executing the string.
         """
@@ -114,26 +118,26 @@ class MAD(object):  # Review private and public
 
     def send_rng(self, rng: Union[np.ndarray, list]):
         """Send a numpy array as a range to MAD-NG.
-        
-        Args: 
+
+        Args:
             rng (ndarray/list): A list of values interpreted as a range and sent to MAD-NG.
         """
         return self.__process.send_rng(rng)
 
     def send_lrng(self, lrng: Union[np.ndarray, list]):
         """Send a numpy array as a logrange to MAD-NG.
-                
-        Args: 
+
+        Args:
             lrng (ndarray/list): A list of values interpreted as a logrange and sent to MAD-NG.
         """
         return self.__process.send_lrng(lrng)
-    
+
     def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
         """Send the monomials and coeeficients of a TPSA to MAD
-        
+
         The combination of monomials and coeeficients creates a table representing the TPSA object in MAD-NG.
-                        
-        Args: 
+
+        Args:
             monos (ndarray): A list of monomials in the TPSA.
             coefficients (ndarray): A list of coefficients in the TPSA.
 
@@ -145,20 +149,19 @@ class MAD(object):  # Review private and public
 
     def send_ctpsa(self, monos: np.ndarray, coefficients: np.ndarray):
         """Send the monomials and coeeficients of a complex TPSA to MAD
-        
-        The combination of monomials and coeeficients creates a table representing the complex TPSA object in MAD-NG.
-                        
-        See :meth:`send_tpsa`.
-        """        
-        self.__process.send_ctpsa(monos, coefficients)
 
+        The combination of monomials and coeeficients creates a table representing the complex TPSA object in MAD-NG.
+
+        See :meth:`send_tpsa`.
+        """
+        self.__process.send_ctpsa(monos, coefficients)
 
     def Import(self, module: str, vars: list[str] = []):
         """Import modules into the MAD-NG environment
-        
+
         Retrieve the classes in MAD-NG from the module ``module``, while only importing the classes in the list ``vars``.
         If no list is provided, it is assumed that you would like to import every class from the module.
-        
+
         Args:
             module (str): The name of the module to import from.
             vars (list[str]): The variables to import from module.
@@ -172,7 +175,8 @@ class MAD(object):  # Review private and public
         self.__process.send(script)
 
     def __getattr__(self, item):
-        if item[0] == "_" and not item == "__last__": raise(AttributeError(item))
+        if item[0] == "_" and not item == "__last__":
+            raise (AttributeError(item))
         return self.receive_var(item)
 
     # -----------------------------Make the class work like a dictionary----------------------------#
@@ -180,8 +184,11 @@ class MAD(object):  # Review private and public
         if isinstance(varName, tuple):
             nameList = list(varName)
             if isinstance(var, madReference):
-                varList = [type(var)(var.__name__ + f"[{i+1}]", self) for i in range(len(nameList))]  
-            else:              
+                varList = [
+                    type(var)(var.__name__ + f"[{i+1}]", self)
+                    for i in range(len(nameList))
+                ]
+            else:
                 varList = list(var)
             if len(varList) != len(nameList):
                 raise ValueError(
@@ -202,13 +209,13 @@ class MAD(object):  # Review private and public
 
     # --------------------------------Sending data to subprocess------------------------------------#
     def eval(self, input: str):
-        """Evaluate an expression. 
-        
+        """Evaluate an expression.
+
         Start the expression with ``=`` to receive the return value.
-        
+
         Args:
             input (str): An expression that would like to be evaluated in MAD-NG.
-        
+
         Returns:
             If the string starts with ``=`` the evaluation of the expression is returned.
         """
@@ -221,7 +228,7 @@ class MAD(object):  # Review private and public
 
     def MADX_env_send(self, input: str):
         """Open the MAD-X environment in MAD-NG and directly send code.
-                
+
         Args:
             input (str): The code that would like to be evaluated in the MAD-X environment in MAD-NG.
         """
@@ -236,9 +243,9 @@ class MAD(object):  # Review private and public
         vars: list[Union[str, int, float, np.ndarray, bool, list]],
     ):
         """Send variables to the MAD-NG process.
-        
+
         Send the variables in vars with the names in names to MAD-NG.
-        
+
         Args:
             names (list[str]): The list of names that would like to name your variables in MAD-NG.
             vars (list[str/int/float/ndarray/bool/list]): The list of variables to send with the names 'names' in MAD-NG.
@@ -255,9 +262,9 @@ class MAD(object):  # Review private and public
 
     def send_var(self, name: str, var: Union[str, int, float, np.ndarray, bool, list]):
         """Send a variable to the MAD-NG process.
-        
+
         Send the variable var with the name, name to MAD-NG.
-        
+
         Args:
             name (list[str]): The name that would like to name your variable in MAD-NG.
             var (list[str/int/float/ndarray/bool/list]): The variable to send with the name, name in MAD-NG.
@@ -272,9 +279,9 @@ class MAD(object):  # Review private and public
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
     def receive_variables(self, names: list[str]) -> Any:
         """Receive variables from the MAD-NG process
-        
+
         Given a list of variable names, receive the variables from the MAD-NG process.
-        
+
         Args:
             names (list[str]): The list of names of variables that you would like to receive from MAD-NG.
 
@@ -292,15 +299,15 @@ class MAD(object):  # Review private and public
 
     def receive_var(self, name: str) -> Any:
         """Receive a variable from the MAD-NG process.
-        
+
         Given a variable name, receive the variable from the MAD-NG process.
-        
+
         Args:
             name (str): The name of the variable that you would like to receive from MAD-NG.
 
         Returns:
             See :meth:`recv`
-        
+
         """
         return self.receive_variables([name])[0]
 
@@ -310,13 +317,13 @@ class MAD(object):  # Review private and public
     def call_func(self, funcName: str, *args):
         """Call the function funcName and store the result in ``__last__``.
 
-        To assign the return values names, then use ``mad[names] = mad.call_func(funcName, args)``, where ``names`` is a 
-        variable length argument list of strings. 
-        
+        To assign the return values names, then use ``mad[names] = mad.call_func(funcName, args)``, where ``names`` is a
+        variable length argument list of strings.
+
         Args:
             funcName (str): The name of the function that you would like to call in MAD-NG.
             *args: Variable length argument list required to call the function funcName.
-        
+
         Returns:
             A reference to a list of the return values of the function.
         """
@@ -328,12 +335,12 @@ class MAD(object):  # Review private and public
     def MAD_lambda(self, arguments: list[str], expression: str):
         """Create a small anonymous function in MAD-NG named ``__last__``.
 
-        To assign the returned lambda function a name, then use ``mad['name'] = mad.MAD_lambda(arguments, expression)``. 
-        
+        To assign the returned lambda function a name, then use ``mad['name'] = mad.MAD_lambda(arguments, expression)``.
+
         Args:
             arguments (list[str]): The list of arguments required to call the function.
             expression (str): The expression that you would like performed and returned when called.
-        
+
         Returns:
             A reference to the function.
         """
@@ -377,12 +384,12 @@ class MAD(object):  # Review private and public
 
     def get_MAD_string(self, var: Any, convertString=False):
         """Convert a list of objects into the required string for MAD-NG.
-        
-        Args: 
+
+        Args:
             var (Any): A variable that you would like converted into the string that can be used by MAD-NG
             convertString (bool): A boolean that when true converts ``var = "Hello World"`` to ``"'Hello World'"`` (Converts to string, not expression in MAD-NG)
                 (default = False)
-            
+
         Returns:
             The converted string, ready for use, directly in the MAD-NG environment
 
@@ -394,7 +401,8 @@ class MAD(object):  # Review private and public
         elif isinstance(var, str) and convertString:
             return "'" + var + "'"
         elif isinstance(var, complex):
-            return str(var)[1:-1].replace("j", "i") #Remove brackets and convert j to i
+            # Remove brackets and convert j to i
+            return str(var)[1:-1].replace("j", "i") 
         elif isinstance(var, (madReference)):
             return var.__name__
         elif isinstance(var, dict):
@@ -403,16 +411,16 @@ class MAD(object):  # Review private and public
             return var.__name__
         else:
             return str(var).replace("False", "false").replace("True", "true")
+
     # ---------------------------------------------------------------------------------------------------#
 
-    # -------------------------------Setup MAD Classes---------------------------------------------------#
     def deferred(self, **kwargs):
         """Create a deferred expression object
 
         For the deferred expression object, the kwargs are used as the deffered expressions, with ``=`` replaced
-        with ``:=``. To assign the returned object a name, then use ``mad['name'] = mad.deffered(kwargs)``. 
-        
-        Args: 
+        with ``:=``. To assign the returned object a name, then use ``mad['name'] = mad.deffered(kwargs)``.
+
+        Args:
             **kwargs: A variable list of keyword arguments, keyword as the name of the deffered expression within the object
             and the value as a string that is sent directly to the MAD-NG environment.
 
@@ -431,7 +439,7 @@ class MAD(object):  # Review private and public
 
     def env(self) -> list[str]:
         """Retreive the environment of MAD
-        
+
         Returns:
             A list of strings indicating the available variables and modules within the MAD-NG environment
         """
