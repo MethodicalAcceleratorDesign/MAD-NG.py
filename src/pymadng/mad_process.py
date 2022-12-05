@@ -26,10 +26,9 @@ data_types = {
         np.dtype("ubyte")       : "mono",
 }
 
+
 class mad_process:
-    def __init__(
-        self, py_name: str, mad_path: str, debug: bool, mad_class
-    ) -> None:
+    def __init__(self, py_name: str, mad_path: str, debug: bool, mad_class) -> None:
         self.pyName = py_name
         self.mad_class = mad_class
 
@@ -56,7 +55,7 @@ class mad_process:
         os.close(mad_side)
 
         self.globalVars = {
-            "np"        : np        ,
+            "np" : np       ,
             "mad": mad_class,
         }
         self.ffrom_mad = os.fdopen(self.from_mad, "rb")
@@ -82,14 +81,14 @@ class mad_process:
             "tpsa": {"recv": recv_tpsa,                  },
             "ctpa": {"recv": recv_ctpa,                  },
         }
-        #stdout should be line buffered by default, but for 
-        #jupyter notebook, stdout is redirected and not line buffered
-        self.send(f"""
-                   io.stdout:setvbuf('line')  
-                   {self.pyName}:send(1)
-                   """)
+        # stdout should be line buffered by default, but for
+        # jupyter notebook, stdout is redirected and not line buffered
+        self.send(
+            f"""io.stdout:setvbuf('line')  
+                {self.pyName}:send(1)"""
+        )
         mad_return = self.recv()
-        if mad_return != 1: #Need to check number?
+        if mad_return != 1:  # Need to check number?
             raise (OSError(f"Unsuccessful starting of {mad_path} process"))
 
     def send_rng(self, rng: Union[np.ndarray, list]):
@@ -121,14 +120,16 @@ class mad_process:
             return
         except KeyError:  # raise not in exception to reduce error output
             pass
-        raise TypeError(f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}")
+        raise TypeError(
+            f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}"
+        )
 
     def recv(
         self, varname: str = None
     ) -> Union[str, int, float, np.ndarray, bool, list]:
         """Receive data from MAD"""
         typ = self.ffrom_mad.read(4).decode("utf-8")
-        self.varname = varname #For mad reference
+        self.varname = varname  # For mad reference
         return self.fun[typ]["recv"](self)
 
     def recv_and_exec(self, env: dict = {}) -> dict:
@@ -142,42 +143,53 @@ class mad_process:
         self.process.wait()
         self.process.stdin.close()
 
+
 def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
-    if isinstance(a, np.ndarray): 
+    if isinstance(a, np.ndarray):
         return a.dtype
     else:
         return type(a)
 
+
 # --------------------------------------- Sending data ---------------------------------------#
 send_nil = lambda self, input: None
 
+
 def send_ref(self: mad_process, obj: madReference) -> None:
     send_str(self, f"return {obj.__name__}")
+
 
 def send_str(self: mad_process, input: str) -> None:
     send_int(self, len(input))
     self.process.stdin.write(input.encode("utf-8"))
 
+
 def send_int(self: mad_process, input: int) -> None:
-    self.process.stdin.write(struct.pack("i", input))  
+    self.process.stdin.write(struct.pack("i", input))
+
 
 def send_num(self: mad_process, input: float) -> None:
     self.process.stdin.write(struct.pack("d", input))
 
+
 def send_cpx(self: mad_process, input: complex) -> None:
     self.process.stdin.write(struct.pack("dd", input.real, input.imag))
 
+
 def send_bool(self: mad_process, input: bool) -> None:
     self.process.stdin.write(struct.pack("?", input))
+
 
 def send_shape(self: mad_process, shape: Tuple[int, int]) -> None:
     send_int(self, shape[0])
     send_int(self, shape[1])
 
+
 def send_gmat(self: mad_process, mat: np.ndarray) -> None:
     assert len(mat.shape) == 2, "Matrix must be of two dimensions"
     send_shape(self, mat.shape)
     self.process.stdin.write(mat.tobytes())
+
 
 def send_list(self: mad_process, lst: list) -> None:
     n = len(lst)
@@ -186,109 +198,143 @@ def send_list(self: mad_process, lst: list) -> None:
         self.send(lst[i])  # deep copy
     return self
 
+
 def send_grng(self: mad_process, rng: Union[np.ndarray, list]) -> None:
     self.process.stdin.write(struct.pack("ddi", rng[0], rng[-1], len(rng)))
 
+
 def send_irng(self: mad_process, rng: range) -> None:
     self.process.stdin.write(struct.pack("iii", rng.start, rng.stop, rng.step))
+
 
 def send_mono(self: mad_process, mono: np.ndarray) -> None:
     send_int(self, mono.size)
     self.process.stdin.write(mono.tobytes())
 
-def send_gtpsa(self: mad_process, monos: np.ndarray, coefficients: np.ndarray, fsendNum: Callable[[mad_process, Union[float, complex]], None]) -> None:
+
+def send_gtpsa(
+    self: mad_process,
+    monos: np.ndarray,
+    coefficients: np.ndarray,
+    fsendNum: Callable[[mad_process, Union[float, complex]], None],
+) -> None:
     assert len(monos.shape) == 2, "The list of monomials must have two dimensions"
     assert len(monos) == len(coefficients), "The number of monomials must be equal to the number of coefficients"
     assert monos.dtype == np.uint8, "The monomials must be of type 8-bit unsigned integer "
-    send_int(self, len(monos))      #Num monomials
-    send_int(self, len(monos[0]))   #Monomial length
+    send_int(self, len(monos))  # Num monomials
+    send_int(self, len(monos[0]))  # Monomial length
     for mono in monos:
         self.process.stdin.write(mono.tobytes())
     for coefficient in coefficients:
         fsendNum(self, coefficient)
+
 
 # --------------------------------------------------------------------------------------------#
 
 # --------------------------------------- Receiving data -------------------------------------#
 recv_nil = lambda self: None
 
+
 def recv_ref(self: mad_process) -> madReference:
     return madReference(self.varname, self.mad_class)
+
 
 def recv_obj(self: mad_process) -> madObject:
     return madObject(self.varname, self.mad_class)
 
+
 def recv_fun(self: mad_process) -> madFunctor:
     return madFunctor(self.varname, self.mad_class)
+
 
 def recv_str(self: mad_process) -> str:
     return self.ffrom_mad.read(recv_int(self)).decode("utf-8")
 
-def recv_int(self: mad_process) -> int: # Must be int32
-    return np.frombuffer(self.ffrom_mad.read(4), dtype=np.int32)[0] 
+
+def recv_int(self: mad_process) -> int:  # Must be int32
+    return np.frombuffer(self.ffrom_mad.read(4), dtype=np.int32)[0]
+
 
 def recv_num(self: mad_process) -> float:
     return np.frombuffer(self.ffrom_mad.read(8), dtype=np.float64)[0]
 
+
 def recv_cpx(self: mad_process) -> complex:
     return np.frombuffer(self.ffrom_mad.read(16), dtype=np.complex128)[0]
 
+
 def recv_bool(self: mad_process) -> str:
     return np.frombuffer(self.ffrom_mad.read(1), dtype=np.bool_)[0]
+
 
 def recv_gmat(self: mad_process, dtype: np.dtype) -> str:
     shape = np.frombuffer(self.ffrom_mad.read(8), dtype=np.int32)
     arraySize = shape[0] * shape[1] * dtype.itemsize
     return np.frombuffer(self.ffrom_mad.read(arraySize), dtype=dtype).reshape(shape)
 
+
 def recv_mat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("float64"))
+
 
 def recv_cmat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("complex128"))
 
+
 def recv_imat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("int32"))
 
+
 def recv_list(self: mad_process) -> list:
-    varname = self.varname          #cache
+    varname = self.varname  # cache
     haskeys = recv_bool(self)
     lstLen = recv_int(self)
-    vals = [
-        self.recv(varname and varname + f"[{i+1}]")
-        for i in range(lstLen)
-    ]
-    self.varname = varname          #reset
-    if haskeys and lstLen == 0: 
+    vals = [self.recv(varname and varname + f"[{i+1}]") for i in range(lstLen)]
+    self.varname = varname  # reset
+    if haskeys and lstLen == 0:
         return recv_ref(self)
     elif haskeys:
         return vals, recv_ref(self)
-    else:       
+    else:
         return vals
+
 
 def recv_irng(self: mad_process) -> range:
     start, stop, step = np.frombuffer(self.ffrom_mad.read(12), dtype=np.int32)
-    return range(start, stop+1, step) #MAD is inclusive at both ends
+    return range(start, stop + 1, step)  # MAD is inclusive at both ends
+
 
 def recv_rng(self: mad_process) -> np.ndarray:
     return np.linspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
 
+
 def recv_lrng(self: mad_process) -> np.ndarray:
     return np.logspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
+
 
 def recv_mono(self: mad_process) -> np.ndarray:
     mono_len = recv_int(self)
     return np.frombuffer(self.ffrom_mad.read(mono_len), dtype=np.ubyte)
 
+
 def recv_gtpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
     num_mono, mono_len = np.frombuffer(self.ffrom_mad.read(8), dtype=np.int32)
-    mono_list = np.reshape(np.frombuffer(self.ffrom_mad.read(mono_len*num_mono), dtype=np.ubyte), (num_mono, mono_len))
-    coefficients = np.frombuffer(self.ffrom_mad.read(num_mono*dtype.itemsize), dtype=dtype)
+    mono_list = np.reshape(
+        np.frombuffer(self.ffrom_mad.read(mono_len * num_mono), dtype=np.ubyte),
+        (num_mono, mono_len),
+    )
+    coefficients = np.frombuffer(
+        self.ffrom_mad.read(num_mono * dtype.itemsize), dtype=dtype
+    )
     return mono_list, coefficients
+
 
 def recv_ctpa(self):
     return recv_gtpsa(self, np.dtype("complex128"))
 
+
 def recv_tpsa(self):
     return recv_gtpsa(self, np.dtype("float64"))
+
+
 # --------------------------------------------------------------------------------------------#
