@@ -1,14 +1,14 @@
 FODO Examples Explained
 =======================
 
-The file `ex-fodo/FODOs.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-fodo/FODOs.py>`_ has several methods of loading the same FODO cell and then plotting :math:`s` and :math:`\beta_{xx}` (known as beta11 in MAD-NG).
+The file `ex-fodo/ex-fodos.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-fodo/ex-fodos.py>`_ has several methods of loading the same FODO cell and then plotting :math:`s` and :math:`\beta_{xx}` (known as beta11 in MAD-NG).
 
 For the simplest low level example, see :ref:`here <low-level>`
 
 Simple (higher level) example
 -----------------------------
 
-The first example (below) shows how to load a MADX sequence, perform a twiss on it in MAD-NG and then plot :math:`s` and :math:`\beta_{xx}`. A minor potential confusing bit is the use of ``{current_dir}``, now this just ensures MAD-NG gets the full correct path to the file, if your terminal was in the folder with the python files and sequence files, this would not be required, but I have included it so that you can run the python file from anywhere on your device.
+The first example (below) shows how to load a MADX sequence, perform a twiss on it in MAD-NG and then plot :math:`s` and :math:`\beta_{xx}`. A minor potential confusing bit is the use of ``{current_dir}``, now this just ensures MAD-NG gets the full correct path to the file, if your terminal is in the folder with the python files and sequence files, this is not required, but I have included it so that you can run the python file from anywhere on your device.
 
 Important points to note are the use of double quotations in the ``mad.MADX.load(...)`` and ``mad[*args]`` notation. The double quotes are required because strings are interpreted by MAD-NG as scripts, which we believe is powerful enough that we will accept the minor annoyance of using double quotes. The notation ``mad[*args]`` is how to define variables within the MAD-NG environment.
 
@@ -22,7 +22,7 @@ So going through line by line;
     6. Create the plot of :math:`s` and :math:`\beta_{xx}`.
     7. Display the plot.
 
-.. literalinclude:: ../../examples/ex-fodo/FODOs.py
+.. literalinclude:: ../../examples/ex-fodo/ex-fodos.py
     :lines: 6-12
     :linenos:
 
@@ -40,7 +40,7 @@ Going through the example line by line;
     9. Print the name and kind of element in the sequence
 
 
-.. literalinclude:: ../../examples/ex-fodo/FODOs.py
+.. literalinclude:: ../../examples/ex-fodo/ex-fodos.py
     :lines: 14-24
     :linenos:
 
@@ -75,7 +75,7 @@ Going through the example line by line;
 
     22. Plot the result (``mad.mtbl["beta11"]`` is equivalent to ``mad.mtbl.beta11``).
 
-.. literalinclude:: ../../examples/ex-fodo/FODOs.py
+.. literalinclude:: ../../examples/ex-fodo/ex-fodos.py
     :lines: 27-52
     :linenos:
 
@@ -99,6 +99,6 @@ Going through the example line by line;
 
     15. Using the MAD-NG object, grab the variable ``mtbl`` and then the attributes ``s`` and ``beta11`` to plot them (as above)
 
-.. literalinclude:: ../../examples/ex-fodo/FODOs.py
+.. literalinclude:: ../../examples/ex-fodo/ex-fodos.py
     :lines: 54-71
     :linenos:
