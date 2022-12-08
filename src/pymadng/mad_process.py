@@ -1,4 +1,4 @@
-import struct, os, subprocess, sys
+import struct, os, subprocess, sys, platform
 from typing import Union, Tuple, Callable
 import numpy as np
 from .pymadClasses import madObject, madReference, madFunctor
@@ -32,7 +32,7 @@ class mad_process:
         self.pyName = py_name
         self.mad_class = mad_class
 
-        mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad"
+        mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
 
         self.from_mad, mad_side = os.pipe()
         startupChunk = (
