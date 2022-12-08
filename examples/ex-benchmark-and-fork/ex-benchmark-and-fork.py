@@ -1,8 +1,9 @@
 from pymadng import MAD
 import numpy as np
-import os
+import os, sys, time
 import matplotlib.pyplot as plt
-import time
+
+current_dir = os.path.dirname(__file__) + "/"
 
 pid = os.fork()
 #Test 1
@@ -62,7 +63,7 @@ if pid > 0:
 else:
     with MAD() as mad:
         # METHOD 1
-        mad.MADX.load("'fodo.seq'","'fodo.mad'")
+        mad.MADX.load(f"'{current_dir}fodo.seq'",f"'{current_dir}fodo.mad'")
         mad["seq"] = mad.MADX.seq
         mad.seq.beam = mad.beam()
         mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, chrom=True)
@@ -91,3 +92,4 @@ else:
         plt.plot(mad.mtbl2.s, mad.mtbl2["beta11"])
         plt.show()
         print(mad.mtbl2.header)
+    sys.exit()
