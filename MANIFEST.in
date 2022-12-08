@@ -7,4 +7,5 @@ include *.md
 include LICENSE
 
 #Include the MAD Files
-include src/pymadng/mad
+include src/pymadng/mad_Linux
+include src/pymadng/mad_Darwin
