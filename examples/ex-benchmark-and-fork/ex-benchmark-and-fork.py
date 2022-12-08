@@ -3,7 +3,7 @@ import numpy as np
 import os, sys, time
 import matplotlib.pyplot as plt
 
-current_dir = os.path.dirname(__file__) + "/"
+current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 pid = os.fork()
 #Test 1

@@ -4,7 +4,7 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-current_dir = os.path.dirname(__file__) + "/"
+current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
 with MAD() as mad:

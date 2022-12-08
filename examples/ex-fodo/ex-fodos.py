@@ -1,7 +1,7 @@
 from pymadng import MAD
 import matplotlib.pyplot as plt
 import os 
-current_dir = os.path.dirname(__file__) + "/"
+current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 with MAD() as mad:
     mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")

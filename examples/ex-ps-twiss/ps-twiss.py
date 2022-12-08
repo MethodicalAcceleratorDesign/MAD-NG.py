@@ -4,7 +4,7 @@ from pymadng import MAD
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-current_dir = os.path.dirname(__file__) + "/"
+current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
 with MAD(debug=False) as mad:

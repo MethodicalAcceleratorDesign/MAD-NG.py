@@ -2,7 +2,7 @@
 from pymadng import MAD
 import os, numpy as np
 
-current_dir = os.path.dirname(__file__) + "/"
+current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 mad = MAD() #Not being in context manager makes not difference.
 

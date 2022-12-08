@@ -1,7 +1,7 @@
 from pymadng import MAD
 import time, os
 
-current_dir = os.path.dirname(__file__) + "/"
+current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 mad = MAD()
 

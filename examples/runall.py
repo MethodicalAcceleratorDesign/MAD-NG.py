@@ -1,5 +1,5 @@
 import os
-current_dir = os.path.dirname(__file__) + "/"
+current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 filenames = [
     "ex-benchmark-and-fork/ex-benchmark-and-fork.py", "ex-fodo/ex-fodos.py", "ex-lhc-couplingLocal/lhc-couplingLocal.py",
