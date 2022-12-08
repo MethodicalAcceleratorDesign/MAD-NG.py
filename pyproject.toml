@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics"
 ]
 dependencies = [
-  'numpy >= 1.21.0', #Cannot verify any lower
+  'numpy >= 1.11.0', #for dtype in numpy.random.randint (for tests), otherwise 1.9.0 is minimum for numpy.ndarray.tobytes
 ]
 
 [project.urls]
