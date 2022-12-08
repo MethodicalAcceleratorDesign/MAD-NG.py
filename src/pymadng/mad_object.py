@@ -1,5 +1,5 @@
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
-from typing import Any, Iterable, Union, Tuple  # To make stuff look nicer
+from typing import Any, Iterable, Union, List  # To make stuff look nicer
 from types import MethodType  # Used to attach functions to the class
 
 # Custom Classes:
@@ -156,7 +156,7 @@ class MAD(object):  # Review private and public
         """
         self.__process.send_ctpsa(monos, coefficients)
 
-    def Import(self, module: str, vars: list[str] = []):
+    def Import(self, module: str, vars: List[str] = []):
         """Import modules into the MAD-NG environment
 
         Retrieve the classes in MAD-NG from the module ``module``, while only importing the classes in the list ``vars``.
@@ -164,7 +164,7 @@ class MAD(object):  # Review private and public
 
         Args:
             module (str): The name of the module to import from.
-            vars (list[str]): The variables to import from module.
+            vars (List[str]): The variables to import from module.
                 (default = [])
         """
         script = ""
@@ -239,16 +239,16 @@ class MAD(object):  # Review private and public
     # ----------------------------------Sending variables across to MAD----------------------------------------#
     def send_variables(
         self,
-        names: list[str],
-        vars: list[Union[str, int, float, np.ndarray, bool, list]],
+        names: List[str],
+        vars: List[Union[str, int, float, np.ndarray, bool, list]],
     ):
         """Send variables to the MAD-NG process.
 
         Send the variables in vars with the names in names to MAD-NG.
 
         Args:
-            names (list[str]): The list of names that would like to name your variables in MAD-NG.
-            vars (list[str/int/float/ndarray/bool/list]): The list of variables to send with the names 'names' in MAD-NG.
+            names (List[str]): The list of names that would like to name your variables in MAD-NG.
+            vars (List[str/int/float/ndarray/bool/list]): The list of variables to send with the names 'names' in MAD-NG.
 
         Raises:
             Errors: See :meth:`send`.
@@ -266,8 +266,8 @@ class MAD(object):  # Review private and public
         Send the variable var with the name, name to MAD-NG.
 
         Args:
-            name (list[str]): The name that would like to name your variable in MAD-NG.
-            var (list[str/int/float/ndarray/bool/list]): The variable to send with the name, name in MAD-NG.
+            name (List[str]): The name that would like to name your variable in MAD-NG.
+            var (List[str/int/float/ndarray/bool/list]): The variable to send with the name, name in MAD-NG.
 
         Raises:
             Errors: See :meth:`send`.
@@ -277,13 +277,13 @@ class MAD(object):  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
-    def receive_variables(self, names: list[str]) -> Any:
+    def receive_variables(self, names: List[str]) -> Any:
         """Receive variables from the MAD-NG process
 
         Given a list of variable names, receive the variables from the MAD-NG process.
 
         Args:
-            names (list[str]): The list of names of variables that you would like to receive from MAD-NG.
+            names (List[str]): The list of names of variables that you would like to receive from MAD-NG.
 
         Returns:
             See :meth:`recv`.
@@ -332,13 +332,13 @@ class MAD(object):  # Review private and public
         )
         return madObject("__last__", self)
 
-    def MAD_lambda(self, arguments: list[str], expression: str):
+    def MAD_lambda(self, arguments: List[str], expression: str):
         """Create a small anonymous function in MAD-NG named ``__last__``.
 
         To assign the returned lambda function a name, then use ``mad['name'] = mad.MAD_lambda(arguments, expression)``.
 
         Args:
-            arguments (list[str]): The list of arguments required to call the function.
+            arguments (List[str]): The list of arguments required to call the function.
             expression (str): The expression that you would like performed and returned when called.
 
         Returns:
@@ -375,7 +375,7 @@ class MAD(object):  # Review private and public
             argStr += self.get_MAD_string(arg) + ", "
         return argStr[:-2]  # Assumes args is always put last
 
-    def __pyToLuaLst(self, lst: list[Any]) -> str:
+    def __pyToLuaLst(self, lst: List[Any]) -> str:
         """Convert a python list to a lua list in a string, used when sending information to MAD-NG, should not need to be accessed by user"""
         luaString = "{"
         for item in lst:
@@ -437,7 +437,7 @@ class MAD(object):  # Review private and public
         pyObjs.extend(self.env())
         return pyObjs
 
-    def env(self) -> list[str]:
+    def env(self) -> List[str]:
         """Retreive the environment of MAD
 
         Returns:
