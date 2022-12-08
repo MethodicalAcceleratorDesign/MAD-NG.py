@@ -1,16 +1,18 @@
 from pymadng import MAD
-import time
+import time, os
+
+current_dir = os.path.dirname(__file__) + "/"
 
 mad = MAD()
 
-mad.send("""
+mad.send(f"""
 function LHC_load () --Not local!
   local beam in MAD
   local assertf in MAD.utility
 
-  MADX:load('lhc_as-built.seq', 'lhc_as-built.mad') -- convert and save on need
-  MADX:load('opt_400_10000_400_3000.madx', 'opt_400_10000_400_3000.mad') -- ditto
-  MADX:load('lhc_unset_vars.mad') -- handmade, cleaner than disabling warnings...
+  MADX:load('{current_dir}lhc_as-built.seq', '{current_dir}lhc_as-built.mad') -- convert and save on need
+  MADX:load('{current_dir}opt_400_10000_400_3000.madx', '{current_dir}opt_400_10000_400_3000.mad') -- ditto
+  MADX:load('{current_dir}lhc_unset_vars.mad') -- handmade, cleaner than disabling warnings...
 
   local lhcb1, lhcb2 in MADX
 

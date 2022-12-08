@@ -4,10 +4,7 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-# NOTE: Kwargs looks horrible
-# NOTE: call methdod is horrific
-# NOTE: MADX, open environement is not fun
-# NOTE: lamdba is a quick fix and would prefer, actual usability in script rather than just string
+current_dir = os.path.dirname(__file__) + "/"
 
 
 with MAD() as mad:
@@ -15,9 +12,9 @@ with MAD() as mad:
     mad.Import("MAD.utility", ["assertf", "printf"])
     mad.Import("MAD.gphys", ["mchklost"])
 
-    mad.MADX.load("'lhc_as-built.seq'", "'lhc_as-built.mad'")
-    mad.MADX.load("'opticsfile.21'", "'opticsfile.21.mad'")
-    mad.MADX.load("'lhc_unset_vars.mad'")
+    mad.MADX.load(f"'{current_dir}lhc_as-built.seq'", f"'{current_dir}lhc_as-built.mad'")
+    mad.MADX.load(f"'{current_dir}opticsfile.21'", f"'{current_dir}opticsfile.21.mad'")
+    mad.MADX.load(f"'{current_dir}lhc_unset_vars.mad'")
 
     mad.Import("MADX", ["lhcb1", "nrj"])
 

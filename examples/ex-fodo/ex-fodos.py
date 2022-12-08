@@ -52,11 +52,11 @@ with MAD() as mad:
     plt.show()
 
 with MAD() as mad:
-    mad.send("""
-    MADX:load("fodo.seq", "fodo.mad")
+    mad.send(f"""
+    MADX:load("{current_dir}fodo.seq", "{current_dir}fodo.mad")
     local seq in MADX
     seq.beam = beam -- use default beam
-    mtbl, mflw = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
+    mtbl, mflw = twiss {{sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}}
     py:send(mtbl)
     """)
     mtbl = mad.recv("mtbl")
