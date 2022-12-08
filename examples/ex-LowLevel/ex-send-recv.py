@@ -5,7 +5,7 @@ import time, sys
 arr0 = np.zeros((10000, 1000)) + 1j# 2*10000*1000*8 -> 160 MB
 
 start_time = time.time()
-mad = MAD(debug = True)
+mad = MAD(debug = False)
 # Number one rule! If you ask mad to send you something, read it!
 # Don't ask mad to send you data, then try to send more data, this will lead to a deadlock!
 mad.send("cm1 = py:recv()")
