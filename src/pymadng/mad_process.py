@@ -84,15 +84,15 @@ class mad_process:
         if mad_return != 1:  # Need to check number?
             raise (OSError(f"Unsuccessful starting of {mad_path} process"))
 
-    def send_rng(self, rng: Union[np.ndarray, list]):
+    def send_rng(self, start: float, stop: float, size: int):
         """Send a numpy array as a rng to MAD"""
         self.process.stdin.write(b"rng_")
-        send_grng(self, rng)
+        send_grng(self, start, stop, size)
 
-    def send_lrng(self, lrng: Union[np.ndarray, list]):
+    def send_lrng(self, start: float, stop: float, size: int):
         """Send a numpy array as a logrange to MAD"""
         self.process.stdin.write(b"lrng")
-        send_grng(self, lrng)
+        send_grng(self, start, stop, size)
 
     def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
         """Send the monomials and coeeficients of a TPSA to MAD, creating a table representing the TPSA object"""
@@ -192,9 +192,8 @@ def send_list(self: mad_process, lst: list) -> None:
     return self
 
 
-def send_grng(self: mad_process, rng: Union[np.ndarray, list]) -> None:
-    self.process.stdin.write(struct.pack("ddi", rng[0], rng[-1], len(rng)))
-
+def send_grng(self: mad_process, start: float, stop: float, size: int) -> None:
+    self.process.stdin.write(struct.pack("ddi", start, stop, size))
 
 def send_irng(self: mad_process, rng: range) -> None:
     self.process.stdin.write(struct.pack("iii", rng.start, rng.stop, rng.step))
