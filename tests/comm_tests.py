@@ -141,11 +141,11 @@ class TestRngs(unittest.TestCase):
             py:send(lrng:totable())
             """)
             mad.send(range(3, 10, 1))
-            mad.send_rng(np.linspace(3.5, 21.4, 14))
-            mad.send_lrng(np.logspace(1, 20, 20))
+            mad.send_rng(3.5, 21.4, 14)
+            mad.send_lrng(1, 20, 20)
             self.assertEqual(mad.recv(), list(range(4, 12, 1)))
             self.assertTrue (np.allclose(mad.recv(), np.linspace(5.5, 23.4, 14)))
-            self.assertTrue (np.allclose(mad.recv(), np.logspace(1, 20, 20)))
+            self.assertTrue (np.allclose(mad.recv(), np.geomspace(1, 20, 20)))
 
 class TestBool(unittest.TestCase):
     
