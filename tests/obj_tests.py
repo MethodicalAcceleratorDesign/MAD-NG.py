@@ -5,6 +5,7 @@ from pymadng.pymadClasses import madReference, madObject, madFunctor
 import numpy as np
 import time
 
+# TODO: test setting variables inside classes
 class TestObjects(unittest.TestCase):
     
     def test_get(self):
@@ -120,7 +121,7 @@ class TestObjects(unittest.TestCase):
 
     def test_matrix(self):
         with MAD() as mad:
-            mad.Import("MAD", ["matrix"])
+            mad.load("MAD", ["matrix"])
             pyMat = np.arange(1, 101).reshape((10, 10))
 
             mad["mat"] = mad.matrix(10).seq(2) + 2 
