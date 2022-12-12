@@ -35,15 +35,7 @@ class mad_process:
         mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
 
         self.from_mad, mad_side = os.pipe()
-        startupChunk = (
-            "MAD.pymad '"
-            + py_name
-            + "' {_dbgf = "
-            + str(debug).lower()
-            + "} :start("
-            + str(mad_side)
-            + ")"
-        )
+        startupChunk = f"MAD.pymad '{py_name}' {{_dbgf = {int(debug)}}} :start({mad_side})"
 
         self.process = subprocess.Popen(
             [mad_path, "-q", "-e", startupChunk],
