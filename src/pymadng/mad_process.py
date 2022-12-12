@@ -74,7 +74,8 @@ class mad_process:
             "ctpa": {"recv": recv_ctpa,                  },
         }
         # stdout should be line buffered by default, but for
-        # jupyter notebook, stdout is redirected and not line buffered
+        # jupyter notebook, stdout is redirected and not 
+        # line buffered by default
         self.send(
             f"""io.stdout:setvbuf('line')  
                 {self.pyName}:send(1)"""
