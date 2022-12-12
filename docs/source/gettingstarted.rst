@@ -20,8 +20,7 @@ To start communication with MAD-NG, you simply are required to do:
 Communication protocol
 ----------------------
 
-Before you send data to MAD-NG, you must always send MAD-NG the instructions to read the data. 
-Before you receive any data from MAD-NG, you must always ask MAD-NG to send the data.
+.. important:: **Before you send data to MAD-NG, you must always send MAD-NG the instructions to read the data. Before you receive any data from MAD-NG, you must always ask MAD-NG to send the data.**
 
 .. code-block::
     
@@ -42,11 +41,47 @@ Before you receive any data from MAD-NG, you must always ask MAD-NG to send the 
     mad.recv() #-> 42
 
 
-See :meth:`mad.send() <pymadng.MAD.send>` and :meth:`mad.recv() <pymadng.MAD.recv>` for further details on what data can be sent.
-For types that are not naturally found in numpy or python, you may be required to use a different function, e.g. ranges, logranges, TPSA, etc... More information on these specific cases can be found in the :mod:`MAD <pymadng.MAD>` documentation.
+See :meth:`mad.send() <pymadng.MAD.send>` and :meth:`mad.recv() <pymadng.MAD.recv>` for details on what data can be sent.
+For types that are not naturally found in numpy or python, you will be required to use a different function to send data (see below). Receiving data all comes through the same function :meth:`mad.recv() <pymadng.MAD.recv>`. The functions used in these specific cases can be found in the :mod:`MAD <pymadng.MAD>` documentation.
 
-Adapting to your use-case
--------------------------
++----------------------------------------+------------------------+----------------------------------------------+
+| Type in Python                         | Type in MAD            | Function to send from Python                 |
++========================================+========================+==============================================+
+| None                                   | nil                    | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| str                                    | string                 | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| int                                    | number :math:`<2^{31}` | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| float                                  | number                 | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| complex                                | complex                | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| list                                   | table                  | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| bool                                   | bool                   | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| NumPy ndarray (dtype = np.float64)     | matrix                 | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| NumPy ndarray (dtype = np.complex128)  | cmatrix                | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| NumPy ndarray (dtype = np.int32)       | imatrix                | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| range                                  | irange                 | :meth:`send <pymadng.MAD.send>`              |
++----------------------------------------+------------------------+----------------------------------------------+
+| start(float), stop(float), size(int)   | range                  | :meth:`send_rng <pymadng.MAD.send_rng>`      |
++----------------------------------------+------------------------+----------------------------------------------+
+| start(float), stop(float), size(int)   | logrange               | :meth:`send_lrng <pymadng.MAD.send_lrng>`    |
++----------------------------------------+------------------------+----------------------------------------------+
+|| NumPy ndarray (dtype = np.uint8) and  || TPSA                  || :meth:`send_tpsa <pymadng.MAD.send_tpsa>`   |
+|| NumPy ndarray (dtype = np.float64)    ||                       ||                                             |
++----------------------------------------+------------------------+----------------------------------------------+
+|| NumPy ndarray (dtype = np.uint8) and  || CTPSA                 || :meth:`send_ctpsa <pymadng.MAD.send_ctpsa>` |
+|| NumPy ndarray (dtype = np.complex128) ||                       ||                                             |
++----------------------------------------+------------------------+----------------------------------------------+
+
+Customising your environment
+----------------------------
 
 Few things can be changed about the setup of your communication with MAD-NG, below lists a couple of use cases that may be of use. See also :meth:`__init__<pymadng.MAD.__init__>`.
 
