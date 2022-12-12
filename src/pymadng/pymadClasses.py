@@ -24,11 +24,11 @@ class madReference(object):
 
     def __getitem__(self, item: Union[str, int]):
         if isinstance(item, int):
-            result = self.__mad__.receive_var(self.__name__ + f"[ {item + 1} ]")
+            result = self.__mad__.recv_vars(self.__name__ + f"[ {item + 1} ]")
             if result is None:
                 raise (IndexError(item))  # For python
         elif isinstance(item, str):
-            result = self.__mad__.receive_var(self.__name__ + f"['{item    }']")
+            result = self.__mad__.recv_vars(self.__name__ + f"['{item    }']")
             if result is None:
                 raise (KeyError(item))  # For python
         else:
@@ -42,9 +42,9 @@ class madReference(object):
         value: Union[str, int, float, np.ndarray, bool, list],
     ):
         if isinstance(item, int):
-            self.__mad__.send_var(self.__name__ + f"[ {item + 1} ]", value)
+            self.__mad__.send_vars(self.__name__ + f"[ {item + 1} ]", value)
         elif isinstance(item, str):
-            self.__mad__.send_var(self.__name__ + f"['{item    }']", value)
+            self.__mad__.send_vars(self.__name__ + f"['{item    }']", value)
         else:
             raise (TypeError("Cannot index type of ", type(item)))
 
@@ -102,19 +102,19 @@ class madReference(object):
             py:send(modList)"""
         self.__mad__.send(script)
         varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
-        for i in range(len(varnames)):
-            if isinstance(self[varnames[i]], madFunctor):
-                varnames[i] += "(...)"
+        #Below will potentially break
+        # for i in range(len(varnames)):
+        #     if isinstance(self[varnames[i]], madFunctor):
+        #         varnames[i] += "(...)"
         return varnames
 
 
 class madObject(madReference):
     def __dir__(self) -> Iterable[str]:
+        self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object))")
         self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
         varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
-        for i in range(len(varnames)):
-            if isinstance(self[varnames[i]], madFunctor):
-                varnames[i] += "(...)"
+        varnames.extend([x + "()" for x in self.__mad__.recv() if x[:2] != "__" and not x in varnames])
         return varnames
 
     def __call__(self, *args, **kwargs):
