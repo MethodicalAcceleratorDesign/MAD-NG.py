@@ -22,8 +22,8 @@ if pid > 0:
         # mad.writeToProcess("arr = arr * 2")
         mad.send("arr = arr:mul(2)")
         print((mad["arr"] == arr0 * 2).all())
-        mad.eval("arr2 = arr * 2")
-        mad.eval("arr3 = arr / 3")
+        mad.send("arr2 = arr * 2")
+        mad.send("arr3 = arr / 3")
 
         # Recieving variables: update retrieves all the variables within the mad class or just send a string and the variable of that name will be retrieved
         start_time = time.time()
@@ -47,7 +47,7 @@ if pid > 0:
         print(f"send {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
-        mad.send_variables(list(varNameList), values)
+        mad.send_vars(list(varNameList), values)
         print(f"send {numVars} vals v2", time.time() - start_time)
 
         start_time = time.time()
@@ -57,7 +57,7 @@ if pid > 0:
         print(f"receive {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
-        mad.receive_variables(list(varNameList))
+        mad.recv_vars(list(varNameList))
         print(f"receive {numVars} vals v2", time.time() - start_time)
     print("proc1 ended", time.time() - start_time)
 else:
