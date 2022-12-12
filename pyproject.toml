@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pymadng"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
   { name="Joshua Gray", email="joshua.mark.gray@cern.ch" },
 ]
@@ -29,6 +29,7 @@ dependencies = [
 "Homepage" = "https://github.com/MethodicalAcceleratorDesign/MADpy"
 "Bug Tracker" = "https://github.com/MethodicalAcceleratorDesign/MADpy/issues"
 "MAD Source" = "https://github.com/MethodicalAcceleratorDesign/MAD"
+"Documentation" = "https://pymadng.readthedocs.io/en/latest/"
 
 [tool.setuptools.packages.find]
 where = ["src"]
