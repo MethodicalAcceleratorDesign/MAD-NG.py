@@ -8,15 +8,15 @@ current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
 with MAD() as mad:
-    mad.Import("MAD.element.flags", ["observed"])
-    mad.Import("MAD.utility", ["assertf", "printf"])
-    mad.Import("MAD.gphys", ["mchklost"])
+    mad.load("MAD.element.flags", ["observed"])
+    mad.load("MAD.utility", ["assertf", "printf"])
+    mad.load("MAD.gphys", ["mchklost"])
 
     mad.MADX.load(f"'{current_dir}lhc_as-built.seq'", f"'{current_dir}lhc_as-built.mad'")
     mad.MADX.load(f"'{current_dir}opticsfile.21'", f"'{current_dir}opticsfile.21.mad'")
     mad.MADX.load(f"'{current_dir}lhc_unset_vars.mad'")
 
-    mad.Import("MADX", ["lhcb1", "nrj"])
+    mad.load("MADX", ["lhcb1", "nrj"])
 
     mad.assertf("#lhcb1 == 6694",
         "'invalid number of elements %d in LHCB1 (6694 expected)'", "#lhcb1")
