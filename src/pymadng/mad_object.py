@@ -33,6 +33,13 @@ class MAD(object):  # Review private and public
         Returns:
             A MAD object, allowing for communication with MAD-NG
         """
+        #Stop jedi running getattr on my classes...
+        try:
+            shell = get_ipython().__class__.__name__
+            if shell == 'TerminalInteractiveShell':
+                get_ipython().Completer.use_jedi = False
+        except NameError:
+            pass
         self.__process = mad_process(py_name, mad_path, debug, self)
         self.send(
             """
@@ -160,7 +167,7 @@ class MAD(object):  # Review private and public
         self.__process.send_ctpsa(monos, coefficients)
 
     def __errhdlr(self, on_off: bool):
-        self.send(f"py:errhdlr("+ str(on_off).lower() + ")")
+        self.send(f"py:__err("+ str(on_off).lower() + ")")
 
     def __safe_send_recv(func):
         def safe_send_recv(self, *args):
@@ -429,6 +436,7 @@ class MAD(object):  # Review private and public
     def __dir__(self) -> Iterable[str]:
         pyObjs = [x for x in super(MAD, self).__dir__() if x[0] != "_"]
         pyObjs.extend(self.env())
+        pyObjs.extend(dir(self.recv_vars("_G")))
         return pyObjs
 
     def env(self) -> List[str]:
