@@ -1,7 +1,7 @@
 import struct, os, subprocess, sys, platform
 from typing import Union, Tuple, Callable
 import numpy as np
-from .pymadClasses import madObject, madReference, madFunctor
+from .pymadClasses import madObject, madReference, madFunction
 
 __all__ = ["mad_process"]
 
@@ -22,7 +22,7 @@ data_types = {
         np.dtype("int32")       : "imat",
         madObject               : "obj_",
         madReference            : "ref_",
-        madFunctor              : "fun_",
+        madFunction             : "fun_",
         np.dtype("ubyte")       : "mono",
 }
 
@@ -72,6 +72,7 @@ class mad_process:
             "mono": {"recv": recv_mono, "send": send_mono},
             "tpsa": {"recv": recv_tpsa,                  },
             "ctpa": {"recv": recv_ctpa,                  },
+            "err_": {"recv": recv_err ,                  },
         }
         # stdout should be line buffered by default, but for
         # jupyter notebook, stdout is redirected and not 
@@ -235,8 +236,8 @@ def recv_obj(self: mad_process) -> madObject:
     return madObject(self.varname, self.mad_class)
 
 
-def recv_fun(self: mad_process) -> madFunctor:
-    return madFunctor(self.varname, self.mad_class)
+def recv_fun(self: mad_process) -> madFunction:
+    return madFunction(self.varname, self.mad_class)
 
 
 def recv_str(self: mad_process) -> str:
@@ -244,7 +245,7 @@ def recv_str(self: mad_process) -> str:
 
 
 def recv_int(self: mad_process) -> int:  # Must be int32
-    return np.frombuffer(self.ffrom_mad.read(4), dtype=np.int32)[0]
+    return int.from_bytes(self.ffrom_mad.read(4), sys.byteorder)
 
 
 def recv_num(self: mad_process) -> float:
@@ -321,12 +322,15 @@ def recv_gtpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
     return mono_list, coefficients
 
 
-def recv_ctpa(self):
+def recv_ctpa(self: mad_process):
     return recv_gtpsa(self, np.dtype("complex128"))
 
 
-def recv_tpsa(self):
+def recv_tpsa(self: mad_process):
     return recv_gtpsa(self, np.dtype("float64"))
 
 
+def recv_err(self: mad_process):
+    self.mad_class._MAD__errhdlr(False)
+    raise(RuntimeError("MAD Errored (see the MAD error output)"))
 # --------------------------------------------------------------------------------------------#
