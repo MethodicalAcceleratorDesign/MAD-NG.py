@@ -18,7 +18,6 @@ class madReference(object):
             return res
         return safe_send_recv
 
-    @__safe_send_recv #SLOW BUF SAFE
     def __getattr__(self, item):
         if item[0] != "_":
             try:
@@ -32,7 +31,6 @@ class madReference(object):
             return super(madReference, self).__setattr__(item, value)
         self[item] = value
 
-    @__safe_send_recv
     def __getitem__(self, item: Union[str, int]):
         if isinstance(item, int):
             result = self.__mad__.recv_vars(self.__name__ + f"[ {item + 1} ]")
@@ -77,7 +75,6 @@ class madReference(object):
     def __mod__(self, rhs):
         return self.__gOp__(rhs, "%")
 
-    @__safe_send_recv
     def __eq__(self, rhs):
         if (isinstance(rhs, type(self)) and self.__name__ == rhs.__name__):
             return True
@@ -102,7 +99,6 @@ class madReference(object):
         else:
             return str(val)
 
-    @__safe_send_recv
     def eval(self):
         return self.__mad__[self.__name__]
 

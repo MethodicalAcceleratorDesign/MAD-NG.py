@@ -283,7 +283,6 @@ class MAD(object):  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
-    # @__safe_send_recv #SLOW BUT SAFE?!?!?
     def recv_vars(self, names: Union[str, List[str]]) -> Any:
         """Receive variables from the MAD-NG process
 
@@ -304,7 +303,7 @@ class MAD(object):  # Review private and public
         returnVars = []
         for i in range(len(names)):
             if names[i][:2] != "__" or "__last__" in names[i]:  # Check for private variables
-                self.__process.send(f"{self.py_name}:send({names[i]})")
+                self.__process.send(f"{self.py_name}:__err(true):send({names[i]}):__err(false)")
                 returnVars.append(self.__process.recv(names[i]))
         
         if lst_rtn:
