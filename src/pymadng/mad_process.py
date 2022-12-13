@@ -35,7 +35,7 @@ class mad_process:
         mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
 
         self.from_mad, mad_side = os.pipe()
-        startupChunk = f"MAD.pymad '{py_name}' {{_dbgf = {int(debug)}}} :start({mad_side})"
+        startupChunk = f"MAD.pymad '{py_name}' {{_dbgf = {int(debug)}}} :__ini({mad_side})"
 
         self.process = subprocess.Popen(
             [mad_path, "-q", "-e", startupChunk],
@@ -78,7 +78,7 @@ class mad_process:
         # jupyter notebook, stdout is redirected and not 
         # line buffered by default
         self.send(
-            f"""io.stdout:setvbuf('line')  
+            f"""io.stdout:setvbuf('line')
                 {self.pyName}:send(1)"""
         )
         mad_return = self.recv()
@@ -133,7 +133,7 @@ class mad_process:
 
     def __del__(self):
         self.ffrom_mad.close()
-        self.process.terminate()
+        self.send("py:__fin()")
         self.process.wait()
         self.process.stdin.close()
 
