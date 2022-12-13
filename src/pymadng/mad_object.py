@@ -3,7 +3,7 @@ from typing import Any, Iterable, Union, List  # To make stuff look nicer
 from types import MethodType  # Used to attach functions to the class
 
 # Custom Classes:
-from .pymadClasses import madObject, madFunctor, madReference
+from .pymadClasses import madObject, madFunction, madReference
 from .mad_process import mad_process
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
@@ -159,6 +159,17 @@ class MAD(object):  # Review private and public
         """
         self.__process.send_ctpsa(monos, coefficients)
 
+    def __errhdlr(self, on_off: bool):
+        self.send(f"py:errhdlr("+ str(on_off).lower() + ")")
+
+    def __safe_send_recv(func):
+        def safe_send_recv(self, *args):
+            self.__errhdlr(True)
+            res = func(self, *args)
+            self.__errhdlr(False)
+            return res
+        return safe_send_recv
+
     def load(self, module: str, vars: List[str] = []):
         """Import modules into the MAD-NG environment
 
@@ -172,38 +183,36 @@ class MAD(object):  # Review private and public
         """
         script = ""
         if vars == []:
-            vars = [x.strip("(...)") for x in dir(madReference(module, self))]
+            vars = [x.strip("()") for x in dir(madReference(module, self))]
         for className in vars:
             script += f"""{className} = {module}.{className}\n"""
         self.__process.send(script)
 
     def __getattr__(self, item):
         if item[0] == "_" and not item == "__last__":
-            raise (AttributeError(item))
+            raise AttributeError(item)
         return self.recv_vars(item)
 
     # -----------------------------Make the class work like a dictionary----------------------------#
     def __setitem__(self, varName: str, var: Any) -> None:
         if isinstance(varName, tuple):
-            nameList = list(varName)
+            varName = list(varName)
             if isinstance(var, madReference):
-                varList = [
+                var = [
                     type(var)(var.__name__ + f"[{i+1}]", self)
-                    for i in range(len(nameList))
+                    for i in range(len(varName))
                 ]
             else:
-                varList = list(var)
-            if len(varList) != len(nameList):
+                var = list(var)
+            if len(var) != len(varName):
                 raise ValueError(
                     "Incorrect number of values to unpack, received",
-                    len(varList),
+                    len(var),
                     "variables and",
-                    len(nameList),
+                    len(varName),
                     "keys",
                 )
-            self.send_vars(nameList, varList)
-        else:
-            self.send_vars(varName, var)
+        self.send_vars(varName, var)
 
     def __getitem__(self, varName: str) -> Any:
         return self.recv_vars(varName)
@@ -267,6 +276,7 @@ class MAD(object):  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
+    # @__safe_send_recv #SLOW BUT SAFE?!?!?
     def recv_vars(self, names: Union[str, List[str]]) -> Any:
         """Receive variables from the MAD-NG process
 
@@ -314,7 +324,7 @@ class MAD(object):  # Review private and public
         self.__process.send(
             f"__last__ = __mklast__({self.__to_MAD_string(funcName)}({self.__getArgsAsString(*args)}))\n"
         )
-        return madObject("__last__", self)
+        return madReference("__last__", self)
 
     def MAD_lambda(self, arguments: List[str], expression: str):
         """Create a small anonymous function in MAD-NG named ``__last__``.
@@ -335,7 +345,7 @@ class MAD(object):  # Review private and public
                 result += self.__to_MAD_string(arg) + ","
             result = result[:-1]
         self.send(result + " -> " + expression)
-        return madFunctor("__last__", self)
+        return madFunction("__last__", self)
 
     # -------------------------------------------------------------------------------------------------------------#
 
