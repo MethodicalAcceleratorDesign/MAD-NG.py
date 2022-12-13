@@ -9,13 +9,23 @@ class madReference(object):
             name and "[" in name and "[".join(name.split("[")[:-1]) or None
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
+    
+    def __safe_send_recv(func):
+        def safe_send_recv(self, *args, **kwargs):
+            self.__mad__._MAD__errhdlr(True)
+            res = func(self, *args, **kwargs)
+            self.__mad__._MAD__errhdlr(False)
+            return res
+        return safe_send_recv
 
+    @__safe_send_recv #SLOW BUF SAFE
     def __getattr__(self, item):
-        try:
-            return self[item]
-        except (IndexError, KeyError):
-            pass
-        raise (AttributeError(item))  # For python
+        if item[0] != "_":
+            try:
+                return self[item]
+            except (IndexError, KeyError):
+                pass
+        raise AttributeError (item)  # For python
 
     def __setattr__(self, item, value):
         if "__" == item[:2]:
@@ -26,13 +36,13 @@ class madReference(object):
         if isinstance(item, int):
             result = self.__mad__.recv_vars(self.__name__ + f"[ {item + 1} ]")
             if result is None:
-                raise (IndexError(item))  # For python
+                raise IndexError(item)  # For python
         elif isinstance(item, str):
             result = self.__mad__.recv_vars(self.__name__ + f"['{item    }']")
             if result is None:
-                raise (KeyError(item))  # For python
+                raise KeyError(item)  # For python
         else:
-            raise (TypeError("Cannot index type of ", type(item)))
+            raise TypeError("Cannot index type of ", type(item))
 
         return result
 
@@ -46,7 +56,7 @@ class madReference(object):
         elif isinstance(item, str):
             self.__mad__.send_vars(self.__name__ + f"['{item    }']", value)
         else:
-            raise (TypeError("Cannot index type of ", type(item)))
+            raise TypeError("Cannot index type of ", type(item))
 
     def __add__(self, rhs):
         return self.__gOp__(rhs, "+")
@@ -66,6 +76,7 @@ class madReference(object):
     def __mod__(self, rhs):
         return self.__gOp__(rhs, "%")
 
+    @__safe_send_recv
     def __eq__(self, rhs):
         if (isinstance(rhs, type(self)) and self.__name__ == rhs.__name__):
             return True
@@ -78,6 +89,7 @@ class madReference(object):
         self.__mad__.send(rhs)
         return madReference("__last__", self.__mad__)
 
+    @__safe_send_recv
     def __len__(self):
         self.__mad__.send(f"py:send(#{self.__name__})")
         return self.__mad__.recv()
@@ -95,13 +107,14 @@ class madReference(object):
     def __repr__(self):
         return f"MAD-NG Object(Name: {self.__name__}, Parent: {self.__parent__})"
 
+    @__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         script = f"""
             local modList={{}}; local i = 1;
             for modname, mod in pairs({self.__name__}) do modList[i] = modname; i = i + 1; end
             py:send(modList)"""
         self.__mad__.send(script)
-        varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
+        varnames = [x for x in self.__mad__.recv() if isinstance(x, str)]
         #Below will potentially break
         # for i in range(len(varnames)):
         #     if isinstance(self[varnames[i]], madFunctor):
@@ -110,11 +123,12 @@ class madReference(object):
 
 
 class madObject(madReference):
+    @madReference._madReference__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object))")
         self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
-        varnames = [x for x in self.__mad__.recv() if x[:2] != "__"]
-        varnames.extend([x + "()" for x in self.__mad__.recv() if x[:2] != "__" and not x in varnames])
+        varnames = [x for x in self.__mad__.recv()]
+        varnames.extend([x + "()" for x in self.__mad__.recv() if not x in varnames])
         return varnames
 
     def __call__(self, *args, **kwargs):
@@ -140,7 +154,7 @@ class madObject(madReference):
             raise StopIteration
 
 
-class madFunctor(madReference):
+class madFunction(madReference):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.__parent__ and isinstance(
             self.__mad__[self.__parent__], (madObject, np.ndarray)
@@ -148,3 +162,5 @@ class madFunctor(madReference):
             return self.__mad__.call_func(self.__name__, self.__parent__, *args)
         else:
             return self.__mad__.call_func(self.__name__, *args)
+    def __dir__(self):
+        return super(madReference, self).__dir__()
