@@ -1,11 +1,12 @@
 import unittest
 from pymadng import MAD
-from pymadng.pymadClasses import madReference, madObject, madFunctor
+from pymadng.pymadClasses import madReference, madObject, madFunction
 
 import numpy as np
 import time
 
 # TODO: test setting variables inside classes
+# TODO: test __dir__
 class TestObjects(unittest.TestCase):
     
     def test_get(self):
