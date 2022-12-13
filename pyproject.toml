@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pymadng"
-version = "0.2.1"
+version = "0.2.2"
 authors = [
   { name="Joshua Gray", email="joshua.mark.gray@cern.ch" },
 ]
