@@ -62,15 +62,17 @@ class TestObjects(unittest.TestCase):
     def test_call_obj(self):
         with MAD() as mad:
             mad.load("element", ["quadrupole", "sextupole"])
-            mad.quadrupole(knl=[0, 0.25], l = 1)
-            mad["qd"] = madReference("__last__", mad)
+            qd = mad.quadrupole(knl=[0, 0.25], l = 1)
+            sd = mad.sextupole(knl=[0, 0.25, 0.5], l = 1)
+
+            mad["qd"] = qd
             self.assertEqual(mad.qd.__name__, "qd")
             self.assertEqual(mad.qd.__parent__, None)
             self.assertEqual(mad.qd.__mad__, mad)
             self.assertEqual(mad.qd.knl, [0, 0.25])
             self.assertEqual(mad.qd.l, 1)
 
-            mad["sd"] = mad.sextupole(knl=[0, 0.25, 0.5], l = 1)
+            mad["sd"] = sd
             self.assertEqual(mad.sd.__name__, "sd")
             self.assertEqual(mad.sd.__parent__, None)
             self.assertEqual(mad.sd.__mad__, mad)
