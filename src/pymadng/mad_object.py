@@ -319,7 +319,7 @@ class MAD(object):  # Review private and public
     # -------------------------------------------------------------------------------------------------------------#
 
     # ----------------------------------Calling/Creating functions-------------------------------------------------#
-    def call_func(self, funcName: str, *args):
+    def __call_func(self, funcName: str, *args):
         """Call the function funcName and store the result in ``__last__``.
 
         To assign the return values names, then use ``mad[names] = mad.call_func(funcName, args)``, where ``names`` is a
@@ -336,28 +336,6 @@ class MAD(object):  # Review private and public
             f"__last__ = __mklast__({self.__to_MAD_string(funcName)}({self.__getArgsAsString(*args)}))\n"
         )
         return madReference("__last__", self)
-
-    def MAD_lambda(self, arguments: List[str], expression: str):
-        """Create a small anonymous function in MAD-NG named ``__last__``.
-
-        To assign the returned lambda function a name, then use ``mad['name'] = mad.MAD_lambda(arguments, expression)``.
-
-        Args:
-            arguments (List[str]): The list of arguments required to call the function.
-            expression (str): The expression that you would like performed and returned when called.
-
-        Returns:
-            A reference to the function.
-        """
-
-        result = "__last__ = \\"
-        if arguments:
-            for arg in arguments:
-                result += self.__to_MAD_string(arg) + ","
-            result = result[:-1]
-        self.send(result + " -> " + expression)
-        return madFunction("__last__", self)
-
     # -------------------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#

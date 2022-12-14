@@ -164,8 +164,8 @@ class madFunction(madReference):
         if self.__parent__ and isinstance(
             self.__mad__[self.__parent__], (madObject, np.ndarray)
         ):
-            return self.__mad__.call_func(self.__name__, self.__parent__, *args)
+            return self.__mad__._MAD__call_func(self.__name__, self.__parent__, *args)
         else:
-            return self.__mad__.call_func(self.__name__, *args)
+            return self.__mad__._MAD__call_func(self.__name__, *args)
     def __dir__(self):
         return super(madReference, self).__dir__()
