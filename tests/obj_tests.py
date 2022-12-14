@@ -11,6 +11,7 @@ class TestObjects(unittest.TestCase):
     
     def test_get(self):
         with MAD() as mad:
+            mad.load("element", "quadrupole")
             self.assertEqual(mad.asdfg, None)
             mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1} py:send(qd) """) 
             mad.send("""qf = quadrupole {qd = qd} py:send(qf) """) 
@@ -48,6 +49,7 @@ class TestObjects(unittest.TestCase):
     
     def test_set(self): #Need more?
         with MAD() as mad:
+            mad.load("element", "quadrupole")
             mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1} py:send(qd)""") 
             mad["qd2"] = mad.recv("qd")
             self.assertEqual(mad.qd2.__name__, "qd2")
@@ -59,6 +61,7 @@ class TestObjects(unittest.TestCase):
     
     def test_call_obj(self):
         with MAD() as mad:
+            mad.load("element", ["quadrupole", "sextupole"])
             mad.quadrupole(knl=[0, 0.25], l = 1)
             mad["qd"] = madReference("__last__", mad)
             self.assertEqual(mad.qd.__name__, "qd")
@@ -76,6 +79,7 @@ class TestObjects(unittest.TestCase):
 
     def test_call_func(self):
         with MAD() as mad:
+            mad.load("element", "quadrupole")
             mad["qd"] = mad.quadrupole(knl=[0, 0.25], l = 1)
             mad.qd.select()
             mad["qdSelected"] = mad.qd.is_selected()
@@ -122,7 +126,7 @@ class TestObjects(unittest.TestCase):
 
     def test_matrix(self):
         with MAD() as mad:
-            mad.load("MAD", ["matrix"])
+            mad.load("MAD", "matrix")
             pyMat = np.arange(1, 101).reshape((10, 10))
 
             mad["mat"] = mad.matrix(10).seq(2) + 2 
@@ -149,6 +153,7 @@ class TestObjects(unittest.TestCase):
 
     def test_benchmark(self):
         with MAD() as mad:
+            mad.load("element", "quadrupole")
             mad.send("""
             qd = quadrupole {knl={0,  0.25}, l = 1}
             py:send(qd)
