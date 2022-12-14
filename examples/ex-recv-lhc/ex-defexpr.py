@@ -1,6 +1,5 @@
 from pymadng import MAD
 import time, os
-
 current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 mad = MAD()
@@ -41,7 +40,6 @@ function reg_expr(k,v) -- collect deferred expressions
   end
 end
 """)
-
 
 t0 = time.time()
 mad.LHC_load ()

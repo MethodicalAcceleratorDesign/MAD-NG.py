@@ -76,7 +76,7 @@ Going through the example line by line;
     22. Plot the result (``mad.mtbl["beta11"]`` is equivalent to ``mad.mtbl.beta11``).
 
 .. literalinclude:: ../../examples/ex-fodo/ex-fodos.py
-    :lines: 27-52
+    :lines: 27-53
     :linenos:
 
 
@@ -100,5 +100,5 @@ Going through the example line by line;
     15. Using the MAD-NG object, grab the variable ``mtbl`` and then the attributes ``s`` and ``beta11`` to plot them (as above)
 
 .. literalinclude:: ../../examples/ex-fodo/ex-fodos.py
-    :lines: 54-71
+    :lines: 55-72
     :linenos:
