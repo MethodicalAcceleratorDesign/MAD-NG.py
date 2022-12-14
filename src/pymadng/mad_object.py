@@ -16,7 +16,7 @@ class MAD(object):  # Review private and public
         py_name: A string indicating the name of the reference to python from MAD-NG, for communication from MAD-NG to Python.
     """
 
-    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False):
+    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, ipython_use_jedi: bool = False):
         """Create a MAD Object to interface with MAD-NG.
 
         The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
@@ -29,17 +29,21 @@ class MAD(object):  # Review private and public
                 (default = None)
             debug (bool): Sets debug mode on or off
                 (default = False)
+            ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
+                (default = False)
 
         Returns:
             A MAD object, allowing for communication with MAD-NG
         """
         #Stop jedi running getattr on my classes...
-        try:
-            shell = get_ipython().__class__.__name__
-            if shell == 'TerminalInteractiveShell':
-                get_ipython().Completer.use_jedi = False
-        except NameError:
-            pass
+        self.ipython_use_jedi = ipython_use_jedi
+        if not ipython_use_jedi: 
+            try:
+                shell = get_ipython().__class__.__name__
+                if shell == 'TerminalInteractiveShell':
+                    get_ipython().Completer.use_jedi = False
+            except NameError:
+                pass
         self.__process = mad_process(py_name, mad_path, debug, self)
         self.send(
             """
@@ -56,7 +60,7 @@ class MAD(object):  # Review private and public
         modulesToImport = [
             "MAD",  # Need MAD.MAD?
             "MADX",
-            "elements",
+            "element",
             "sequence",
             "mtable",
             "twiss",
@@ -68,7 +72,6 @@ class MAD(object):  # Review private and public
             "match",
         ]
         self.load("MAD", modulesToImport)
-        self.load("MAD.element")
 
     # ------------------------------------------------------------------------------------------#
 
@@ -191,6 +194,8 @@ class MAD(object):  # Review private and public
         script = ""
         if vars == []:
             vars = [x.strip("()") for x in dir(madReference(module, self))]
+        elif isinstance(vars, str):
+            vars = [vars]
         for className in vars:
             script += f"""{className} = {module}.{className}\n"""
         self.__process.send(script)
