@@ -12,6 +12,15 @@ class TestExecution(unittest.TestCase):
             a = mad.recv_and_exec()["a"]
             self.assertEqual(a, 50)
 
+    def test_err(self):
+        with MAD() as mad:
+            mad.send("py:__err(true)")
+            mad.send("1+1") #Load error
+            self.assertRaises(RuntimeError, mad.recv)
+            mad.send("py:__err(true)")
+            mad.send("print(nil/2)") #Runtime error
+            self.assertRaises(RuntimeError, mad.recv)
+
 class TestStrings(unittest.TestCase):
 
     def test_recv(self):
