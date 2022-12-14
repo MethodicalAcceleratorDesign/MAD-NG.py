@@ -35,7 +35,7 @@ class mad_process:
         mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
 
         self.from_mad, mad_side = os.pipe()
-        startupChunk = f"MAD.pymad '{py_name}' {{_dbgf = {int(debug)}}} :__ini({mad_side})"
+        startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {str(debug).lower()}}} :__ini({mad_side})"
 
         self.process = subprocess.Popen(
             [mad_path, "-q", "-e", startupChunk],
@@ -134,8 +134,8 @@ class mad_process:
     def __del__(self):
         self.ffrom_mad.close()
         self.send("py:__fin()")
-        self.process.wait()
         self.process.stdin.close()
+        self.process.wait()
 
 
 def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
@@ -332,5 +332,5 @@ def recv_tpsa(self: mad_process):
 
 def recv_err(self: mad_process):
     self.mad_class._MAD__errhdlr(False)
-    raise(RuntimeError("MAD Errored (see the MAD error output)"))
+    raise RuntimeError("MAD Errored (see the MAD error output)")
 # --------------------------------------------------------------------------------------------#
