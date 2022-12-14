@@ -25,6 +25,7 @@ with MAD() as mad:
 
 
 with MAD() as mad:
+    mad.load("element", "quadrupole")
     mad["circum", "lcell"] = 60, 20
 
     mad.load("math", ["sin", "pi"])
