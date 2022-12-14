@@ -134,6 +134,7 @@ class mad_process:
     def __del__(self):
         self.ffrom_mad.close()
         self.send("py:__fin()")
+        self.process.terminate() #In case user left mad waiting
         self.process.stdin.close()
         self.process.wait()
 
