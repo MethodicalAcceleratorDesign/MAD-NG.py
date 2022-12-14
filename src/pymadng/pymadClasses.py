@@ -75,17 +75,18 @@ class madReference(object):
     def __mod__(self, rhs):
         return self.__gOp__(rhs, "%")
 
+    @__safe_send_recv
     def __eq__(self, rhs):
         if (isinstance(rhs, type(self)) and self.__name__ == rhs.__name__):
             return True
         else:
-            self.__gOp__(rhs, "==")
-            return self.__mad__["__last__"]
+            return self.__gOp__(rhs, "==").eval()
 
     def __gOp__(self, rhs, operator: str):
-        self.__mad__.send(f"__last__ = {self.__name__} {operator} py:recv()")
+        last_name = self.__mad__._MAD__last_counter.get()
+        self.__mad__.send(f"{last_name} = {self.__name__} {operator} py:recv()")
         self.__mad__.send(rhs)
-        return madReference("__last__", self.__mad__)
+        return madReference(last_name, self.__mad__)
 
     @__safe_send_recv
     def __len__(self):
@@ -108,9 +109,8 @@ class madReference(object):
     @__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         name = self.__name__
-        if name == "__last__":
-            print(name)
-            name += ".__metatable or __last__"
+        if name[:8] == "__last__":
+            name = name + ".__metatable or " + name
         script = f"""
             local modList={{}}; local i = 1;
             for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
@@ -122,6 +122,12 @@ class madReference(object):
         #     if isinstance(self[varnames[i]], madFunctor):
         #         varnames[i] += "(...)"
         return varnames
+
+    def __del__(self):
+        if (self.__name__ and self.__name__[:8] == "__last__" and 
+            self.__mad__._MAD__process.process.poll() is None
+            and self.__name__.count("[") == 1):
+            self.__mad__._MAD__last_counter.set(int(self.__name__[9:-1]))
 
 class madObject(madReference):
     @madReference._madReference__safe_send_recv
@@ -137,15 +143,16 @@ class madObject(madReference):
         return varnames
 
     def __call__(self, *args, **kwargs):
+        last_name = self.__mad__._MAD__last_counter.get()
         self.__mad__.send(
             f"""
-            __last__ = __mklast__( {self.__name__} {{ 
+            {last_name} = __mklast__( {self.__name__} {{ 
                 {self.__mad__._MAD__getKwargAsString(**kwargs)[1:-1]} 
                 {self.__mad__._MAD__getArgsAsString(*args)} }} 
                 )
             """
         )
-        return madObject("__last__", self.__mad__)
+        return madObject(last_name, self.__mad__)
 
     def __iter__(self):
         self.__iterIndex__ = -1
