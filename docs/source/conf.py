@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath("../../src/pymadng/"))
 project = 'PyMAD-NG'
 copyright = '2022, Joshua Gray, Laurent Deniau'
 author = 'Joshua Gray, Laurent Deniau'
-release = '0.2.3'
+release = '0.2.4'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
