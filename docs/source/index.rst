@@ -13,7 +13,7 @@ Welcome to the documentation for PyMAD-NG!
    gettingstarted
    modules
    ex-lowlevel
-   ex-limitations
+   ex-breaking-sequencing
    ex-fodo
    ex-recv-lhc
 
