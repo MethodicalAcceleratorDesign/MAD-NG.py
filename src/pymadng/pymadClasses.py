@@ -107,9 +107,13 @@ class madReference(object):
 
     @__safe_send_recv
     def __dir__(self) -> Iterable[str]:
+        name = self.__name__
+        if name == "__last__":
+            print(name)
+            name += ".__metatable or __last__"
         script = f"""
             local modList={{}}; local i = 1;
-            for modname, mod in pairs({self.__name__}) do modList[i] = modname; i = i + 1; end
+            for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
             py:send(modList)"""
         self.__mad__.send(script)
         varnames = [x for x in self.__mad__.recv() if isinstance(x, str)]
@@ -119,14 +123,17 @@ class madReference(object):
         #         varnames[i] += "(...)"
         return varnames
 
-
 class madObject(madReference):
     @madReference._madReference__safe_send_recv
     def __dir__(self) -> Iterable[str]:
-        self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object))")
+        if not self.__mad__.ipython_use_jedi:
+            self.__mad__.send(f"py:send({self.__name__}:get_varkeys(x   MAD.object))")
+
         self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
         varnames = [x for x in self.__mad__.recv()]
-        varnames.extend([x + "()" for x in self.__mad__.recv() if not x in varnames])
+
+        if not self.__mad__.ipython_use_jedi:
+            varnames.extend([x + "()" for x in self.__mad__.recv() if not x in varnames])
         return varnames
 
     def __call__(self, *args, **kwargs):
