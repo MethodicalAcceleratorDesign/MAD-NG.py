@@ -9,6 +9,19 @@ from .mad_process import mad_process
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 
 
+class last_counter():
+    def __init__(self, size: int, mad_process):
+        self.counter = list(range(size))
+        self.mad_process = mad_process
+
+    def get(self):
+        assert len(self.counter) != 0, "Assigned too many anonymous, variables, increase num__last__ or assign the variables"
+        return f"__last__[{self.counter.pop(0)}]"
+    
+    def set(self, idx):
+        self.counter.append(idx)
+    
+
 class MAD(object):  # Review private and public
     """An object that allows communication with MAD-NG
 
@@ -16,7 +29,7 @@ class MAD(object):  # Review private and public
         py_name: A string indicating the name of the reference to python from MAD-NG, for communication from MAD-NG to Python.
     """
 
-    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, ipython_use_jedi: bool = False):
+    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num__last__: int = 255, ipython_use_jedi: bool = False):
         """Create a MAD Object to interface with MAD-NG.
 
         The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
@@ -29,14 +42,17 @@ class MAD(object):  # Review private and public
                 (default = None)
             debug (bool): Sets debug mode on or off
                 (default = False)
+            num__last__ (int): The number of unique references of __last__ (returned by calling a MAD-NG reference) you would like
+                (default = 255)
             ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
                 (default = False)
 
         Returns:
             A MAD object, allowing for communication with MAD-NG
         """
-        #Stop jedi running getattr on my classes...
         self.ipython_use_jedi = ipython_use_jedi
+        self.__last_counter = last_counter(num__last__, self)
+        #Stop jedi running getattr on my classes...
         if not ipython_use_jedi: 
             try:
                 shell = get_ipython().__class__.__name__
@@ -52,6 +68,7 @@ class MAD(object):  # Review private and public
             else return {a, b, ...}
             end
         end
+        __last__ = {}
         """
         )
         self.py_name = py_name
@@ -201,7 +218,7 @@ class MAD(object):  # Review private and public
         self.__process.send(script)
 
     def __getattr__(self, item):
-        if item[0] == "_" and not item == "__last__":
+        if item[0] == "_" and not item[:8] == "__last__":
             raise AttributeError(item)
         return self.recv_vars(item)
 
@@ -241,8 +258,9 @@ class MAD(object):  # Review private and public
         Returns:
             The evaluated result.
         """
-        self.__process.send("__last__ =" + input)
-        return self["__last__"]
+        last_name = self.__last_counter.get()
+        self.__process.send(f"{last_name} =" + input)
+        return self[last_name]
 
     def MADX_env_send(self, input: str):
         """Open the MAD-X environment in MAD-NG and directly send code.
@@ -307,7 +325,7 @@ class MAD(object):  # Review private and public
 
         returnVars = []
         for i in range(len(names)):
-            if names[i][:2] != "__" or "__last__" in names[i]:  # Check for private variables
+            if names[i][:2] != "__" or names[i][:8] == "__last__":  # Check for private variables
                 self.__process.send(f"{self.py_name}:__err(true):send({names[i]}):__err(false)")
                 returnVars.append(self.__process.recv(names[i]))
         
@@ -332,10 +350,11 @@ class MAD(object):  # Review private and public
         Returns:
             A reference to a list of the return values of the function.
         """
+        last_name = self.__last_counter.get()
         self.__process.send(
-            f"__last__ = __mklast__({self.__to_MAD_string(funcName)}({self.__getArgsAsString(*args)}))\n"
+            f"{last_name} = __mklast__({self.__to_MAD_string(funcName)}({self.__getArgsAsString(*args)}))\n"
         )
-        return madReference("__last__", self)
+        return madReference(last_name, self)
     # -------------------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#
@@ -410,10 +429,11 @@ class MAD(object):  # Review private and public
         Returns:
             A reference to the deffered expression object.
         """
+        last_name = self.__last_counter.get()
         self.__process.send(
-            f"__last__ = __mklast__( MAD.typeid.deferred {{ {self.__getKwargAsString(**kwargs).replace('=', ':=')[1:-3]} }} )"
+            f"{last_name} = __mklast__( MAD.typeid.deferred {{ {self.__getKwargAsString(**kwargs).replace('=', ':=')[1:-3]} }} )"
         )
-        return madReference("__last__", self)
+        return madReference(last_name, self)
 
     def __dir__(self) -> Iterable[str]:
         pyObjs = [x for x in super(MAD, self).__dir__() if x[0] != "_"]
