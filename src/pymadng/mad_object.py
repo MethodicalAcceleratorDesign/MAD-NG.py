@@ -11,12 +11,12 @@ from .mad_process import mad_process
 
 class last_counter():
     def __init__(self, size: int, mad_process):
-        self.counter = list(range(size))
+        self.counter = list(range(size, 0, -1))
         self.mad_process = mad_process
 
     def get(self):
         assert len(self.counter) != 0, "Assigned too many anonymous, variables, increase num__last__ or assign the variables"
-        return f"__last__[{self.counter.pop(0)}]"
+        return f"__last__[{self.counter.pop()}]"
     
     def set(self, idx):
         self.counter.append(idx)
@@ -119,6 +119,9 @@ class MAD(object):  # Review private and public
 
         Returns:
             Data from MAD-NG with type str/int/float/ndarray/bool/list, depending what was asked from MAD-NG.
+
+        Raises:
+            TypeError: If you forget to give a name when receiving a reference,  
         """
         return self.__process.recv(varname)
 
@@ -259,8 +262,7 @@ class MAD(object):  # Review private and public
             The evaluated result.
         """
         last_name = self.__last_counter.get()
-        self.__process.send(f"{last_name} =" + input)
-        return self[last_name]
+        return self.send(f"{last_name} =" + input)[last_name]
 
     def MADX_env_send(self, input: str):
         """Open the MAD-X environment in MAD-NG and directly send code.
@@ -269,6 +271,20 @@ class MAD(object):  # Review private and public
             input (str): The code that would like to be evaluated in the MAD-X environment in MAD-NG.
         """
         return self.__process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
+
+    def py_strs_to_mad_strs(self, input: Union[str, List[str]]):
+        """Add ' to either side of a string or list of strings
+        
+        Args: 
+            input(str/list[str]): The string or list of strings that you would like to add ' either side to.
+
+        Returns:
+            A string or list of strings with ' placed at the beginning and the end of the string.
+        """
+        if isinstance(input, list):
+            return ["'" + x + "'" for x in input]
+        else:
+            return "'" + input + "'"
 
     # ----------------------------------------------------------------------------------------------#
 
@@ -338,81 +354,65 @@ class MAD(object):  # Review private and public
 
     # ----------------------------------Calling/Creating functions-------------------------------------------------#
     def __call_func(self, funcName: str, *args):
-        """Call the function funcName and store the result in ``__last__``.
-
-        To assign the return values names, then use ``mad[names] = mad.call_func(funcName, args)``, where ``names`` is a
-        variable length argument list of strings.
-
-        Args:
-            funcName (str): The name of the function that you would like to call in MAD-NG.
-            *args: Variable length argument list required to call the function funcName.
-
-        Returns:
-            A reference to a list of the return values of the function.
-        """
+        """Call the function funcName and store the result in ``__last__``."""
         last_name = self.__last_counter.get()
+        args_string, vars_to_send = self.__get_args_string(*args)
         self.__process.send(
-            f"{last_name} = __mklast__({self.__to_MAD_string(funcName)}({self.__getArgsAsString(*args)}))\n"
+            f"{last_name} = __mklast__({funcName}({args_string}))\n"
         )
+
+        for var in vars_to_send:
+            if var is not None: 
+                self.send(var)
         return madReference(last_name, self)
     # -------------------------------------------------------------------------------------------------------------#
 
     # -------------------------------String Conversions--------------------------------------------------#
-    def __getKwargAsString(self, **kwargs):
+    def __get_kwargs_string(self, **kwargs):
         # Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup
-        """Convert a keyword argument input to a string used by MAD-NG
-        THIS NEEDS TO BE IMPROVED!, WHAT IF USER WANTS BIG DATA AS ARGUMENT"""
+        """Convert a keyword argument input to a string used by MAD-NG"""
         kwargsString = "{"
+        vars_to_send = []
         for key, item in kwargs.items():
             keyString = str(key).replace("'", "")
-            itemString = self.__to_MAD_string(item)
+            itemString, var = self.__to_MAD_string(item)
             kwargsString += keyString + " = " + itemString + ", "
-        return kwargsString + "}"
+            vars_to_send.extend(var)
+        return kwargsString + "}", vars_to_send
 
-    def __getArgsAsString(self, *args):
-        """Convert an argument input to a string used by MAD-NG
-        THIS NEEDS TO BE IMPROVED!, WHAT IF USER WANTS BIG DATA AS ARGUMENT"""
-        argStr = ""
+    def __get_args_string(self, *args):
+        """Convert an argument input to a string used by MAD-NG"""
+        mad_string = ""
+        vars_to_send = []
         for arg in args:
-            argStr += self.__to_MAD_string(arg) + ", "
-        return argStr[:-2]  # Assumes args is always put last
+            string, var = self.__to_MAD_string(arg)
+            mad_string += string + ", "
+            vars_to_send.extend(var)
+        return mad_string[:-2], vars_to_send
 
-    def __pyToLuaLst(self, lst: List[Any]) -> str:
-        """Convert a python list to a lua list in a string, used when sending information to MAD-NG, should not need to be accessed by user"""
-        luaString = "{"
-        for item in lst:
-            luaString += self.__to_MAD_string(item, True) + ", "
-        return luaString + "}"
-
-    def __to_MAD_string(self, var: Any, convertString=False):
-        """Convert a list of objects into the required string for MAD-NG.
-
-        Args:
-            var (Any): A variable that you would like converted into the string that can be used by MAD-NG
-            convertString (bool): A boolean that when true converts ``var = "Hello World"`` to ``"'Hello World'"`` (Converts to string, not expression in MAD-NG)
-                (default = False)
-
-        Returns:
-            The converted string, ready for use, directly in the MAD-NG environment
-
-        """
-        if isinstance(var, (list, np.ndarray)):
-            return self.__pyToLuaLst(var)
-        elif var == None:
-            return "nil"
-        elif isinstance(var, str) and convertString:
-            return "'" + var + "'"
+    def __to_MAD_string(self, var: Any):
+        """Convert a list of objects into the required string for MAD-NG. 
+        Converting string instead of sending more data is up to 2x faster (therefore last resort)."""
+        if isinstance(var, list):
+            string, vars_to_send = self.__get_args_string(*var)
+            return "{" + string + "}", vars_to_send
+        elif var is None:
+            return "nil", [None]
+        elif isinstance(var, str):
+            return var, [None]
         elif isinstance(var, complex):
-            # Remove brackets and convert j to i
-            return str(var)[1:-1].replace("j", "i") 
+            string = str(var)
+            return (string[0] == "(" and string[1:-1] or string).replace("j", "i"), [None]
         elif isinstance(var, (madReference)):
-            return var.__name__
+            return var.__name__, [None]
         elif isinstance(var, dict):
-            return self.__getKwargAsString(**var)
-        elif callable(var):
-            return var.__name__
+            return self.__get_kwargs_string(**var)
+        elif isinstance(var, bool):
+            return str(var).lower(), [None]
+        elif isinstance(var, (float, int)):
+            return str(var), [None]
         else:
-            return str(var).replace("False", "false").replace("True", "true")
+            return f"{self.py_name}:recv()", [var]
 
     # ---------------------------------------------------------------------------------------------------#
 
@@ -430,9 +430,13 @@ class MAD(object):  # Review private and public
             A reference to the deffered expression object.
         """
         last_name = self.__last_counter.get()
+        kwargs_string, vars_to_send = self.__get_kwargs_string(**kwargs)
         self.__process.send(
-            f"{last_name} = __mklast__( MAD.typeid.deferred {{ {self.__getKwargAsString(**kwargs).replace('=', ':=')[1:-3]} }} )"
+            f"{last_name} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"
         )
+        for var in vars_to_send:
+            if var is not None: 
+                self.send(var)
         return madReference(last_name, self)
 
     def __dir__(self) -> Iterable[str]:
