@@ -248,7 +248,7 @@ class TestTPSA(unittest.TestCase):
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [11, 6, 4, 2, 1, 1]
             mad.send_tpsa(monos, coefficients)
-            self.assertTrue(mad.recv(), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
+            self.assertTrue(mad.recv("tab"), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
     
     def test_send_ctpsa(self):
         with MAD() as mad:
@@ -259,7 +259,7 @@ class TestTPSA(unittest.TestCase):
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]
             mad.send_ctpsa(monos, coefficients)
-            self.assertTrue(mad.recv(), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
+            self.assertTrue(mad.recv("tab"), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
 
     def test_send_recv_damap(self):
         with MAD() as mad:
