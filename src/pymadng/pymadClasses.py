@@ -128,7 +128,7 @@ class madObject(madReference):
     @madReference._madReference__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         if not self.__mad__.ipython_use_jedi:
-            self.__mad__.send(f"py:send({self.__name__}:get_varkeys(x   MAD.object))")
+            self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object))")
 
         self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
         varnames = [x for x in self.__mad__.recv()]
