@@ -3,13 +3,20 @@ import numpy as np
 
 
 class madReference(object):
-    def __init__(self, name, mad):
+    __last__reference_counter = {}
+    
+    def __init__(self, name: str, mad):
         assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the recv functions"
         self.__name__ = name
         self.__parent__ = (
             "[" in name and "[".join(name.split("[")[:-1]) or None
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
+        if name[:8] == "__last__":
+            if name.count("[") == 1:
+                self.__last__reference_counter["[".join(name.split("[")[:2])]  = 1
+            else:
+                self.__last__reference_counter["[".join(name.split("[")[:2])] += 1
     
     def __safe_send_recv(func):
         def safe_send_recv(self, *args, **kwargs):
@@ -119,10 +126,13 @@ class madReference(object):
         return varnames
 
     def __del__(self):
-        if (self.__name__ and self.__name__[:8] == "__last__" and 
-            self.__mad__._MAD__process.process.poll() is None
-            and self.__name__.count("[") == 1):
-            self.__mad__._MAD__last_counter.set(int(self.__name__[9:-1]))
+        if (self.__name__ and self.__name__[:8] == "__last__" and self.__mad__._MAD__process.process.poll() is None):
+            base_last = "[".join(self.__name__.split("[")[:2])
+            if self.__name__.count("[") > 1:
+                self.__last__reference_counter[base_last] -= 1
+            if self.__last__reference_counter[base_last] == 1:
+                self.__mad__.send(f"{base_last} = nil")
+                self.__mad__._MAD__last_counter.set(int(base_last[9:-1]))
 
 class madObject(madReference):
     @madReference._madReference__safe_send_recv
