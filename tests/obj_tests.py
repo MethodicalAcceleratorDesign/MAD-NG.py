@@ -7,6 +7,7 @@ import time
 
 # TODO: test setting variables inside classes
 # TODO: test __dir__
+# TODO: test bool and kwargs
 class TestObjects(unittest.TestCase):
     
     def test_get(self):
@@ -152,6 +153,19 @@ class TestObjects(unittest.TestCase):
             self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == pyMat))
             self.assertEqual(np.sin(1), mad.math.sin(1).eval())
             self.assertEqual(np.cos(0.5), mad.math.cos(0.5).eval())
+
+    def test_args_and_kwargs(self):
+        with MAD() as mad:
+            mad.load("MAD", ["matrix", "cmatrix"])
+            mad["m1"] = mad.matrix(3).seq()
+            mad["m2"] = mad.matrix(3).eye(2).mul(mad.m1)
+            mad["m3"] = mad.matrix(3).seq().emul(mad.m1)
+            mad["cm1"] = mad.cmatrix(3).seq(1j).map([1, 5, 9], "\mn, n -> mn - 1i")
+            self.assertTrue(np.all(mad.m2 == mad.m1 * 2))
+            self.assertTrue(np.all(mad.m3 == (mad.m1 * mad.m1)))
+            self.assertTrue(np.all(mad.cm1 == mad.m1 + 1j - np.eye(3)*1j))
+            #Add bool, kwargs
+
 
     def test_benchmark(self):
         with MAD() as mad:
