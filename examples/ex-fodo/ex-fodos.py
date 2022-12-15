@@ -16,7 +16,7 @@ with MAD() as mad:
     mad.load("MADX", ["seq"])
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
-    cols = ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
+    cols = mad.py_strs_to_mad_strs(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
     mad.mtbl.write("'twiss_py.tfs'", cols)
     for x in mad.seq:
         print(x.name, x.kind)
@@ -43,7 +43,7 @@ with MAD() as mad:
         """, refer="'entry'", l=mad.circum,)
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
-    cols = ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
+    cols = mad.py_strs_to_mad_strs(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
     mad.mtbl.write("'twiss_py.tfs'", cols)
 
     plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
