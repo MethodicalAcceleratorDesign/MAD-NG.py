@@ -4,9 +4,10 @@ import numpy as np
 
 class madReference(object):
     def __init__(self, name, mad):
+        assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the recv functions"
         self.__name__ = name
         self.__parent__ = (
-            name and "[" in name and "[".join(name.split("[")[:-1]) or None
+            "[" in name and "[".join(name.split("[")[:-1]) or None
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
     
@@ -55,7 +56,7 @@ class madReference(object):
         elif isinstance(item, str):
             self.__mad__.send_vars(self.__name__ + f"['{item    }']", value)
         else:
-            raise TypeError("Cannot index type of ", type(item))
+            raise TypeError("Cannot index type of ", type(item), "expected string or int")
 
     def __add__(self, rhs):
         return self.__gOp__(rhs, "+")
@@ -84,14 +85,12 @@ class madReference(object):
 
     def __gOp__(self, rhs, operator: str):
         last_name = self.__mad__._MAD__last_counter.get()
-        self.__mad__.send(f"{last_name} = {self.__name__} {operator} py:recv()")
-        self.__mad__.send(rhs)
+        self.__mad__.send(f"{last_name} = {self.__name__} {operator} py:recv()").send(rhs)
         return madReference(last_name, self.__mad__)
 
     @__safe_send_recv
     def __len__(self):
-        self.__mad__.send(f"py:send(#{self.__name__})")
-        return self.__mad__.recv()
+        return self.__mad__.send(f"py:send(#{self.__name__})").recv()
 
     def __str__(self):
         val = self.__mad__[self.__name__]
@@ -117,10 +116,6 @@ class madReference(object):
             py:send(modList)"""
         self.__mad__.send(script)
         varnames = [x for x in self.__mad__.recv() if isinstance(x, str)]
-        #Below will potentially break
-        # for i in range(len(varnames)):
-        #     if isinstance(self[varnames[i]], madFunctor):
-        #         varnames[i] += "(...)"
         return varnames
 
     def __del__(self):
@@ -144,14 +139,15 @@ class madObject(madReference):
 
     def __call__(self, *args, **kwargs):
         last_name = self.__mad__._MAD__last_counter.get()
+        kwargs_string, kwargs_to_send = self.__mad__._MAD__get_kwargs_string(**kwargs)
+        args_string  ,   args_to_send = self.__mad__._MAD__get_args_string(*args)
+        vars_to_send = kwargs_to_send + args_to_send
         self.__mad__.send(
-            f"""
-            {last_name} = __mklast__( {self.__name__} {{ 
-                {self.__mad__._MAD__getKwargAsString(**kwargs)[1:-1]} 
-                {self.__mad__._MAD__getArgsAsString(*args)} }} 
-                )
-            """
+            f"{last_name} = __mklast__( {self.__name__} {{ {kwargs_string[1:-1]} {args_string} }} )"
         )
+        for var in vars_to_send:
+            if var is not None: 
+                self.__mad__.send(var)
         return madObject(last_name, self.__mad__)
 
     def __iter__(self):
