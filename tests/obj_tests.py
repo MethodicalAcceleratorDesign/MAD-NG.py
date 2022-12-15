@@ -7,7 +7,6 @@ import time
 
 # TODO: test setting variables inside classes
 # TODO: test __dir__
-# TODO: test bool and kwargs
 class TestObjects(unittest.TestCase):
     
     def test_get(self):
@@ -101,11 +100,11 @@ class TestObjects(unittest.TestCase):
                 obj2 = MAD.object "obj2" {a = 2, b = 3}
                 return obj, obj, obj, obj2
             end
-            __last__ = __mklast__(mult_rtrn())
+            last_rtn = __mklast__(mult_rtrn())
             lastobj = __mklast__(obj)
             notLast = {mult_rtrn()}
             """)
-            mad["o11", "o12", "o13", "o2"] = madReference("__last__", mad)
+            mad["o11", "o12", "o13", "o2"] = madReference("last_rtn", mad)
             mad["p11", "p12", "p13", "p2"] = madReference("notLast", mad)
             mad["objCpy"] = madReference("lastobj", mad) #Test single object in __mklast__
             self.assertEqual(mad.o11.a, 1)
@@ -154,7 +153,7 @@ class TestObjects(unittest.TestCase):
             self.assertEqual(np.sin(1), mad.math.sin(1).eval())
             self.assertEqual(np.cos(0.5), mad.math.cos(0.5).eval())
 
-    def test_args_and_kwargs(self):
+    def test_args(self):
         with MAD() as mad:
             mad.load("MAD", ["matrix", "cmatrix"])
             mad["m1"] = mad.matrix(3).seq()
@@ -164,7 +163,19 @@ class TestObjects(unittest.TestCase):
             self.assertTrue(np.all(mad.m2 == mad.m1 * 2))
             self.assertTrue(np.all(mad.m3 == (mad.m1 * mad.m1)))
             self.assertTrue(np.all(mad.cm1 == mad.m1 + 1j - np.eye(3)*1j))
-            #Add bool, kwargs
+            #Add bool
+
+    def test_kwargs(self):
+        with MAD() as mad:
+            mad.load("element", "sextupole")
+            mad["m1"] = mad.MAD.matrix(3).seq()
+            sd = mad.sextupole(knl=[0, 0.25j, 1 + 1j], l = 1, alist = [1, 2, 3, 5], abool = True, opposite = False, mat = mad.m1)
+            self.assertEqual(sd.knl, [0, 0.25j, 1 + 1j])
+            self.assertEqual(sd.l, 1)
+            self.assertEqual(sd.alist, [1, 2, 3, 5])
+            self.assertEqual(sd.abool, True)
+            self.assertEqual(sd.opposite, False)
+            self.assertTrue(np.all(sd.mat == np.arange(9).reshape((3, 3)) + 1))
 
 
     def test_benchmark(self):
