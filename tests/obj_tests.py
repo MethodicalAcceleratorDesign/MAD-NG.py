@@ -72,12 +72,22 @@ class TestObjects(unittest.TestCase):
             self.assertEqual(mad.qd.knl, [0, 0.25])
             self.assertEqual(mad.qd.l, 1)
 
+            sdc = sd
             mad["sd"] = sd
+            del sd
             self.assertEqual(mad.sd.__name__, "sd")
             self.assertEqual(mad.sd.__parent__, None)
             self.assertEqual(mad.sd.__mad__, mad)
             self.assertEqual(mad.sd.knl, [0, 0.25, 0.5])
             self.assertEqual(mad.sd.l, 1)
+
+            #Reference counting
+            qd = mad.quadrupole(knl=[0, 0.3], l = 1)
+            self.assertEqual(sdc.__name__, "__last__[2]")
+            self.assertEqual(qd.__name__, "__last__[3]")
+            self.assertEqual(qd.knl, [0, 0.3])
+            qd = mad.quadrupole(knl=[0, 0.25], l = 1)
+            self.assertEqual(qd.__name__, "__last__[1]") 
 
     def test_call_func(self):
         with MAD() as mad:
