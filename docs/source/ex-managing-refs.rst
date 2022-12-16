@@ -1,10 +1,8 @@
-Breaking Sequencing
+Managing References
 ===================
 
-Here I will show two examples of problems caused by the breaking of sequencing and so show how not to use pymadng.
-
-Overwriting variables
----------------------
+Creating temporary variables
+----------------------------
 
 Here, we perform a twiss to start with (we assume all the correct variables have been defined an setup, so that the twiss runs successfully (see `ex-breaking-sequencing/ex-breaking-sequencing.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-breaking-sequencing/ex-breaking-sequencing.py>`_))
 
@@ -12,18 +10,16 @@ However, instead of using the MAD object to define the variable, with ``mad[*arg
 
 .. important:: When a function is called from python and executed in MAD-NG, it will **always** return a **reference**. 
 
-When we evaluate the twiss, we create a reference to the return variable, as is the case whenever you use a high level mad object as a function. Therefore, this variable is **very** easy to overwrite (see below).
+When we evaluate the twiss, we create a reference to a temporary return variable, as is the case whenever you use a high level mad object as a function. There is only a limited amount of these temporary references, by default the limit is set to 256, this should be plenty, however you can increase by changing ``num_temp_vars`` in the ``__init__``. The more temporary variables you store, the slower MAD will retrive and set variables, therefore 256 is only a limit so you can identify if you are slowing the code by creating too many temporary variables. 
 
-The twiss function creates the variable ``__last__`` as the return of twiss in the MAD-NG environment, then Python returns a **reference** to this variable from the Python function. Then when we perform ``reim(1.42 + 0.62j)``, this function also stores the result into ``__last__`` in MAD-NG, so when ``mad["mtbl", "mflw"] = twissrtrn`` is performed, in the MAD-NG environment, ``mtbl`` and ``mflw`` are set to the variables within ``__last__``, which is the return of the most recently called function.
+The twiss function creates the temporary variable as the return of twiss in the MAD-NG environment, then Python returns a **reference** to this variable from the Python function. Then when we perform ``reim(1.42 + 0.62j)``, this function stores the result into a different temporary variable in MAD-NG, but is cleared immediately since it is not stored. When ``mad["mtbl", "mflw"] = twissrtrn`` is performed, in the MAD-NG environment, ``mtbl`` and ``mflw`` are set to the variables returned from the twiss. Then to clear the temporary variable, delete the python object with ``del twissrtrn``.
 
-.. important:: The only way to guarantee that the variable is not overwritten, it must be declared within the MAD-NG environment with ``mad[*args]``
+.. important:: In general, we recommend not storing temporary variables in python, instead set them in the MAD-NG environment using the syntax ``mad[*args]``. Temporary variables are only useful when you wish to delay communication with MAD-NG, see an example `here <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-lhc-couplingLocal/lhc-couplingLocal.py#L40>`_.
 
 .. literalinclude:: ../../examples/ex-breaking-sequencing/ex-breaking-sequencing.py
     :lines: 2, 7-8, 16-27
 
-To remove this protentially problematic method, we would have to always return a unique reference or have an argument for the function name within the function call. 
-
-For cases such as the ``reim`` function, you might expect, since it only returns plain data, for the function to return plain data (data that has an identical type in Python) and not a **reference**. However, in this case the function used is extremely generic and is unaware of the input and output data types. *For Python to know about the data types, Python is required to ask MAD-NG about the return values.* If this was done automatically, then one of the more powerful parts of pymadng, receiving data during function calls, would not be possible as Python instead would be waiting for details on what the variable type is from MAD-NG, and MAD-NG would not be able to tell Python anything until it had completed the function.
+For cases such as the ``reim`` function, you might expect, since it only returns plain data, for the function to return plain data (data that has an identical type in Python) and not a **reference**. However, in this case the function used is extremely generic and is unaware of the input and output data types. *For Python to know about the data types, Python is required to ask MAD-NG about the return values.* If this was done automatically, then one of the more powerful parts of pymadng, receiving data during function calls, would not be possible as Python instead would be waiting for details on what the variable type is from MAD-NG, and MAD-NG would not be able to tell Python anything until it had completed the function. In this case
 
 Retreiving plain data variables from reference
 ----------------------------------------------
