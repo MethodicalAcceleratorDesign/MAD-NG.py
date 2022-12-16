@@ -28,7 +28,7 @@ class MAD(object):  # Review private and public
         py_name: A string indicating the name of the reference to python from MAD-NG, for communication from MAD-NG to Python.
     """
 
-    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num_temp_vars: int = 256, ipython_use_jedi: bool = False):
+    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num_temp_vars: int = 8, ipython_use_jedi: bool = False):
         """Create a MAD Object to interface with MAD-NG.
 
         The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
