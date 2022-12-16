@@ -92,7 +92,7 @@ class TestObjects(unittest.TestCase):
             mad.qd.set_variables({"l": 2})
             self.assertEqual(mad.qd.l, 2)
     
-    def test_mult_retrn(self):
+    def test_mult_rtrn(self):
         with MAD() as mad:
             mad.send("""
             obj = MAD.object "obj" {a = 1, b = 2}
