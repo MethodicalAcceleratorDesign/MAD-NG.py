@@ -115,7 +115,7 @@ class mad_process:
         except KeyError:  # raise not in exception to reduce error output
             pass
         raise TypeError(
-            f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}"
+            f"Unsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}"
         )
 
     def recv(
@@ -302,7 +302,7 @@ def recv_rng(self: mad_process) -> np.ndarray:
 
 
 def recv_lrng(self: mad_process) -> np.ndarray:
-    return np.logspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
+    return np.geomspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
 
 
 def recv_mono(self: mad_process) -> np.ndarray:

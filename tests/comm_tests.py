@@ -131,13 +131,22 @@ class TestRngs(unittest.TestCase):
     def test_recv(self):
         with MAD() as mad:
             mad.send("""
-            py:send(3..11..2)
-            py:send(MAD.nrange(3.5, 21.4, 12))
-            py:send(MAD.nlogrange(1, 20, 20))
+            irng = 3..11..2
+            rng = MAD.nrange(3.5, 21.4, 12)
+            lrng = MAD.nlogrange(1, 20, 20)
+            py:send(irng)
+            py:send(rng)
+            py:send(lrng)
+            py:send(irng:totable())
+            py:send(rng:totable())
+            py:send(lrng:totable())
             """)
             self.assertEqual(mad.recv(), range(3  , 12  , 2)) #MAD is inclusive, python is exclusive (on stop)
             self.assertTrue (np.allclose(mad.recv(), np.linspace(3.5, 21.4, 12)))
-            self.assertTrue (np.allclose(mad.recv(), np.logspace(1, 20, 20)))
+            self.assertTrue (np.allclose(mad.recv(), np.geomspace(1, 20, 20)))
+            self.assertEqual(mad.recv(), list(range(3, 12, 2))) #MAD is inclusive, python is exclusive (on stop)
+            self.assertTrue (np.allclose(mad.recv(), np.linspace(3.5, 21.4, 12)))
+            self.assertTrue (np.allclose(mad.recv(), np.geomspace(1, 20, 20)))
 
     def test_send(self):
         with MAD() as mad:
