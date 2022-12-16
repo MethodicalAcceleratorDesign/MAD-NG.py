@@ -14,12 +14,9 @@ class madReference(object):
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
         if name[:8] == "__last__":
-            self.__base__ = "[".join(split_name[:2])
             if len(split_name) == 2:
-                self.__last__reference_counter[self.__base__]  = 1
                 self.__is_base__ = True
             else:
-                self.__last__reference_counter[self.__base__] += 1
                 self.__is_base__ = False
     
     def __safe_send__(self, string):
@@ -122,11 +119,8 @@ class madReference(object):
         return varnames
 
     def __del__(self):
-        if self.__name__[:8] == "__last__":# and self.__mad__._MAD__process.process.poll() is None:
-            self.__last__reference_counter[self.__base__] -= 1
-            if self.__last__reference_counter[self.__base__] == 0:
-                # self.__mad__.send(f"{self.__base__} = nil")
-                self.__mad__._MAD__last_counter.set(int(self.__base__[9:-1]))
+        if self.__name__[:8] == "__last__" and self.__is_base__:
+            self.__mad__._MAD__last_counter.set(int(self.__name__[9:-1]))
 
 class madObject(madReference):
     def __dir__(self) -> Iterable[str]:
