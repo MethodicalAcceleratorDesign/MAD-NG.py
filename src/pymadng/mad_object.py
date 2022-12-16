@@ -362,8 +362,7 @@ class MAD(object):  # Review private and public
         )
 
         for var in vars_to_send:
-            if var is not None: 
-                self.send(var)
+            self.send(var)
         return madReference(last_name, self)
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -397,20 +396,20 @@ class MAD(object):  # Review private and public
             string, vars_to_send = self.__get_args_string(*var)
             return "{" + string + "}", vars_to_send
         elif var is None:
-            return "nil", [None]
+            return "nil", []
         elif isinstance(var, str):
-            return var, [None]
+            return var, []
         elif isinstance(var, complex):
             string = str(var)
-            return (string[0] == "(" and string[1:-1] or string).replace("j", "i"), [None]
+            return (string[0] == "(" and string[1:-1] or string).replace("j", "i"), []
         elif isinstance(var, (madReference)):
-            return var.__name__, [None]
+            return var.__name__, []
         elif isinstance(var, dict):
             return self.__get_kwargs_string(**var)
         elif isinstance(var, bool):
-            return str(var).lower(), [None]
+            return str(var).lower(), []
         elif isinstance(var, (float, int)):
-            return str(var), [None]
+            return str(var), []
         else:
             return f"{self.py_name}:recv()", [var]
 
@@ -435,8 +434,7 @@ class MAD(object):  # Review private and public
             f"{last_name} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"
         )
         for var in vars_to_send:
-            if var is not None: 
-                self.send(var)
+            self.send(var)
         return madReference(last_name, self)
 
     def __dir__(self) -> Iterable[str]:
