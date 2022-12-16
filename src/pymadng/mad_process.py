@@ -189,8 +189,8 @@ def send_gmat(self: mad_process, mat: np.ndarray) -> None:
 def send_list(self: mad_process, lst: list) -> None:
     n = len(lst)
     send_int(self, n)
-    for i in range(n):
-        self.send(lst[i])  # deep copy
+    for item in lst:
+        self.send(item)  # deep copy
     return self
 
 
