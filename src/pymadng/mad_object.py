@@ -308,12 +308,12 @@ class MAD(object):  # Review private and public
         else:
             assert isinstance(vars, list), "A list of names must be matched with a list of variables"
             assert len(vars) == len(names), "The number of names must match the number of variables"
-        for i in range(len(vars)):
+        for i, var in enumerate(vars):
             if isinstance(vars[i], madReference):
-                self.__process.send(f"{names[i]} = {vars[i].__name__}")
+                self.__process.send(f"{names[i]} = {var.__name__}")
             else:
                 self.__process.send(f"{names[i]} = {self.py_name}:recv()")
-                self.__process.send(vars[i])
+                self.__process.send(var)
     # -------------------------------------------------------------------------------------------------------------#
 
     # -----------------------------------Receiving variables from to MAD-------------------------------------------#
@@ -335,10 +335,10 @@ class MAD(object):  # Review private and public
             lst_rtn = True
 
         returnVars = []
-        for i in range(len(names)):
-            if names[i][:2] != "__" or names[i][:8] == "__last__":  # Check for private variables
-                self.__process.send(f"{self.py_name}:__err(true):send({names[i]}):__err(false)")
-                returnVars.append(self.__process.recv(names[i]))
+        for name in names:
+            if name[:2] != "__" or name[:8] == "__last__":  # Check for private variables
+                self.__process.send(f"{self.py_name}:__err(true):send({name}):__err(false)")
+                returnVars.append(self.__process.recv(name))
         
         if lst_rtn:
             return tuple(returnVars)
