@@ -75,6 +75,7 @@ with MAD() as mad:
         tws_result = mad.recv()
 
     mad["status", "fmin", "ncall"] = match_rtrn
+    del match_rtrn
 
     print("Values after matching")
     print("dQx.b1=", mad.MADX.dqx_b1)
