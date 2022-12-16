@@ -1,7 +1,7 @@
 from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
 
-
+# TODO: Are you able to store the actual parent? If so, you could use https://docs.python.org/3/c-api/refcounting.html instead.
 class madReference(object):
     __last__reference_counter = {}
     
