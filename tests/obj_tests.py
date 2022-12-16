@@ -163,6 +163,13 @@ class TestObjects(unittest.TestCase):
             self.assertEqual(np.sin(1), mad.math.sin(1).eval())
             self.assertEqual(np.cos(0.5), mad.math.cos(0.5).eval())
 
+            # temp vars
+            res = (((mad.matrix(3).seq().emul(2) * mad.matrix(3).seq(3) + 3) * 2 + mad.matrix(3).seq(2)) - mad.matrix(3).seq(4)).eval()
+            np_mat = np.arange(9).reshape((3,3)) + 1
+            exp = (((np.matmul((np_mat * 2), (np_mat+3)) + 3) * 2 + (np_mat+2)) - (np_mat+4))
+            self.assertTrue(np.all(exp == res))
+
+
     def test_args(self):
         with MAD() as mad:
             mad.load("MAD", ["matrix", "cmatrix"])
