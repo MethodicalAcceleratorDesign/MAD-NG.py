@@ -13,10 +13,13 @@ class madReference(object):
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
         if name[:8] == "__last__":
+            self.__base__ = "[".join(self.__name__.split("[")[:2])
             if name.count("[") == 1:
-                self.__last__reference_counter["[".join(name.split("[")[:2])]  = 1
+                self.__last__reference_counter[self.__base__]  = 1
+                self.__is_base__ = True
             else:
-                self.__last__reference_counter["[".join(name.split("[")[:2])] += 1
+                self.__last__reference_counter[self.__base__] += 1
+                self.__is_base__ = False
     
     def __safe_send_recv(func):
         def safe_send_recv(self, *args, **kwargs):
@@ -126,13 +129,11 @@ class madReference(object):
         return varnames
 
     def __del__(self):
-        if (self.__name__ and self.__name__[:8] == "__last__" and self.__mad__._MAD__process.process.poll() is None):
-            base_last = "[".join(self.__name__.split("[")[:2])
-            if self.__name__.count("[") > 1:
-                self.__last__reference_counter[base_last] -= 1
-            if self.__last__reference_counter[base_last] == 1:
-                self.__mad__.send(f"{base_last} = nil")
-                self.__mad__._MAD__last_counter.set(int(base_last[9:-1]))
+        if (self.__name__[:8] == "__last__" and self.__mad__._MAD__process.process.poll() is None):
+            self.__last__reference_counter[self.__base__] -= 1
+            if self.__last__reference_counter[self.__base__] == 0:
+                self.__mad__.send(f"{self.__base__} = nil")
+                self.__mad__._MAD__last_counter.set(int(self.__base__[9:-1]))
 
 class madObject(madReference):
     @madReference._madReference__safe_send_recv
@@ -156,8 +157,7 @@ class madObject(madReference):
             f"{last_name} = __mklast__( {self.__name__} {{ {kwargs_string[1:-1]} {args_string} }} )"
         )
         for var in vars_to_send:
-            if var is not None: 
-                self.__mad__.send(var)
+            self.__mad__.send(var)
         return madObject(last_name, self.__mad__)
 
     def __iter__(self):
