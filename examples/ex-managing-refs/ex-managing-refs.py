@@ -11,20 +11,20 @@ mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
 mad["seq"] = mad.MADX.seq
 mad.seq.beam = mad.beam()
 
-#Interesting bit!!
+
 
 #Only one thing is returned from the twiss, a reference (Nothing in python is ever received from MAD after telling MAD-NG to execute)
 twissrtrn = mad.twiss(sequence=mad.seq, method=4)
 
-#Do any function (specificially I chose an example with 2 return values)
+#Any high level MAD-NG function will create a reference
 mad.MAD.gmath.reim(1.42 + 0.62j)
 
 #Try to receive from twiss
 mad["mtbl", "mflw"] = twissrtrn
 
-# mtbl and mflow actually become result of reim function!   
-print(mad.mtbl, mad.mtbl == 1.42)
-print(mad.mflw, mad.mflw == 0.62)
+# mtbl and mflow correctly stored!  
+print(mad.mtbl)
+print(mad.mflw)
 
 myMatrix = mad.MAD.matrix(4).seq() #Create 4x4 matrix
 
