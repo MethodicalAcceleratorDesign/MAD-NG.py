@@ -6,15 +6,16 @@ class madReference(object):
     __last__reference_counter = {}
     
     def __init__(self, name: str, mad):
-        assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the recv functions"
+        assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the receive functions?"
         self.__name__ = name
+        split_name = name.split("[")
         self.__parent__ = (
-            "[" in name and "[".join(name.split("[")[:-1]) or None
+            "[" in name and "[".join(split_name[:-1]) or None
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
         if name[:8] == "__last__":
-            self.__base__ = "[".join(self.__name__.split("[")[:2])
-            if name.count("[") == 1:
+            self.__base__ = "[".join(split_name[:2])
+            if len(split_name) == 2:
                 self.__last__reference_counter[self.__base__]  = 1
                 self.__is_base__ = True
             else:
@@ -121,10 +122,10 @@ class madReference(object):
         return varnames
 
     def __del__(self):
-        if (self.__name__[:8] == "__last__" and self.__mad__._MAD__process.process.poll() is None):
+        if self.__name__[:8] == "__last__":# and self.__mad__._MAD__process.process.poll() is None:
             self.__last__reference_counter[self.__base__] -= 1
             if self.__last__reference_counter[self.__base__] == 0:
-                self.__mad__.send(f"{self.__base__} = nil")
+                # self.__mad__.send(f"{self.__base__} = nil")
                 self.__mad__._MAD__last_counter.set(int(self.__base__[9:-1]))
 
 class madObject(madReference):
@@ -165,9 +166,10 @@ class madObject(madReference):
 
 class madFunction(madReference):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        if self.__parent__ and isinstance(
-            self.__mad__[self.__parent__], (madObject, np.ndarray)
-        ):
+        ismethod = self.__parent__ and self.__safe_send__(f"""
+        py:send(MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__}))"""
+        ).recv()
+        if ismethod:
             return self.__mad__._MAD__call_func(self.__name__, self.__parent__, *args)
         else:
             return self.__mad__._MAD__call_func(self.__name__, *args)
