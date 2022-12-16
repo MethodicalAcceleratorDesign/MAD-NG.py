@@ -1,9 +1,8 @@
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, List  # To make stuff look nicer
-from types import MethodType  # Used to attach functions to the class
 
 # Custom Classes:
-from .pymadClasses import madObject, madFunction, madReference
+from .pymadClasses import madReference
 from .mad_process import mad_process
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
@@ -15,7 +14,7 @@ class last_counter():
         self.mad_process = mad_process
 
     def get(self):
-        assert len(self.counter) != 0, "Assigned too many anonymous, variables, increase num__last__ or assign the variables"
+        assert len(self.counter) != 0, "Assigned too many anonymous, variables, increase num_temp_vars or assign the variables into MAD"
         return f"__last__[{self.counter.pop()}]"
     
     def set(self, idx):
@@ -29,7 +28,7 @@ class MAD(object):  # Review private and public
         py_name: A string indicating the name of the reference to python from MAD-NG, for communication from MAD-NG to Python.
     """
 
-    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num__last__: int = 255, ipython_use_jedi: bool = False):
+    def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num_temp_vars: int = 256, ipython_use_jedi: bool = False):
         """Create a MAD Object to interface with MAD-NG.
 
         The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
@@ -42,7 +41,7 @@ class MAD(object):  # Review private and public
                 (default = None)
             debug (bool): Sets debug mode on or off
                 (default = False)
-            num__last__ (int): The number of unique references of __last__ (returned by calling a MAD-NG reference) you would like
+            num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>`
                 (default = 255)
             ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
                 (default = False)
@@ -51,7 +50,7 @@ class MAD(object):  # Review private and public
             A MAD object, allowing for communication with MAD-NG
         """
         self.ipython_use_jedi = ipython_use_jedi
-        self.__last_counter = last_counter(num__last__, self)
+        self.__last_counter = last_counter(num_temp_vars, self)
         #Stop jedi running getattr on my classes...
         if not ipython_use_jedi: 
             try:
