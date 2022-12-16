@@ -192,13 +192,8 @@ class MAD(object):  # Review private and public
     def __errhdlr(self, on_off: bool):
         self.send(f"py:__err("+ str(on_off).lower() + ")")
 
-    def __safe_send_recv(func):
-        def safe_send_recv(self, *args):
-            self.__errhdlr(True)
-            res = func(self, *args)
-            self.__errhdlr(False)
-            return res
-        return safe_send_recv
+    def __safe_send(self, string: str):
+        return self.send(f"py:__err(true); {string}; py:__err(false);")
 
     def load(self, module: str, vars: List[str] = []):
         """Import modules into the MAD-NG environment

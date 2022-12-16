@@ -21,13 +21,8 @@ class madReference(object):
                 self.__last__reference_counter[self.__base__] += 1
                 self.__is_base__ = False
     
-    def __safe_send_recv(func):
-        def safe_send_recv(self, *args, **kwargs):
-            self.__mad__._MAD__errhdlr(True)
-            res = func(self, *args, **kwargs)
-            self.__mad__._MAD__errhdlr(False)
-            return res
-        return safe_send_recv
+    def __safe_send__(self, string):
+        return self.__mad__.send(f"py:__err(true); {string}; py:__err(false);")
 
     def __getattr__(self, item):
         if item[0] != "_":
@@ -38,7 +33,7 @@ class madReference(object):
         raise AttributeError (item)  # For python
 
     def __setattr__(self, item, value):
-        if "__" == item[:2]:
+        if item[0] == "_":
             return super(madReference, self).__setattr__(item, value)
         self[item] = value
 
@@ -86,7 +81,6 @@ class madReference(object):
     def __mod__(self, rhs):
         return self.__gOp__(rhs, "%")
 
-    @__safe_send_recv
     def __eq__(self, rhs):
         if (isinstance(rhs, type(self)) and self.__name__ == rhs.__name__):
             return True
@@ -95,12 +89,11 @@ class madReference(object):
 
     def __gOp__(self, rhs, operator: str):
         last_name = self.__mad__._MAD__last_counter.get()
-        self.__mad__.send(f"{last_name} = {self.__name__} {operator} py:recv()").send(rhs)
+        self.__safe_send__(f"{last_name} = {self.__name__} {operator} py:recv()").send(rhs)
         return madReference(last_name, self.__mad__)
 
-    @__safe_send_recv
     def __len__(self):
-        return self.__mad__.send(f"py:send(#{self.__name__})").recv()
+        return self.__safe_send__(f"py:send(#{self.__name__})").recv()
 
     def __str__(self):
         val = self.__mad__[self.__name__]
@@ -115,7 +108,6 @@ class madReference(object):
     def __repr__(self):
         return f"MAD-NG Object(Name: {self.__name__}, Parent: {self.__parent__})"
 
-    @__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         name = self.__name__
         if name[:8] == "__last__":
@@ -124,7 +116,7 @@ class madReference(object):
             local modList={{}}; local i = 1;
             for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
             py:send(modList)"""
-        self.__mad__.send(script)
+        self.__safe_send__(script)
         varnames = [x for x in self.__mad__.recv() if isinstance(x, str)]
         return varnames
 
@@ -136,12 +128,11 @@ class madReference(object):
                 self.__mad__._MAD__last_counter.set(int(self.__base__[9:-1]))
 
 class madObject(madReference):
-    @madReference._madReference__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         if not self.__mad__.ipython_use_jedi:
-            self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object))")
+            self.__safe_send__(f"py:send({self.__name__}:get_varkeys(MAD.object))")
 
-        self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
+        self.__safe_send__(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
         varnames = [x for x in self.__mad__.recv()]
 
         if not self.__mad__.ipython_use_jedi:
