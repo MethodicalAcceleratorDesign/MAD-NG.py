@@ -4,7 +4,7 @@ Managing References
 Creating temporary variables
 ----------------------------
 
-Here, we perform a twiss to start with (we assume all the correct variables have been defined an setup, so that the twiss runs successfully (see `ex-breaking-sequencing/ex-breaking-sequencing.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-breaking-sequencing/ex-breaking-sequencing.py>`_))
+Here, we perform a twiss to start with (we assume all the correct variables have been defined an setup, so that the twiss runs successfully (see `ex-managing-refs/ex-managing-refs.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-managing-refs/ex-managing-refs.py>`_))
 
 However, instead of using the MAD object to define the variable, with ``mad[*args] = twiss(...)``, we simply store the returned variable into a Python variable.
 
@@ -16,7 +16,7 @@ The twiss function creates the temporary variable as the return of twiss in the 
 
 .. important:: In general, we recommend not storing temporary variables in python, instead set them in the MAD-NG environment using the syntax ``mad[*args]``. Temporary variables are only useful when you wish to delay communication with MAD-NG, see an example `here <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-lhc-couplingLocal/lhc-couplingLocal.py#L40>`_.
 
-.. literalinclude:: ../../examples/ex-breaking-sequencing/ex-breaking-sequencing.py
+.. literalinclude:: ../../examples/ex-managing-refs/ex-managing-refs.py
     :lines: 2, 7-8, 16-27
 
 For cases such as the ``reim`` function, you might expect, since it only returns plain data, for the function to return plain data (data that has an identical type in Python) and not a **reference**. However, in this case the function used is extremely generic and is unaware of the input and output data types. *For Python to know about the data types, Python is required to ask MAD-NG about the return values.* If this was done automatically, then one of the more powerful parts of pymadng, receiving data during function calls, would not be possible as Python instead would be waiting for details on what the variable type is from MAD-NG, and MAD-NG would not be able to tell Python anything until it had completed the function. In this case
@@ -28,9 +28,9 @@ Here, we create a matrix, however, here we are calling a function, ``matrix``, s
 
 It is for cases like this that the ``eval()`` function has been created. For any plain data type, this will return the plain data from a function call, however if it is any other object in MAD that cannot be transferred normally, you will still receive a reference.
 
-If we use, the normal syntax of ``mad["myMatrix"] = mad.MAD.matrix(4).seq()``, then we run into no issues, as ``myMatrix`` is set to the variable ``__last__`` returned by the functions on the right, then, when we retrieve ``myMatrix`` from the MAD environment, we get the plain data as expected.
+If we use, the normal syntax of ``mad["myMatrix"] = mad.MAD.matrix(4).seq()``, then we run into no issues, as ``myMatrix`` is set to a temporary variable returned by the functions on the right, then, when we retrieve ``myMatrix`` from the MAD environment, we get the plain data as expected.
 
 .. important:: The use of ``eval()`` and ``mad[*args] = ...`` requires communication with MAD-NG, so Python will have to wait until MAD-NG has finished executing the function.
 
-.. literalinclude:: ../../examples/ex-breaking-sequencing/ex-breaking-sequencing.py
+.. literalinclude:: ../../examples/ex-managing-refs/ex-managing-refs.py
     :lines: 29-
