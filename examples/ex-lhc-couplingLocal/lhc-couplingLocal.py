@@ -46,7 +46,7 @@ with MAD() as mad:
         return mtbl, mflow
     end
     """)
-    mad.match(
+    match_rtrn = mad.match(
         command=mad.twiss_and_send,
         variables = [
             {"var":"'MADX.dqx_b1'", "name":"'dQx.b1'", "'rtol'":1e-6},
@@ -73,6 +73,9 @@ with MAD() as mad:
         fig.canvas.draw()
         fig.canvas.flush_events()
         tws_result = mad.recv()
+
+    mad["status", "fmin", "ncall"] = match_rtrn
+    del match_rtrn
 
     print("Values after matching")
     print("dQx.b1=", mad.MADX.dqx_b1)

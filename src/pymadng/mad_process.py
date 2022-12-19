@@ -115,7 +115,7 @@ class mad_process:
         except KeyError:  # raise not in exception to reduce error output
             pass
         raise TypeError(
-            f"\nUnsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}"
+            f"Unsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}"
         )
 
     def recv(
@@ -134,6 +134,7 @@ class mad_process:
     def __del__(self):
         self.ffrom_mad.close()
         self.send("py:__fin()")
+        self.process.terminate() #In case user left mad waiting
         self.process.stdin.close()
         self.process.wait()
 
@@ -188,8 +189,8 @@ def send_gmat(self: mad_process, mat: np.ndarray) -> None:
 def send_list(self: mad_process, lst: list) -> None:
     n = len(lst)
     send_int(self, n)
-    for i in range(n):
-        self.send(lst[i])  # deep copy
+    for item in lst:
+        self.send(item)  # deep copy
     return self
 
 
@@ -220,7 +221,6 @@ def send_gtpsa(
         self.process.stdin.write(mono.tobytes())
     for coefficient in coefficients:
         fsendNum(self, coefficient)
-
 
 # --------------------------------------------------------------------------------------------#
 
@@ -302,7 +302,7 @@ def recv_rng(self: mad_process) -> np.ndarray:
 
 
 def recv_lrng(self: mad_process) -> np.ndarray:
-    return np.logspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
+    return np.geomspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
 
 
 def recv_mono(self: mad_process) -> np.ndarray:

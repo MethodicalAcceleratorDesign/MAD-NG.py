@@ -8,9 +8,9 @@ Installation
 
     pip install pymadng
 
-Each example can run by executing ``python3 ex-name.py`` inside the folder of the example. These examples give a range of uses available and show some techniques that are available with MAD-NG and pymadng.
+Each example can run by executing ``python3 ex-name.py``, using a console with the same working directory as the example. These examples give a range of available uses and show some techniques that are available with MAD-NG and pymadng. You can also run all the examples with ``runall.py``
 
-To start communication with MAD-NG, you simply are required to do:
+To begin communication with MAD-NG, you simply are required to do:
 
 .. code-block::
 
@@ -22,7 +22,8 @@ Communication protocol
 
 .. important:: **Before you send data to MAD-NG, you must always send MAD-NG the instructions to read the data. Before you receive any data from MAD-NG, you must always ask MAD-NG to send the data.**
 
-.. code-block::
+.. code-block:: 
+    :caption: An example of using the MAD object to communicate with MAD-NG
     
     #Load MAD from pymadng
     from pymadng import MAD
@@ -41,8 +42,9 @@ Communication protocol
     mad.recv() #-> 42
 
 
-See :meth:`mad.send() <pymadng.MAD.send>` and :meth:`mad.recv() <pymadng.MAD.recv>` for details on what data can be sent.
-For types that are not naturally found in numpy or python, you will be required to use a different function to send data (see below). Receiving data all comes through the same function :meth:`mad.recv() <pymadng.MAD.recv>`. The functions used in these specific cases can be found in the :mod:`MAD <pymadng.MAD>` documentation.
+:meth:`mad.send() <pymadng.MAD.send>` and :meth:`mad.recv() <pymadng.MAD.recv>` are the main ways to communicate with MAD-NG and is extremely simple, for specific details on what data can be sent see the :class:`API Reference <pymadng.MAD>`.
+
+For types that are not naturally found in numpy or python, you will be required to use a different function to *send* data (see below). The functions used in these specific cases can be found in the :mod:`MAD <pymadng.MAD>` documentation. To *receive* any data just use :meth:`mad.recv() <pymadng.MAD.recv>`.
 
 +----------------------------------------+------------------------+----------------------------------------------+
 | Type in Python                         | Type in MAD            | Function to send from Python                 |

@@ -131,13 +131,22 @@ class TestRngs(unittest.TestCase):
     def test_recv(self):
         with MAD() as mad:
             mad.send("""
-            py:send(3..11..2)
-            py:send(MAD.nrange(3.5, 21.4, 12))
-            py:send(MAD.nlogrange(1, 20, 20))
+            irng = 3..11..2
+            rng = MAD.nrange(3.5, 21.4, 12)
+            lrng = MAD.nlogrange(1, 20, 20)
+            py:send(irng)
+            py:send(rng)
+            py:send(lrng)
+            py:send(irng:totable())
+            py:send(rng:totable())
+            py:send(lrng:totable())
             """)
             self.assertEqual(mad.recv(), range(3  , 12  , 2)) #MAD is inclusive, python is exclusive (on stop)
             self.assertTrue (np.allclose(mad.recv(), np.linspace(3.5, 21.4, 12)))
-            self.assertTrue (np.allclose(mad.recv(), np.logspace(1, 20, 20)))
+            self.assertTrue (np.allclose(mad.recv(), np.geomspace(1, 20, 20)))
+            self.assertEqual(mad.recv(), list(range(3, 12, 2))) #MAD is inclusive, python is exclusive (on stop)
+            self.assertTrue (np.allclose(mad.recv(), np.linspace(3.5, 21.4, 12)))
+            self.assertTrue (np.allclose(mad.recv(), np.geomspace(1, 20, 20)))
 
     def test_send(self):
         with MAD() as mad:
@@ -248,7 +257,7 @@ class TestTPSA(unittest.TestCase):
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [11, 6, 4, 2, 1, 1]
             mad.send_tpsa(monos, coefficients)
-            self.assertTrue(mad.recv(), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
+            self.assertTrue(mad.recv("tab"), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
     
     def test_send_ctpsa(self):
         with MAD() as mad:
@@ -259,7 +268,7 @@ class TestTPSA(unittest.TestCase):
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]
             mad.send_ctpsa(monos, coefficients)
-            self.assertTrue(mad.recv(), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
+            self.assertTrue(mad.recv("tab"), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
 
     def test_send_recv_damap(self):
         with MAD() as mad:

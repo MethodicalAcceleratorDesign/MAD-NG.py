@@ -1,22 +1,26 @@
 from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
 
-
+# TODO: Are you able to store the actual parent? If so, you could use https://docs.python.org/3/c-api/refcounting.html instead.
 class madReference(object):
-    def __init__(self, name, mad):
+    __last__reference_counter = {}
+    
+    def __init__(self, name: str, mad):
+        assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the receive functions?"
         self.__name__ = name
+        split_name = name.split("[")
         self.__parent__ = (
-            name and "[" in name and "[".join(name.split("[")[:-1]) or None
+            "[" in name and "[".join(split_name[:-1]) or None
         )  # if name is compound, get parent by string manipulation
         self.__mad__ = mad
+        if name[:8] == "__last__":
+            if len(split_name) == 2:
+                self.__is_base__ = True
+            else:
+                self.__is_base__ = False
     
-    def __safe_send_recv(func):
-        def safe_send_recv(self, *args, **kwargs):
-            self.__mad__._MAD__errhdlr(True)
-            res = func(self, *args, **kwargs)
-            self.__mad__._MAD__errhdlr(False)
-            return res
-        return safe_send_recv
+    def __safe_send__(self, string):
+        return self.__mad__.send(f"py:__err(true); {string}; py:__err(false);")
 
     def __getattr__(self, item):
         if item[0] != "_":
@@ -27,7 +31,7 @@ class madReference(object):
         raise AttributeError (item)  # For python
 
     def __setattr__(self, item, value):
-        if "__" == item[:2]:
+        if item[0] == "_":
             return super(madReference, self).__setattr__(item, value)
         self[item] = value
 
@@ -55,7 +59,7 @@ class madReference(object):
         elif isinstance(item, str):
             self.__mad__.send_vars(self.__name__ + f"['{item    }']", value)
         else:
-            raise TypeError("Cannot index type of ", type(item))
+            raise TypeError("Cannot index type of ", type(item), "expected string or int")
 
     def __add__(self, rhs):
         return self.__gOp__(rhs, "+")
@@ -79,18 +83,15 @@ class madReference(object):
         if (isinstance(rhs, type(self)) and self.__name__ == rhs.__name__):
             return True
         else:
-            self.__gOp__(rhs, "==")
-            return self.__mad__["__last__"]
+            return self.__gOp__(rhs, "==").eval()
 
     def __gOp__(self, rhs, operator: str):
-        self.__mad__.send(f"__last__ = {self.__name__} {operator} py:recv()")
-        self.__mad__.send(rhs)
-        return madReference("__last__", self.__mad__)
+        last_name = self.__mad__._MAD__last_counter.get()
+        self.__safe_send__(f"{last_name} = {self.__name__} {operator} py:recv()").send(rhs)
+        return madReference(last_name, self.__mad__)
 
-    @__safe_send_recv
     def __len__(self):
-        self.__mad__.send(f"py:send(#{self.__name__})")
-        return self.__mad__.recv()
+        return self.__safe_send__(f"py:send(#{self.__name__})").recv()
 
     def __str__(self):
         val = self.__mad__[self.__name__]
@@ -105,31 +106,28 @@ class madReference(object):
     def __repr__(self):
         return f"MAD-NG Object(Name: {self.__name__}, Parent: {self.__parent__})"
 
-    @__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         name = self.__name__
-        if name == "__last__":
-            print(name)
-            name += ".__metatable or __last__"
+        if name[:8] == "__last__":
+            name = name + ".__metatable or " + name
         script = f"""
             local modList={{}}; local i = 1;
             for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
             py:send(modList)"""
-        self.__mad__.send(script)
+        self.__safe_send__(script)
         varnames = [x for x in self.__mad__.recv() if isinstance(x, str)]
-        #Below will potentially break
-        # for i in range(len(varnames)):
-        #     if isinstance(self[varnames[i]], madFunctor):
-        #         varnames[i] += "(...)"
         return varnames
 
+    def __del__(self):
+        if self.__name__[:8] == "__last__" and self.__is_base__:
+            self.__mad__._MAD__last_counter.set(int(self.__name__[9:-1]))
+
 class madObject(madReference):
-    @madReference._madReference__safe_send_recv
     def __dir__(self) -> Iterable[str]:
         if not self.__mad__.ipython_use_jedi:
-            self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object))")
+            self.__safe_send__(f"py:send({self.__name__}:get_varkeys(MAD.object))")
 
-        self.__mad__.send(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
+        self.__safe_send__(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
         varnames = [x for x in self.__mad__.recv()]
 
         if not self.__mad__.ipython_use_jedi:
@@ -137,15 +135,16 @@ class madObject(madReference):
         return varnames
 
     def __call__(self, *args, **kwargs):
+        last_name = self.__mad__._MAD__last_counter.get()
+        kwargs_string, kwargs_to_send = self.__mad__._MAD__get_kwargs_string(**kwargs)
+        args_string  ,   args_to_send = self.__mad__._MAD__get_args_string(*args)
+        vars_to_send = kwargs_to_send + args_to_send
         self.__mad__.send(
-            f"""
-            __last__ = __mklast__( {self.__name__} {{ 
-                {self.__mad__._MAD__getKwargAsString(**kwargs)[1:-1]} 
-                {self.__mad__._MAD__getArgsAsString(*args)} }} 
-                )
-            """
+            f"{last_name} = __mklast__( {self.__name__} {{ {kwargs_string[1:-1]} {args_string} }} )"
         )
-        return madObject("__last__", self.__mad__)
+        for var in vars_to_send:
+            self.__mad__.send(var)
+        return madObject(last_name, self.__mad__)
 
     def __iter__(self):
         self.__iterIndex__ = -1
@@ -161,9 +160,10 @@ class madObject(madReference):
 
 class madFunction(madReference):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        if self.__parent__ and isinstance(
-            self.__mad__[self.__parent__], (madObject, np.ndarray)
-        ):
+        ismethod = self.__parent__ and self.__safe_send__(f"""
+        py:send(MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__}))"""
+        ).recv()
+        if ismethod:
             return self.__mad__._MAD__call_func(self.__name__, self.__parent__, *args)
         else:
             return self.__mad__._MAD__call_func(self.__name__, *args)
