@@ -42,7 +42,7 @@ class MAD(object):  # Review private and public
             debug (bool): Sets debug mode on or off
                 (default = False)
             num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>`
-                (default = 255)
+                (default = 8)
             ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
                 (default = False)
 
@@ -298,8 +298,8 @@ class MAD(object):  # Review private and public
 
         Raises:
             Errors: See :meth:`send`.
-            AssertError: A list of names must be matched with a list of variables
-            AssertError: The number of names must match the number of variables
+            AssertionError: A list of names must be matched with a list of variables
+            AssertionError: The number of names must match the number of variables
         """
         if isinstance(names, str): 
             names = [names]
