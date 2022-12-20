@@ -14,7 +14,7 @@ When we evaluate the twiss, we create a reference to a temporary return variable
 
 The twiss function creates the temporary variable as the return of twiss in the MAD-NG environment, then Python returns a **reference** to this variable from the Python function. Then when we perform ``reim(1.42 + 0.62j)``, this function stores the result into a different temporary variable in MAD-NG, but is cleared immediately since it is not stored. When ``mad["mtbl", "mflw"] = twissrtrn`` is performed, in the MAD-NG environment, ``mtbl`` and ``mflw`` are set to the variables returned from the twiss. Then to clear the temporary variable, delete the python object with ``del twissrtrn``.
 
-.. important:: In general, we recommend not storing temporary variables in python, instead set them in the MAD-NG environment using the syntax ``mad[*args]``. Temporary variables are only useful when you wish to delay communication with MAD-NG, see an example `here <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-lhc-couplingLocal/lhc-couplingLocal.py#L40>`_.
+.. important:: In general, we recommend not storing temporary variables in python, instead set them in the MAD-NG environment using the syntax ``mad[*args]``. Temporary variables are only useful when you wish to delay communication with MAD-NG, see an example `here <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-lhc-couplingLocal/lhc-couplingLocal.py#L49>`_.
 
 .. literalinclude:: ../../examples/ex-managing-refs/ex-managing-refs.py
     :lines: 2, 7-8, 16-27
