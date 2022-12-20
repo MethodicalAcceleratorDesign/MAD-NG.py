@@ -59,21 +59,22 @@ In this example, we demonstrate, why double quotations may be a decent compromis
  
 Going through the example line by line;
 
-    2. Create two variables in the MAD-NG environment, ``circum = 60``, ``lcell = 20``.
+    2. Load the element ``quadrupole`` from the module ``element`` in MAD-NG, making it available directly, equivalent to ``from element import quadrupole``.
+    3. Create two variables in the MAD-NG environment, ``circum = 60``, ``lcell = 20``.
 
-    4. Create two variables in the MAD-NG environment, ``sin = math.sin``, ``pi = math.pi`` (in Python this is equivalent to ``from math import sin, pi``).
-    5. Create a deferred expression equivalent to ``v := 1/(lcell/sin(pi/4)/4)``.
+    5. Create two variables in the MAD-NG environment, ``sin = math.sin``, ``pi = math.pi`` (in Python this is equivalent to ``from math import sin, pi``).
+    6. Create a deferred expression equivalent to ``v := 1/(lcell/sin(pi/4)/4)``.
 
-    7. Create a quadrupole named ``qf`` with ``k1 = v.k`` and length of 1.
-    8. Create a quadrupole named ``qd`` with ``k1 = -v.k`` and length of 1.
-    9. Create a sequence using ``qf`` and ``qd``, specifying the positions and a length of 60.
+    8. Create a quadrupole named ``qf`` with ``k1 = v.k`` and length of 1.
+    9. Create a quadrupole named ``qd`` with ``k1 = -v.k`` and length of 1.
+    10. Create a sequence using ``qf`` and ``qd``, specifying the positions and a length of 60.
 
-    17. Attach a default beam to the sequence.
-    18. Run a twiss and name the return values ``mtbl`` and ``mflw`` in the MAD-NG environment.
+    18. Attach a default beam to the sequence.
+    19. Run a twiss and name the return values ``mtbl`` and ``mflw`` in the MAD-NG environment.
 
-    20. Write the columns ``col`` to the file twiss_py.tfs.
+    21. Write the columns ``col`` to the file twiss_py.tfs.
 
-    22. Plot the result (``mad.mtbl["beta11"]`` is equivalent to ``mad.mtbl.beta11``).
+    23. Plot the result (``mad.mtbl["beta11"]`` is equivalent to ``mad.mtbl.beta11``).
 
 .. literalinclude:: ../../examples/ex-fodo/ex-fodos.py
     :lines: 27-53
