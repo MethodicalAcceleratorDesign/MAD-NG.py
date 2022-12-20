@@ -1,7 +1,7 @@
 from .mad_object import MAD
 
 __title__ = "pymadng"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 with MAD() as mad:
     __MAD_version__ = mad.MAD.env.version
 
