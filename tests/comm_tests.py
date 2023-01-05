@@ -38,11 +38,12 @@ Like So.]])""")
             mad.send("str = py:recv(); py:send(str .. str)")
             mad.send(initString)
             self.assertEqual(mad.recv(), initString * 2)
-            # mad.send("py:recv()")
-            mad.send("""py:send([[Multiline string should work
+            mad.send("str2 = py:recv(); py:send(str2 .. str2)")
+            initString = """Py Multiline string should work
 
-Like So.]])""")
-            self.assertEqual(mad.recv(), 'Multiline string should work\n\nLike So.')
+Like So.]])"""
+            mad.send(initString)
+            self.assertEqual(mad.recv(), initString * 2)
 
 class TestNil(unittest.TestCase):
 
