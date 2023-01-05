@@ -1,6 +1,6 @@
 import unittest
 from pymadng import MAD
-from pymadng.pymadClasses import madReference, madObject, madFunction
+from pymadng.mad_classes import madReference, madObject, madFunction
 
 import numpy as np
 import time
