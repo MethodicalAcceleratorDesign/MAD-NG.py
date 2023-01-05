@@ -2,7 +2,7 @@ import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
 # Custom Classes:
-from .pymadClasses import madReference
+from .mad_classes import madReference
 from .mad_process import mad_process
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)

@@ -1,7 +1,7 @@
 import struct, os, subprocess, sys, platform
 from typing import Union, Tuple, Callable
 import numpy as np
-from .pymadClasses import madObject, madReference, madFunction
+from .mad_classes import madObject, madReference, madFunction
 
 __all__ = ["mad_process"]
 
