@@ -1,10 +1,9 @@
 from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
 
-# TODO: Are you able to store the actual parent? If so, you could use https://docs.python.org/3/c-api/refcounting.html instead.
-class madReference(object):
-    __last__reference_counter = {}
-    
+# TODO: Are you able to store the actual parent? 
+# TODO: Verify if functions need kwargs or not.
+class madReference(object):    
     def __init__(self, name: str, mad):
         assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the receive functions?"
         self.__name__ = name
@@ -115,7 +114,7 @@ class madReference(object):
             for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
             py:send(modList)"""
         self.__safe_send__(script)
-        varnames = [x for x in self.__mad__.recv() if isinstance(x, str)]
+        varnames = [x for x in self.__mad__.recv() if isinstance(x, str) and x[0] != "_"]
         return varnames
 
     def __del__(self):
@@ -138,11 +137,10 @@ class madObject(madReference):
         last_name = self.__mad__._MAD__last_counter.get()
         kwargs_string, kwargs_to_send = self.__mad__._MAD__get_kwargs_string(**kwargs)
         args_string  ,   args_to_send = self.__mad__._MAD__get_args_string(*args)
-        vars_to_send = kwargs_to_send + args_to_send
         self.__mad__.send(
             f"{last_name} = __mklast__( {self.__name__} {{ {kwargs_string[1:-1]} {args_string} }} )"
         )
-        for var in vars_to_send:
+        for var in kwargs_to_send + args_to_send:
             self.__mad__.send(var)
         return madObject(last_name, self.__mad__)
 
@@ -159,7 +157,7 @@ class madObject(madReference):
 
 
 class madFunction(madReference):
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any) -> Any:
         ismethod = self.__parent__ and self.__safe_send__(f"""
         py:send(MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__}))"""
         ).recv()

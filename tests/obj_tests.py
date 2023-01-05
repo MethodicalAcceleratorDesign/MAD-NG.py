@@ -6,8 +6,8 @@ import numpy as np
 import time
 
 # TODO: test setting variables inside classes
-# TODO: test __dir__
-class TestObjects(unittest.TestCase):
+# TODO: think of more objects to test __dir__ with
+class TestGetSet(unittest.TestCase):
     
     def test_get(self):
         with MAD() as mad:
@@ -58,6 +58,8 @@ class TestObjects(unittest.TestCase):
             self.assertEqual(mad.qd2.knl, [0, 0.25])
             self.assertEqual(mad.qd2.l, 1)
             self.assertEqual(mad.qd2, mad.qd)
+    
+class TestObjFun(unittest.TestCase):
     
     def test_call_obj(self):
         with MAD() as mad:
@@ -135,6 +137,7 @@ class TestObjects(unittest.TestCase):
             self.assertEqual(mad.p2.b , 3)
             self.assertEqual(mad.objCpy, mad.obj)
 
+class TestOps(unittest.TestCase):
 
     def test_matrix(self):
         with MAD() as mad:
@@ -169,6 +172,7 @@ class TestObjects(unittest.TestCase):
             exp = (((np.matmul((np_mat * 2), (np_mat+3)) + 3) * 2 + (np_mat+2)) - (np_mat+4))
             self.assertTrue(np.all(exp == res))
 
+class TestArgsAndKwargs(unittest.TestCase):
 
     def test_args(self):
         with MAD() as mad:
@@ -194,6 +198,38 @@ class TestObjects(unittest.TestCase):
             self.assertEqual(sd.opposite, False)
             self.assertTrue(np.all(sd.mat == np.arange(9).reshape((3, 3)) + 1))
 
+class TestDir(unittest.TestCase):
+
+    def test_dir(self):
+        with MAD() as mad:
+            mad.load("MAD", ["cmatrix", "imatrix", "matrix", "range", "monomial"])
+            mad.load("element", "quadrupole")
+            mat_exp = ['abs', 'accmax', 'accmaxabs', 'accmin', 'accminabs', 'accprod', 'accsum', 'accsumabs', 'accsumsqr', 'accumulate', 'acos', 'acosh', 'acot', 'acoth', 'add', 'all', 'angle', 'any', 'asin', 'asinc', 'asinh', 'asinhc', 'atan', 'atan2', 'atanh', 'bar', 'bytesize', 'cabs', 'carg', 'ceil', 'center', 'circ', 'concat', 'conj', 'conjugate', 'conv', 'copy', 'corr', 'cos', 'cosh', 'cot', 'coth', 'covar', 'cplx', 'cross', 'dawson', 'det', 'diag', 'dist', 'div', 'dmul', 'dot', 'ediv', 'eigen', 'emod', 'emul', 'epow', 'eq', 'erf', 'erfc', 'erfcx', 'erfi', 'eval', 'exp', 'eye', 'fabs', 'fft', 'fill', 'filter', 'filter_out', 'floor', 'foldl', 'foldr', 'foreach', 'frac', 'get', 'getcol', 'getdiag', 'getdidx', 'geti', 'getidx', 'getij', 'getrow', 'getsub', 'getvec', 'gmsolve', 'gsolve', 'hypot', 'hypot3', 'ifft', 'imag', 'iminmax', 'infft', 'inner', 'inscol', 'insrow', 'inssub', 'insvec', 'inv', 'invsqrt', 'irfft', 'is_const', 'is_diag', 'is_imag', 'is_real', 'is_symm', 'is_symp', 'kadd', 'kdot', 'ksum', 'log', 'log10', 'macos', 'macosh', 'macot', 'macoth', 'map', 'map2', 'map3', 'masin', 'masinc', 'masinh', 'masinhc', 'matan', 'matanh', 'max', 'maxabs', 'mcos', 'mcosh', 'mcot', 'mcoth', 'mean', 'mexp', 'mfun', 'min', 'minabs', 'minmax', 'mixed', 'mlog', 'mlog10', 'movev', 'msin', 'msinc', 'msinh', 'msinhc', 'msqrt', 'mtan', 'mtanh', 'mul', 'muld', 'mult', 'nfft', 'norm', 'nsolve', 'ones', 'outer', 'pcacnd', 'polar', 'pow', 'print', 'prod', 'proj', 'raccmax', 'raccmaxabs', 'raccmin', 'raccminabs', 'raccprod', 'raccsum', 'raccsumabs', 'raccsumsqr', 'random', 'read', 'real', 'rect', 'reim', 'remcol', 'remrow', 'remsub', 'remvec', 'reshape', 'rev', 'rfft', 'roll', 'rot', 'rotq', 'rotv', 'rotx', 'rotxy', 'rotxyz', 'rotxz', 'rotxzy', 'roty', 'rotyx', 'rotyxz', 'rotyz', 'rotyzx', 'rotz', 'rotzx', 'rotzxy', 'rotzy', 'rotzyx', 'round', 'same', 'scanl', 'scanr', 'seq', 'set', 'setcol', 'setdiag', 'seti', 'setrow', 'setsub', 'setvec', 'shiftv', 'shuffle', 'sign', 'sign1', 'sin', 'sinc', 'sinh', 'sinhc', 'size', 'sizes', 'solve', 'sqr', 'sqrt', 'ssolve', 'sub', 'sum', 'sumabs', 'sumsqr', 'svd', 'svdcnd', 'swpcol', 'swprow', 'swpsub', 'swpvec', 'symp', 'sympconj', 'symperr', 't', 'tan', 'tanh', 'tmul', 'torotq', 'torotv', 'torotxyz', 'torotxzy', 'torotyxz', 'torotyzx', 'torotzxy', 'torotzyx', 'tostring', 'totable', 'tr', 'trace', 'transpose', 'trunc', 'tsizes', 'unit', 'unm', 'variance', 'vec', 'vech', 'wf', 'write', 'zeros', 'zpad']
+            self.assertEqual(dir(mad.matrix(3)), mat_exp) #Should grab all the methods from matrix
+            print(dir(mad.imatrix(10)))
+            
+            cmat_exp = ['abs', 'accmax', 'accmaxabs', 'accmin', 'accminabs', 'accprod', 'accsum', 'accsumabs', 'accsumsqr', 'accumulate', 'acos', 'acosh', 'acot', 'acoth', 'add', 'all', 'angle', 'any', 'asin', 'asinc', 'asinh', 'asinhc', 'atan', 'atan2', 'atanh', 'bar', 'bytesize', 'cabs', 'carg', 'ceil', 'center', 'circ', 'concat', 'conj', 'conjugate', 'conv', 'copy', 'corr', 'cos', 'cosh', 'cot', 'coth', 'covar', 'cplx', 'cross', 'dawson', 'det', 'diag', 'dist', 'div', 'dmul', 'dot', 'ediv', 'eigen', 'emod', 'emul', 'epow', 'eq', 'erf', 'erfc', 'erfcx', 'erfi', 'eval', 'exp', 'eye', 'fabs', 'fft', 'fill', 'filter', 'filter_out', 'floor', 'foldl', 'foldr', 'foreach', 'frac', 'get', 'getcol', 'getdiag', 'getdidx', 'geti', 'getidx', 'getij', 'getrow', 'getsub', 'getvec', 'gmsolve', 'gsolve', 'hypot', 'hypot3', 'ifft', 'imag', 'iminmax', 'infft', 'inner', 'inscol', 'insrow', 'inssub', 'insvec', 'inv', 'invsqrt', 'irfft', 'is_const', 'is_diag', 'is_imag', 'is_real', 'is_symm', 'is_symp', 'kadd', 'kdot', 'ksum', 'log', 'log10', 'macos', 'macosh', 'macot', 'macoth', 'map', 'map2', 'map3', 'masin', 'masinc', 'masinh', 'masinhc', 'matan', 'matanh', 'max', 'maxabs', 'mcos', 'mcosh', 'mcot', 'mcoth', 'mean', 'mexp', 'mfun', 'min', 'minabs', 'minmax', 'mixed', 'mlog', 'mlog10', 'movev', 'msin', 'msinc', 'msinh', 'msinhc', 'msqrt', 'mtan', 'mtanh', 'mul', 'muld', 'mult', 'nfft', 'norm', 'nsolve', 'ones', 'outer', 'pcacnd', 'polar', 'pow', 'print', 'prod', 'proj', 'raccmax', 'raccmaxabs', 'raccmin', 'raccminabs', 'raccprod', 'raccsum', 'raccsumabs', 'raccsumsqr', 'random', 'read', 'real', 'rect', 'reim', 'remcol', 'remrow', 'remsub', 'remvec', 'reshape', 'rev', 'rfft', 'roll', 'round', 'same', 'scanl', 'scanr', 'seq', 'set', 'setcol', 'setdiag', 'seti', 'setrow', 'setsub', 'setvec', 'shiftv', 'shuffle', 'sign', 'sign1', 'sin', 'sinc', 'sinh', 'sinhc', 'size', 'sizes', 'solve', 'sqr', 'sqrt', 'ssolve', 'sub', 'sum', 'sumabs', 'sumsqr', 'svd', 'svdcnd', 'swpcol', 'swprow', 'swpsub', 'swpvec', 'symp', 'sympconj', 'symperr', 't', 'tan', 'tanh', 'tmul', 'tostring', 'totable', 'tr', 'trace', 'transpose', 'trunc', 'tsizes', 'unit', 'unm', 'variance', 'vec', 'vech', 'wf', 'write', 'zeros', 'zpad']
+            self.assertEqual(dir(mad.cmatrix(10, 20)), cmat_exp) #Should grab all the methods from cmatrix
+            
+            imat_exp = ['abs', 'add', 'all', 'any', 'bytesize', 'concat', 'copy', 'diag', 'div', 'ediv', 'emod', 'emul', 'epow', 'eq', 'eye', 'fill', 'filter', 'filter_out', 'foldl', 'foldr', 'foreach', 'get', 'getcol', 'getdiag', 'getdidx', 'geti', 'getidx', 'getij', 'getrow', 'getsub', 'getvec', 'iminmax', 'inscol', 'insrow', 'inssub', 'insvec', 'map', 'map2', 'map3', 'max', 'maxabs', 'min', 'minabs', 'minmax', 'movev', 'mul', 'ones', 'print', 'prod', 'random', 'read', 'remcol', 'remrow', 'remsub', 'remvec', 'reshape', 'rev', 'roll', 'same', 'scanl', 'scanr', 'seq', 'set', 'setcol', 'setdiag', 'seti', 'setrow', 'setsub', 'setvec', 'shiftv', 'shuffle', 'sign', 'sign1', 'size', 'sizes', 'sqr', 'sub', 'sum', 'sumabs', 'sumsqr', 'swpcol', 'swprow', 'swpsub', 'swpvec', 't', 'tostring', 'totable', 'transpose', 'tsizes', 'unm', 'vec', 'vech', 'write', 'zeros', 'zpad']
+            self.assertEqual(dir(mad.imatrix(20, 5)), imat_exp) #Should grab all the methods from cmatrix
+
+            rng_exp = ['add', 'adjust', 'bounds', 'copy', 'div', 'get', 'is_empty', 'last', 'log', 'mul', 'overlap', 'ranges', 'reverse', 'same', 'size', 'sub', 'tostring', 'totable', 'unm', 'value']
+            self.assertEqual(dir(mad.range(1, 3, 1)), rng_exp) #Should grab all the methods from range
+            
+            mono_exp = ['add', 'concat', 'copy', 'fill', 'length', 'max', 'min', 'ord', 'ordp', 'ordpf', 'reverse', 'same', 'sub', 'tostring', 'totable']
+            self.assertEqual(dir(mad.monomial(20)), mono_exp) #Should grab all the methods from monomial
+
+            obj_exp = ['bsearch()', 'clear_all()', 'clear_array()', 'clear_flags()', 'clear_variables()', 'close_env()', 'copy()', 'copy_variables()', 'cpyvar()', 'dump_env()', 'dumpobj()', 'get_flags()', 'get_variables()', 'get_varkeys()', 'getvar()', 'insert()', 'is_class()', 'is_final()', 'is_instanceOf()', 'is_open_env()', 'is_readonly()', 'load_env()', 'lsearch()', 'move()', 'name', 'open_env()', 'parent', 'raw_get()', 'raw_len()', 'raw_set()', 'rawdump()', 'remove()', 'same()', 'set_final()', 'set_flags()', 'set_metamethods()', 'set_methods()', 'set_readonly()', 'set_variables()', 'setvar()', 'sort()', 'test_flags()', 'var_get()', 'var_val()', 'wrap_variables()']
+            self.assertEqual(dir(mad.object), obj_exp)
+            
+            quad_exp = ['angle', 'aperture', 'apertype', 'bsearch()', 'clear_all()', 'clear_array()', 'clear_flags()', 'clear_variables()', 'close_env()', 'copy()', 'copy_variables()', 'cpyvar()', 'deselect()', 'dknl', 'dksl', 'dump_env()', 'dumpobj()', 'e1', 'e2', 'f1', 'f2', 'fint', 'fintx', 'fringe', 'fringemax', 'get_flags()', 'get_variables()', 'get_varkeys()', 'getvar()', 'h1', 'h2', 'hgap', 'index_sat()', 'insert()', 'insert_sat()', 'is_class()', 'is_disabled()', 'is_final()', 'is_implicit()', 'is_instanceOf()', 'is_observed()', 'is_open_env()', 'is_readonly()', 'is_selected()', 'is_thick', 'k0', 'k0s', 'k1', 'k1s', 'k2', 'k2s', 'kill_ent_fringe', 'kill_exi_fringe', 'kind', 'knl', 'ksl', 'l', 'load_env()', 'lrad', 'lsearch()', 'method', 'misalign', 'model', 'move()', 'name', 'nslice', 'open_env()', 'parent', 'raw_get()', 'raw_len()', 'raw_set()', 'rawdump()', 'remove()', 'remove_sat()', 'replace_sat()', 'same()', 'select()', 'set_final()', 'set_flags()', 'set_metamethods()', 'set_methods()', 'set_readonly()', 'set_variables()', 'setvar()', 'sort()', 'survey()', 'test_flags()', 'tilt', 'track()', 'var_get()', 'var_val()', 'wrap_variables()']
+            self.assertEqual(dir(mad.quadrupole), quad_exp)
+            self.assertEqual(dir(mad.quadrupole(knl=[0, 0.3], l = 1)), quad_exp) #Dir of instance of class should be the same as the class
+            self.assertEqual(dir(mad.quadrupole(asd = 10, qwe = 20)), sorted(quad_exp + ["asd", "qwe"])) #Adding to the instance should change the dir
+
+
+class TestSpeed(unittest.TestCase):
 
     def test_benchmark(self):
         with MAD() as mad:
