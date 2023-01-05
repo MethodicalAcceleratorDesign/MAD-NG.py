@@ -32,7 +32,7 @@ class MAD(object):  # Review private and public
         """Create a MAD Object to interface with MAD-NG.
 
         The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
-        the MAD-NG environment by default, along with all the elements in the elements module.
+        the MAD-NG environment by default.
 
         Args:
             py_name (str): The name used to interact with the python process from MAD
@@ -98,11 +98,11 @@ class MAD(object):  # Review private and public
             data (str/int/float/ndarray/bool/list): The data to send to MAD-NG.
 
         Returns:
-            self (the mad object) - so that you can do ``mad.send(...).recv()``
+            self (the instance of the mad object)
 
         Raises:
             TypeError: An unsupported type was attempted to be sent to MAD-NG.
-            AssertionError: If and np.ndarray is input, the matrix must be of two dimensions.
+            AssertionError: If data is a np.ndarray, the matrix must be of two dimensions.
         """
         self.__process.send(data)
         return self
@@ -133,7 +133,7 @@ class MAD(object):  # Review private and public
     def recv_and_exec(self, env: dict = {}) -> dict:
         """Receive a string from MAD-NG and execute it.
 
-        Note: Numpy and this object are available during the execution as ``np`` and ``mad`` respectively
+        Note: The class numpy and the instance of this object are available during the execution as ``np`` and ``mad`` respectively
 
         Args:
             env (dict): The environment you would like the string to be executed in.
@@ -165,9 +165,9 @@ class MAD(object):  # Review private and public
         return self.__process.send_lrng(start, stop, size)
 
     def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
-        """Send the monomials and coeeficients of a TPSA to MAD
+        """Send the monomials and coefficients of a TPSA to MAD
 
-        The combination of monomials and coeeficients creates a table representing the TPSA object in MAD-NG.
+        The combination of monomials and coefficients creates a table representing the TPSA object in MAD-NG.
 
         Args:
             monos (ndarray): A list of monomials in the TPSA.
@@ -180,11 +180,13 @@ class MAD(object):  # Review private and public
         self.__process.send_tpsa(monos, coefficients)
 
     def send_ctpsa(self, monos: np.ndarray, coefficients: np.ndarray):
-        """Send the monomials and coeeficients of a complex TPSA to MAD
+        """Send the monomials and coefficients of a complex TPSA to MAD-NG
 
-        The combination of monomials and coeeficients creates a table representing the complex TPSA object in MAD-NG.
-
-        See :meth:`send_tpsa`.
+        The combination of monomials and coefficients creates a table representing the complex TPSA object in MAD-NG.
+        Args:
+            See :meth:`send_tpsa`.
+        Raises:
+            See :meth:`send_tpsa`.
         """
         self.__process.send_ctpsa(monos, coefficients)
 
@@ -267,13 +269,13 @@ class MAD(object):  # Review private and public
         return self.__process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
 
     def py_strs_to_mad_strs(self, input: Union[str, List[str]]):
-        """Add ' to either side of a string or list of strings
+        """Add ' to either side of a string or each string in a list of strings
         
         Args: 
-            input(str/list[str]): The string or list of strings that you would like to add ' either side to.
+            input(str/list[str]): The string or list of strings that you would like to add ' either side to each string.
 
         Returns:
-            A string or list of strings with ' placed at the beginning and the end of the string.
+            A string or list of strings with ' placed at the beginning and the end of each string.
         """
         if isinstance(input, list):
             return ["'" + x + "'" for x in input]
@@ -297,9 +299,9 @@ class MAD(object):  # Review private and public
             vars (List[str/int/float/ndarray/bool/list]): The list of variables to send with the names 'names' in MAD-NG.
 
         Raises:
-            Errors: See :meth:`send`.
             AssertionError: A list of names must be matched with a list of variables
             AssertionError: The number of names must match the number of variables
+            Other Errors: See :meth:`send`.
         """
         if isinstance(names, str): 
             names = [names]
@@ -416,8 +418,7 @@ class MAD(object):  # Review private and public
         with ``:=``. To assign the returned object a name, then use ``mad['name'] = mad.deffered(kwargs)``.
 
         Args:
-            **kwargs: A variable list of keyword arguments, keyword as the name of the deffered expression within the object
-            and the value as a string that is sent directly to the MAD-NG environment.
+            **kwargs: A variable list of keyword arguments, keyword as the name of the deffered expression within the object and the value as a string that is sent directly to the MAD-NG environment.
 
         Returns:
             A reference to the deffered expression object.
