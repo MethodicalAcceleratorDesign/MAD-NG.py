@@ -88,6 +88,7 @@ class MAD(object):
             "match",
         ]
         self.load("MAD", modulesToImport)
+        self.__MAD_version__ = self.MAD.env.version
 
     # ------------------------------------------------------------------------------------------#
 
@@ -451,6 +452,6 @@ class MAD(object):
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        del self
+        pass
 
     # ---------------------------------------------------------------------------------------------------#
