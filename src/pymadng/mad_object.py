@@ -21,7 +21,7 @@ class last_counter():
         self.counter.append(idx)
     
 
-class MAD(object):  # Review private and public
+class MAD(object):
     """An object that allows communication with MAD-NG
 
     Attributes:
@@ -54,9 +54,9 @@ class MAD(object):  # Review private and public
         #Stop jedi running getattr on my classes...
         if not ipython_use_jedi: 
             try:
-                shell = get_ipython().__class__.__name__
-                if shell == 'TerminalInteractiveShell':
-                    get_ipython().Completer.use_jedi = False
+                ipython = get_ipython()
+                if ipython.__class__.__name__ == 'TerminalInteractiveShell':
+                    ipython.Completer.use_jedi = False
             except NameError:
                 pass
         self.__process = mad_process(py_name, mad_path, debug, self)
