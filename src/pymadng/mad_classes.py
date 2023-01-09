@@ -2,7 +2,8 @@ from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
 
 # TODO: Are you able to store the actual parent? 
-# TODO: Verify if functions need kwargs or not.
+# TODO: Verify if functions need kwargs or not. 
+# BUG: In the case of MADX, the ?only? object that includes methods and functions, we attempt to call the functions like methods. Try MAD.MADX.abs(1).
 class madReference(object):    
     def __init__(self, name: str, mad):
         assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the receive functions?"
