@@ -26,6 +26,7 @@ class MAD(object):
 
     Attributes:
         py_name: A string indicating the name of the reference to python from MAD-NG, for communication from MAD-NG to Python.
+        __MAD_version__: A string indicating the version of MAD-NG being used. (Also accessible from self.MAD.env.version)
     """
 
     def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num_temp_vars: int = 8, ipython_use_jedi: bool = False):
