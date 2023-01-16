@@ -91,6 +91,12 @@ class TestObjFun(unittest.TestCase):
             qd = mad.quadrupole(knl=[0, 0.25], l = 1)
             self.assertEqual(qd.__name__, "__last__[1]") 
 
+    def test_call__last__(self):
+        with MAD() as mad:
+            mad.send("func_test = \\a-> \\b-> \\c-> a+b*c")
+            self.assertRaises(TypeError, lambda: mad.MAD())
+            self.assertEqual(mad.func_test(1)(2)(3), 7)
+
     def test_call_func(self):
         with MAD() as mad:
             mad.load("element", "quadrupole")
