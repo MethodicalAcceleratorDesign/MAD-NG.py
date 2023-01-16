@@ -118,6 +118,13 @@ class madReference(object):
         varnames = [x for x in self.__mad__.recv() if isinstance(x, str) and x[0] != "_"]
         return varnames
 
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        obj = self.eval()
+        if isinstance(obj, (madObject, madFunction)):
+            return obj(*args, **kwargs)
+        else:
+            raise TypeError("Cannot call " + str(obj))
+
     def __del__(self):
         if self.__name__[:8] == "__last__" and self.__is_base__:
             self.__mad__._MAD__last_counter.set(int(self.__name__[9:-1]))
