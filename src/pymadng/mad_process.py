@@ -1,7 +1,7 @@
 import struct, os, subprocess, sys, platform
 from typing import Union, Tuple, Callable
 import numpy as np
-from .mad_classes import madObject, madReference, madFunction
+from .mad_classes import mad_obj, mad_ref, mad_func, mad_reflast, mad_objlast
 
 __all__ = ["mad_process"]
 
@@ -20,19 +20,22 @@ data_types = {
         np.dtype("float64")     : "mat_",
         np.dtype("complex128")  : "cmat",
         np.dtype("int32")       : "imat",
-        madObject               : "obj_",
-        madReference            : "ref_",
-        madFunction             : "fun_",
+        mad_obj                 : "obj_",
+        mad_ref                 : "ref_",
+        mad_func                : "fun_",
+        mad_reflast             : "ref_",
+        mad_objlast             : "obj_",
         np.dtype("ubyte")       : "mono",
 }
 
-
 class mad_process:
-    def __init__(self, py_name: str, mad_path: str, debug: bool, mad_class) -> None:
+    def __init__(self, py_name: str, mad_path: str, debug: bool, proc_layer, mad_strs) -> None:
         self.pyName = py_name
-        self.mad_class = mad_class
+        self.proc_layer = proc_layer
+        self.mad_strs = mad_strs
 
-        mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
+        # mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
+        mad_path = "/home/joshua/Documents/MADpy/src/mad"
 
         self.from_mad, mad_side = os.pipe()
         startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {str(debug).lower()}}} :__ini({mad_side})"
@@ -46,34 +49,9 @@ class mad_process:
         )
         os.close(mad_side)
 
-        self.globalVars = {
-            "np" : np       ,
-            "mad": mad_class,
-        }
+        self.globalVars = {"np" : np} 
         self.ffrom_mad = os.fdopen(self.from_mad, "rb")
 
-        self.fun = {
-            "nil_": {"recv": recv_nil , "send": send_nil },
-            "bool": {"recv": recv_bool, "send": send_bool},
-            "str_": {"recv": recv_str , "send": send_str },
-            "tbl_": {"recv": recv_list, "send": send_list},
-            "ref_": {"recv": recv_ref , "send": send_ref },
-            "fun_": {"recv": recv_fun , "send": send_ref },
-            "obj_": {"recv": recv_obj , "send": send_ref },
-            "int_": {"recv": recv_int , "send": send_int },
-            "num_": {"recv": recv_num , "send": send_num },
-            "cpx_": {"recv": recv_cpx , "send": send_cpx },
-            "mat_": {"recv": recv_mat , "send": send_gmat},
-            "cmat": {"recv": recv_cmat, "send": send_gmat},
-            "imat": {"recv": recv_imat, "send": send_gmat},
-            "rng_": {"recv": recv_rng ,                  },
-            "lrng": {"recv": recv_lrng,                  },
-            "irng": {"recv": recv_irng, "send": send_irng},
-            "mono": {"recv": recv_mono, "send": send_mono},
-            "tpsa": {"recv": recv_tpsa,                  },
-            "ctpa": {"recv": recv_ctpa,                  },
-            "err_": {"recv": recv_err ,                  },
-        }
         # stdout should be line buffered by default, but for
         # jupyter notebook, stdout is redirected and not 
         # line buffered by default
@@ -83,7 +61,7 @@ class mad_process:
         )
         mad_return = self.recv()
         if mad_return != 1:  # Need to check number?
-            raise (OSError(f"Unsuccessful starting of {mad_path} process"))
+            raise OSError(f"Unsuccessful starting of {mad_path} process")
 
     def send_rng(self, start: float, stop: float, size: int):
         """Send a numpy array as a rng to MAD"""
@@ -110,7 +88,7 @@ class mad_process:
         try:
             typ = data_types[get_typestring(data)]
             self.process.stdin.write(typ.encode("utf-8"))
-            self.fun[typ]["send"](self, data)
+            str_to_fun[typ]["send"](self, data)
             return
         except KeyError:  # raise not in exception to reduce error output
             pass
@@ -121,10 +99,10 @@ class mad_process:
     def recv(
         self, varname: str = None
     ) -> Union[str, int, float, np.ndarray, bool, list]:
-        """Receive data from MAD"""
+        """Receive data from MAD, if a function is returned, it will be executed with the argument mad_communication"""
         typ = self.ffrom_mad.read(4).decode("utf-8")
         self.varname = varname  # For mad reference
-        return self.fun[typ]["recv"](self)
+        return str_to_fun[typ]["recv"](self)
 
     def recv_and_exec(self, env: dict = {}) -> dict:
         """Read data from MAD and execute it"""
@@ -150,7 +128,7 @@ def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
 send_nil = lambda self, input: None
 
 
-def send_ref(self: mad_process, obj: madReference) -> None:
+def send_ref(self: mad_process, obj: mad_ref) -> None:
     send_str(self, f"return {obj.__name__}")
 
 
@@ -228,16 +206,16 @@ def send_gtpsa(
 recv_nil = lambda self: None
 
 
-def recv_ref(self: mad_process) -> madReference:
-    return madReference(self.varname, self.mad_class)
+def recv_ref(self: mad_process) -> mad_ref:
+    return mad_ref(self.varname, self.proc_layer)
 
 
-def recv_obj(self: mad_process) -> madObject:
-    return madObject(self.varname, self.mad_class)
+def recv_obj(self: mad_process) -> mad_obj:
+    return mad_obj(self.varname, self.proc_layer)
 
 
-def recv_fun(self: mad_process) -> madFunction:
-    return madFunction(self.varname, self.mad_class)
+def recv_fun(self: mad_process) -> mad_func:
+    return mad_func(self.varname, self.proc_layer)
 
 
 def recv_str(self: mad_process) -> str:
@@ -331,6 +309,32 @@ def recv_tpsa(self: mad_process):
 
 
 def recv_err(self: mad_process):
-    self.mad_class._MAD__errhdlr(False)
+    self.proc_layer.errhdlr(False)
     raise RuntimeError("MAD Errored (see the MAD error output)")
+
+# --------------------------------------------------------------------------------------------#
+
+# -------------------------------------- Dict for data ---------------------------------------#
+str_to_fun = {
+    "nil_": {"recv": recv_nil , "send": send_nil },
+    "bool": {"recv": recv_bool, "send": send_bool},
+    "str_": {"recv": recv_str , "send": send_str },
+    "tbl_": {"recv": recv_list, "send": send_list},
+    "ref_": {"recv": recv_ref , "send": send_ref },
+    "fun_": {"recv": recv_fun , "send": send_ref },
+    "obj_": {"recv": recv_obj , "send": send_ref },
+    "int_": {"recv": recv_int , "send": send_int },
+    "num_": {"recv": recv_num , "send": send_num },
+    "cpx_": {"recv": recv_cpx , "send": send_cpx },
+    "mat_": {"recv": recv_mat , "send": send_gmat},
+    "cmat": {"recv": recv_cmat, "send": send_gmat},
+    "imat": {"recv": recv_imat, "send": send_gmat},
+    "rng_": {"recv": recv_rng ,                  },
+    "lrng": {"recv": recv_lrng,                  },
+    "irng": {"recv": recv_irng, "send": send_irng},
+    "mono": {"recv": recv_mono, "send": send_mono},
+    "tpsa": {"recv": recv_tpsa,                  },
+    "ctpa": {"recv": recv_ctpa,                  },
+    "err_": {"recv": recv_err ,                  },
+}
 # --------------------------------------------------------------------------------------------#
