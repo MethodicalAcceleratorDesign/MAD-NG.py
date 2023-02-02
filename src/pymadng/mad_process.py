@@ -29,13 +29,11 @@ data_types = {
 }
 
 class mad_process:
-    def __init__(self, py_name: str, mad_path: str, debug: bool, proc_layer, mad_strs) -> None:
+    def __init__(self, py_name: str, mad_path: str, debug: bool, proc_layer) -> None:
         self.pyName = py_name
         self.proc_layer = proc_layer
-        self.mad_strs = mad_strs
 
-        # mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
-        mad_path = "/home/joshua/Documents/MADpy/src/mad"
+        mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
 
         self.from_mad, mad_side = os.pipe()
         startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {str(debug).lower()}}} :__ini({mad_side})"
@@ -89,7 +87,7 @@ class mad_process:
             typ = data_types[get_typestring(data)]
             self.process.stdin.write(typ.encode("utf-8"))
             str_to_fun[typ]["send"](self, data)
-            return
+            return self
         except KeyError:  # raise not in exception to reduce error output
             pass
         raise TypeError(

@@ -4,7 +4,6 @@ from typing import Any, Iterable, Union, List  # To make stuff look nicer
 # Custom Classes:
 from .mad_classes import mad_ref, mad_reflast
 from .mad_comm import mad_comm
-from .mad_strings import mad_strings
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 
@@ -37,11 +36,9 @@ class MAD(object):
         Returns:
             A MAD object, allowing for communication with MAD-NG
         """
-        self.__mad_strs = mad_strings(py_name)
-        self.__process = mad_comm(py_name, mad_path, debug, num_temp_vars, ipython_use_jedi, self.__mad_strs)
+        self.__process = mad_comm(py_name, mad_path, debug, num_temp_vars, ipython_use_jedi)
         
         ## Store the relavent objects into a function to get reference objects
-        self.__mad_ref = lambda name: mad_ref(name, self.__process)
         self.__mad_reflast = lambda: mad_reflast(self.__process)
         if not ipython_use_jedi: #Stop jedi running getattr on my classes...
             try:
@@ -98,6 +95,7 @@ class MAD(object):
         Returns:
             The updated environment after executing the string.
         """
+        env["mad"] = self
         return self.__process.recv_and_exec(env)
 
     # --------------------------------Sending data to subprocess------------------------------------#
@@ -214,7 +212,7 @@ class MAD(object):
         """
         script = ""
         if vars == []:
-            vars = [x.strip("()") for x in dir(self.__mad_ref(module))]
+            vars = [x.strip("()") for x in dir(mad_ref(module, self.__process))]
         elif isinstance(vars, str):
             vars = [vars]
         for className in vars:
