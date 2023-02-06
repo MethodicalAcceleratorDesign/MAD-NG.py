@@ -70,6 +70,15 @@ class mad_process:
         if not checker[0] or self.recv() != 1: # Need to check number?
             raise OSError(f"Unsuccessful starting of {mad_path} process")
 
+        self.send("""
+        function __mklast__ (a, b, ...)
+            if MAD.typeid.is_nil(b) then return a
+            else                         return {a, b, ...}
+            end
+        end
+        __last__ = {}
+        """)
+
     def send_rng(self, start: float, stop: float, size: int):
         """Send a numpy array as a rng to MAD"""
         self.fto_mad.write(b"rng_")
