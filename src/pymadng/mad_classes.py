@@ -5,16 +5,13 @@ import numpy as np
 # TODO: Verify if functions need kwargs or not. 
 # BUG: In the case of MADX, the ?only? object that includes methods and functions, we attempt to call the functions like methods. Try MAD.MADX.abs(1).
 class mad_ref(object):    
-    def __init__(self, name: str, mad_comms):
+    def __init__(self, name: str, mad_proc):
         assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the receive functions?"
         self.__name__ = name
         self.__parent__ = (
             "[" in name and "[".join(name.split("[")[:-1]) or None
         )  # if name is compound, get parent by string manipulation
-        self.__mad__ = mad_comms
-    
-    def __safe_send__(self, string):
-        return self.__mad__.send(f"py:__err(true); {string}; py:__err(false);")
+        self.__mad__ = mad_proc
 
     def __getattr__(self, item):
         if item[0] != "_":
@@ -31,11 +28,11 @@ class mad_ref(object):
 
     def __getitem__(self, item: Union[str, int]):
         if isinstance(item, int):
-            result = self.__mad__.recv_vars(self.__name__ + f"[ {item + 1} ]")
+            result = self.__mad__.safe_recv(f"{self.__name__}[{item+1}]")
             if result is None:
                 raise IndexError(item)  # For python
         elif isinstance(item, str):
-            result = self.__mad__.recv_vars(self.__name__ + f"['{item    }']")
+            result = self.__mad__.safe_recv(f"{self.__name__}['{item}']")
             if result is None:
                 raise KeyError(item)  # For python
         else:
@@ -49,9 +46,9 @@ class mad_ref(object):
         value: Union[str, int, float, np.ndarray, bool, list],
     ):
         if isinstance(item, int):
-            self.__mad__.send_vars(self.__name__ + f"[ {item + 1} ]", value)
+            self.__mad__.send_vars(f"{self.__name__}[{item+1}]", value)
         elif isinstance(item, str):
-            self.__mad__.send_vars(self.__name__ + f"['{item    }']", value)
+            self.__mad__.send_vars(f"{self.__name__}['{item}']", value)
         else:
             raise TypeError("Cannot index type of ", type(item), "expected string or int")
 
@@ -81,11 +78,11 @@ class mad_ref(object):
 
     def __gOp__(self, rhs, operator: str):
         rtrn = mad_reflast(self.__mad__)
-        self.__safe_send__(f"{rtrn.__name__} = {self.__name__} {operator} py:recv()").send(rhs)
+        self.__mad__.safe_send(f"{rtrn.__name__} = {self.__name__} {operator} {self.__mad__.py_name}:recv()").send(rhs)
         return rtrn
 
     def __len__(self):
-        return self.__safe_send__(f"py:send(#{self.__name__})").recv()
+        return self.__mad__.safe_recv(f"#{self.__name__}")
 
     def __str__(self):
         val = self.__mad__.recv_vars(self.__name__)
@@ -107,18 +104,19 @@ class mad_ref(object):
         script = f"""
             local modList={{}}; local i = 1;
             for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
-            py:send(modList)"""
-        self.__safe_send__(script)
+            {self.__mad__.py_name}:send(modList)"""
+        self.__mad__.safe_send(script)
         varnames = [x for x in self.__mad__.recv() if isinstance(x, str) and x[0] != "_"]
         return varnames
 
 class mad_obj(mad_ref):
     def __dir__(self) -> Iterable[str]:
         if not self.__mad__.ipython_use_jedi:
-            self.__safe_send__(f"py:send({self.__name__}:get_varkeys(MAD.object))")
+            self.__mad__.safe_send(f"{self.__mad__.py_name}:send({self.__name__}:get_varkeys(MAD.object))")
 
-        self.__safe_send__(f"py:send({self.__name__}:get_varkeys(MAD.object, false))")
-        varnames = [x for x in self.__mad__.recv()]
+        # self.__mad__.safe_send(f"{self.__mad__.py_name}:send({self.__name__}:get_varkeys(MAD.object, false))")
+        # varnames = [x for x in self.__mad__.recv()]
+        varnames = self.__mad__.safe_recv(f"{self.__name__}:get_varkeys(MAD.object, false)")
 
         if not self.__mad__.ipython_use_jedi:
             varnames.extend([x + "()" for x in self.__mad__.recv() if not x in varnames])
@@ -162,9 +160,9 @@ class mad_func(mad_ref):
     # ---------------------------------------------------------------------------------------------------#
     
     def __call__(self, *args: Any) -> Any:
-        ismethod = self.__parent__ and self.__safe_send__(f"""
-        py:send(MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__}))"""
-        ).recv()
+        ismethod = self.__parent__ and self.__mad__.safe_recv(f"""
+        MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__})
+        """)
         if ismethod:
             return self.__call_func(self.__name__, self.__parent__, *args)
         else:
@@ -174,10 +172,10 @@ class mad_func(mad_ref):
 
 # Separate class for __last__ objects for simplicity and fewer if statements
 class mad_last(): # The init and del for a __last__ object
-    def __init__(self, comms):
-        self.__lastnum__ = comms.last_counter.get()
+    def __init__(self, mad_proc):
+        self.__lastnum__ = mad_proc.last_counter.get()
         self.__name__ = f"__last__[{self.__lastnum__}]"
-        self.__mad__ = comms
+        self.__mad__ = mad_proc
         self.__parent__ = "__last__"
     
     def __del__(self):

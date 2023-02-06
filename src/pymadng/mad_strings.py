@@ -2,6 +2,7 @@ from typing import Any
 from .mad_classes import mad_ref
 
 # Should this be a class or a set of functions, py_name is the only issue here?
+# For now, it's a class and this gives the option to add more functionality later
 
 class mad_strings:
     def __init__(self, py_name: str):

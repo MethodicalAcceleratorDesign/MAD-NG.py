@@ -1,7 +1,9 @@
-import struct, os, subprocess, sys, platform
-from typing import Union, Tuple, Callable
+import struct, os, subprocess, sys, platform, select
+from typing import Union, Tuple, Callable, Any
 import numpy as np
 from .mad_classes import mad_obj, mad_ref, mad_func, mad_reflast, mad_objlast
+from .mad_strings import mad_strings
+from .mad_last import last_counter
 
 __all__ = ["mad_process"]
 
@@ -29,23 +31,30 @@ data_types = {
 }
 
 class mad_process:
-    def __init__(self, py_name: str, mad_path: str, debug: bool, proc_layer) -> None:
-        self.pyName = py_name
-        self.proc_layer = proc_layer
+    def __init__(self, py_name: str, mad_path: str, debug: bool, num_temp_vars: int = 8, ipython_use_jedi: bool = False) -> None:
+        self.py_name = py_name
+        self.mad_strs = mad_strings(py_name)
+        self.last_counter = last_counter(num_temp_vars) # The mad objects require access to this
+        self.ipython_use_jedi = ipython_use_jedi        # ditto, but not entirely necessary
 
         mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
 
-        self.from_mad, mad_side = os.pipe()
-        startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {str(debug).lower()}}} :__ini({mad_side})"
+        self.from_mad, mad_write = os.pipe()
+        mad_read, self.to_mad = os.pipe()
+        self.fto_mad = os.fdopen(self.to_mad, "wb", buffering=0) # Sensible to not buffer stdin?
+        
+        startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {str(debug).lower()}}} :__ini({mad_write})"
 
         self.process = subprocess.Popen(
             [mad_path, "-q", "-e", startupChunk],
             bufsize=0,
-            stdin=subprocess.PIPE,
+            stdin=mad_read,
+            stdout=mad_write,
             preexec_fn=os.setpgrp,  # Don't forward signals
-            pass_fds=[mad_side, sys.stdout.fileno(), sys.stderr.fileno()],
+            pass_fds=[mad_write, sys.stdout.fileno(), sys.stderr.fileno()],
         )
-        os.close(mad_side)
+        os.close(mad_write)
+        os.close(mad_read)
 
         self.globalVars = {"np" : np} 
         self.ffrom_mad = os.fdopen(self.from_mad, "rb")
@@ -55,37 +64,37 @@ class mad_process:
         # line buffered by default
         self.send(
             f"""io.stdout:setvbuf('line')
-                {self.pyName}:send(1)"""
+                {self.py_name}:send(1)"""
         )
-        mad_return = self.recv()
-        if mad_return != 1:  # Need to check number?
+        checker = select.select([self.ffrom_mad], [], [], 1) # May not work on windows
+        if not checker[0] or self.recv() != 1: # Need to check number?
             raise OSError(f"Unsuccessful starting of {mad_path} process")
 
     def send_rng(self, start: float, stop: float, size: int):
         """Send a numpy array as a rng to MAD"""
-        self.process.stdin.write(b"rng_")
+        self.fto_mad.write(b"rng_")
         send_grng(self, start, stop, size)
 
     def send_lrng(self, start: float, stop: float, size: int):
         """Send a numpy array as a logrange to MAD"""
-        self.process.stdin.write(b"lrng")
+        self.fto_mad.write(b"lrng")
         send_grng(self, start, stop, size)
 
     def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
         """Send the monomials and coeeficients of a TPSA to MAD, creating a table representing the TPSA object"""
-        self.process.stdin.write(b"tpsa")
+        self.fto_mad.write(b"tpsa")
         send_gtpsa(self, monos, coefficients, send_num)
 
     def send_ctpsa(self, monos: np.ndarray, coefficients: np.ndarray):
         """Send the monomials and coeeficients of a complex TPSA to MAD, creating a table representing the complex TPSA object"""
-        self.process.stdin.write(b"ctpa")
+        self.fto_mad.write(b"ctpa")
         send_gtpsa(self, monos, coefficients, send_cpx)
 
     def send(self, data: Union[str, int, float, np.ndarray, bool, list]) -> None:
         """Send data to MAD"""
         try:
             typ = data_types[get_typestring(data)]
-            self.process.stdin.write(typ.encode("utf-8"))
+            self.fto_mad.write(typ.encode("utf-8"))
             str_to_fun[typ]["send"](self, data)
             return self
         except KeyError:  # raise not in exception to reduce error output
@@ -93,6 +102,17 @@ class mad_process:
         raise TypeError(
             f"Unsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}"
         )
+
+    def safe_send(self, string: str):
+        """Send a string to MAD, but first enable error handling, so that if an error occurs, an error is returned"""
+        return self.send(f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);")
+    
+    def safe_recv(self, name: str):
+        return self.send(f"{self.py_name}:__err(true):send({name}):__err(false)").recv(name)
+
+    def errhdlr(self, on_off: bool):
+        """Enable or disable error handling"""
+        self.send(f"{self.py_name}:__err({str(on_off).lower()})")
 
     def recv(
         self, varname: str = None
@@ -107,11 +127,40 @@ class mad_process:
         exec(compile(self.recv(), "ffrom_mad", "exec"), self.globalVars, env)
         return env
 
+    # -------------------------------- Dealing with communication of variables --------------------------------#
+    def send_vars(self, names, vars):
+        if isinstance(names, str): 
+            names = [names]
+            vars = [vars]
+        else:
+            assert isinstance(vars, list), "A list of names must be matched with a list of variables"
+            assert len(vars) == len(names), "The number of names must match the number of variables"
+        for i, var in enumerate(vars):
+            if isinstance(vars[i], mad_ref):
+                self.send(f"{names[i]} = {var.__name__}")
+            else:
+                self.send(f"{names[i]} = {self.py_name}:recv()").send(var)
+
+    def recv_vars(self, names) -> Any:
+        if isinstance(names, str): 
+            names = [names]
+            cnvrt = lambda rtrn: rtrn[0]
+        else: 
+            cnvrt = lambda rtrn: tuple(rtrn)
+
+        rtrn_vars = []
+        for name in names:
+            if name[:2] != "__" or name[:8] == "__last__":  # Check for private variables
+                rtrn_vars.append(self.safe_recv(name))        
+        return cnvrt(rtrn_vars)
+
+    # -------------------------------------------------------------------------------------------------------------#
+
     def __del__(self):
+        self.send(f"{self.py_name}:__fin()")
         self.ffrom_mad.close()
-        self.send("py:__fin()")
         self.process.terminate() #In case user left mad waiting
-        self.process.stdin.close()
+        self.fto_mad.close()
         self.process.wait()
 
 
@@ -125,42 +174,33 @@ def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
 # --------------------------------------- Sending data ---------------------------------------#
 send_nil = lambda self, input: None
 
-
 def send_ref(self: mad_process, obj: mad_ref) -> None:
     send_str(self, f"return {obj.__name__}")
 
-
 def send_str(self: mad_process, input: str) -> None:
     send_int(self, len(input))
-    self.process.stdin.write(input.encode("utf-8"))
-
+    self.fto_mad.write(input.encode("utf-8"))
 
 def send_int(self: mad_process, input: int) -> None:
-    self.process.stdin.write(struct.pack("i", input))
-
+    self.fto_mad.write(struct.pack("i", input))
 
 def send_num(self: mad_process, input: float) -> None:
-    self.process.stdin.write(struct.pack("d", input))
-
+    self.fto_mad.write(struct.pack("d", input))
 
 def send_cpx(self: mad_process, input: complex) -> None:
-    self.process.stdin.write(struct.pack("dd", input.real, input.imag))
-
+    self.fto_mad.write(struct.pack("dd", input.real, input.imag))
 
 def send_bool(self: mad_process, input: bool) -> None:
-    self.process.stdin.write(struct.pack("?", input))
-
+    self.fto_mad.write(struct.pack("?", input))
 
 def send_shape(self: mad_process, shape: Tuple[int, int]) -> None:
     send_int(self, shape[0])
     send_int(self, shape[1])
 
-
 def send_gmat(self: mad_process, mat: np.ndarray) -> None:
     assert len(mat.shape) == 2, "Matrix must be of two dimensions"
     send_shape(self, mat.shape)
-    self.process.stdin.write(mat.tobytes())
-
+    self.fto_mad.write(mat.tobytes())
 
 def send_list(self: mad_process, lst: list) -> None:
     n = len(lst)
@@ -169,18 +209,15 @@ def send_list(self: mad_process, lst: list) -> None:
         self.send(item)  # deep copy
     return self
 
-
 def send_grng(self: mad_process, start: float, stop: float, size: int) -> None:
-    self.process.stdin.write(struct.pack("ddi", start, stop, size))
+    self.fto_mad.write(struct.pack("ddi", start, stop, size))
 
 def send_irng(self: mad_process, rng: range) -> None:
-    self.process.stdin.write(struct.pack("iii", rng.start, rng.stop, rng.step))
-
+    self.fto_mad.write(struct.pack("iii", rng.start, rng.stop, rng.step))
 
 def send_mono(self: mad_process, mono: np.ndarray) -> None:
     send_int(self, mono.size)
-    self.process.stdin.write(mono.tobytes())
-
+    self.fto_mad.write(mono.tobytes())
 
 def send_gtpsa(
     self: mad_process,
@@ -194,7 +231,7 @@ def send_gtpsa(
     send_int(self, len(monos))  # Num monomials
     send_int(self, len(monos[0]))  # Monomial length
     for mono in monos:
-        self.process.stdin.write(mono.tobytes())
+        self.fto_mad.write(mono.tobytes())
     for coefficient in coefficients:
         fsendNum(self, coefficient)
 
@@ -203,56 +240,43 @@ def send_gtpsa(
 # --------------------------------------- Receiving data -------------------------------------#
 recv_nil = lambda self: None
 
-
 def recv_ref(self: mad_process) -> mad_ref:
-    return mad_ref(self.varname, self.proc_layer)
-
+    return mad_ref(self.varname, self)
 
 def recv_obj(self: mad_process) -> mad_obj:
-    return mad_obj(self.varname, self.proc_layer)
-
+    return mad_obj(self.varname, self)
 
 def recv_fun(self: mad_process) -> mad_func:
-    return mad_func(self.varname, self.proc_layer)
-
+    return mad_func(self.varname, self)
 
 def recv_str(self: mad_process) -> str:
     return self.ffrom_mad.read(recv_int(self)).decode("utf-8")
 
-
 def recv_int(self: mad_process) -> int:  # Must be int32
     return int.from_bytes(self.ffrom_mad.read(4), sys.byteorder)
-
 
 def recv_num(self: mad_process) -> float:
     return np.frombuffer(self.ffrom_mad.read(8), dtype=np.float64)[0]
 
-
 def recv_cpx(self: mad_process) -> complex:
     return np.frombuffer(self.ffrom_mad.read(16), dtype=np.complex128)[0]
 
-
 def recv_bool(self: mad_process) -> str:
     return np.frombuffer(self.ffrom_mad.read(1), dtype=np.bool_)[0]
-
 
 def recv_gmat(self: mad_process, dtype: np.dtype) -> str:
     shape = np.frombuffer(self.ffrom_mad.read(8), dtype=np.int32)
     arraySize = shape[0] * shape[1] * dtype.itemsize
     return np.frombuffer(self.ffrom_mad.read(arraySize), dtype=dtype).reshape(shape)
 
-
 def recv_mat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("float64"))
-
 
 def recv_cmat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("complex128"))
 
-
 def recv_imat(self: mad_process) -> str:
     return recv_gmat(self, np.dtype("int32"))
-
 
 def recv_list(self: mad_process) -> list:
     varname = self.varname  # cache
@@ -267,24 +291,19 @@ def recv_list(self: mad_process) -> list:
     else:
         return vals
 
-
 def recv_irng(self: mad_process) -> range:
     start, stop, step = np.frombuffer(self.ffrom_mad.read(12), dtype=np.int32)
     return range(start, stop + 1, step)  # MAD is inclusive at both ends
 
-
 def recv_rng(self: mad_process) -> np.ndarray:
     return np.linspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
-
 
 def recv_lrng(self: mad_process) -> np.ndarray:
     return np.geomspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
 
-
 def recv_mono(self: mad_process) -> np.ndarray:
     mono_len = recv_int(self)
     return np.frombuffer(self.ffrom_mad.read(mono_len), dtype=np.ubyte)
-
 
 def recv_gtpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
     num_mono, mono_len = np.frombuffer(self.ffrom_mad.read(8), dtype=np.int32)
@@ -297,17 +316,14 @@ def recv_gtpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
     )
     return mono_list, coefficients
 
-
 def recv_ctpa(self: mad_process):
     return recv_gtpsa(self, np.dtype("complex128"))
-
 
 def recv_tpsa(self: mad_process):
     return recv_gtpsa(self, np.dtype("float64"))
 
-
 def recv_err(self: mad_process):
-    self.proc_layer.errhdlr(False)
+    self.errhdlr(False)
     raise RuntimeError("MAD Errored (see the MAD error output)")
 
 # --------------------------------------------------------------------------------------------#
