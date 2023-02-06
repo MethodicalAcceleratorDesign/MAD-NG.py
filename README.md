@@ -8,7 +8,9 @@ Install using below, see [The Python Package Index (PyPi)](https://pypi.org/proj
 Familiarising yourself with pymadng
 ===================================
 
-First, we recommend familiarising yourself with MAD-NG, documentation can be found [here](https://mad.web.cern.ch/mad/releases/madng/html/). Then reading through the [pymadng documentation](https://pymadng.readthedocs.io/en/latest/), where reading through the Low-Level Example Explained should be plenty (alongside knowledge of MAD-NG), assuming you are not planning to use python syntactic sugar. If you plan to use the available pythonic looking code, there are plenty of examples to look at. 
+First, we recommend familiarising yourself with MAD-NG, documentation can be found [here](https://mad.web.cern.ch/mad/releases/madng/html/). 
+
+Then reading through the Low-Level Example Explained on the [pymadng documentation](https://pymadng.readthedocs.io/en/latest/) should be sufficient (alongside knowledge of MAD-NG), assuming you are not planning to use any "syntactic sugar". If you plan to use the available pythonic looking code, there are plenty of examples to look at. 
 
 In the documentation, [FODO Examples Explained](https://pymadng.readthedocs.io/en/latest/ex-fodo.html), is a chapter that goes into detail on what is happening on each line of the [FODO example](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-fodo/ex-fodos.py), while [LHC Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html) gives an example of loading the LHC and how to grab intermediate results from a match. 
 
