@@ -3,7 +3,7 @@ from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
 # Custom Classes:
 from .mad_classes import mad_ref, mad_reflast
-from .mad_comm import mad_comm
+from .mad_process import mad_process
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 
@@ -36,7 +36,7 @@ class MAD(object):
         Returns:
             A MAD object, allowing for communication with MAD-NG
         """
-        self.__process = mad_comm(py_name, mad_path, debug, num_temp_vars, ipython_use_jedi)
+        self.__process = mad_process(py_name, mad_path, debug, num_temp_vars, ipython_use_jedi)
         
         ## Store the relavent objects into a function to get reference objects
         self.__mad_reflast = lambda: mad_reflast(self.__process)
