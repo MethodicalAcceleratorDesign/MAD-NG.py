@@ -174,8 +174,8 @@ class MAD(object):
         Send the variables in vars with the names in names to MAD-NG.
 
         Args:
-            names (List[str]): The list of names that would like to name your variables in MAD-NG.
-            vars (List[str/int/float/ndarray/bool/list]): The list of variables to send with the names 'names' in MAD-NG.
+            names (str/List[str]): The name(s) that would like to assign your python variable(s) in MAD-NG.
+            vars (List[str/int/float/ndarray/bool/list]): The variables to send with the name(s) 'names' in MAD-NG.
 
         Raises:
             AssertionError: A list of names must be matched with a list of variables
@@ -190,7 +190,7 @@ class MAD(object):
         Given a list of variable names, receive the variables from the MAD-NG process.
 
         Args:
-            names (List[str]): The list of names of variables that you would like to receive from MAD-NG.
+            names (str/List[str]): The name(s) of variables that you would like to receive from MAD-NG.
 
         Returns:
             See :meth:`recv`.
@@ -199,15 +199,15 @@ class MAD(object):
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    def load(self, module: str, vars: List[str] = []):
+    def load(self, module: str, vars: Union[List[str], str] = []):
         """Import modules into the MAD-NG environment
 
         Retrieve the classes in MAD-NG from the module ``module``, while only importing the classes in the list ``vars``.
-        If no list is provided, it is assumed that you would like to import every class from the module.
+        If no list or string is provided, it is assumed that you would like to import every class from the module.
 
         Args:
             module (str): The name of the module to import from.
-            vars (List[str]): The variables to import from module.
+            vars (List[str]/str): The variable(s) to import from module.
                 (default = [])
         """
         script = ""
@@ -219,35 +219,55 @@ class MAD(object):
             script += f"""{className} = {module}.{className}\n"""
         self.__process.send(script)
 
+    def loadfile(self, path: str, vars: List[str] = None):
+        """Load a .mad file into the MAD-NG environment.
+
+        If ``vars`` is not provided, this is equivalent to ``assert(loadfile(path))`` in MAD-NG.
+        If ``vars`` is provided, for each ``var`` in ``vars``, this is equivalent to ``var = require(path).var`` in MAD-NG.
+
+        Args:
+            path (str): The path to the file to import.
+            vars (List[str]): The variables to import from the file.
+                (default = None)
+        """
+        if vars is None:
+            self.__process.send(f"assert(loadfile({path}))")
+        else:
+            if isinstance(vars, str):
+                vars = [vars]
+            script = ""
+            for var in vars:
+                script += f"{var} = require({path}).{var}\n"
+            self.__process.send(script)
+
     # ----------------------- Make the class work with dict and dot access ------------------------#
     def __getattr__(self, item):
         if item[0] == "_" and not item[:8] == "__last__":
             raise AttributeError(item)
         return self.__process.recv_vars(item)
 
-    def __setitem__(self, varName: str, var: Any) -> None:
-        if isinstance(varName, tuple):
-            varName = list(varName)
+    def __setitem__(self, var_name: str, var: Any) -> None:
+        if isinstance(var_name, tuple):
+            var_name = list(var_name)
             if isinstance(var, mad_ref):
                 var = [
                     type(var)(var.__name__ + f"[{i+1}]", self)
-                    for i in range(len(varName))
+                    for i in range(len(var_name))
                 ]
             else:
                 var = list(var)
-            if len(var) != len(varName):
+            if len(var) != len(var_name):
                 raise ValueError(
                     "Incorrect number of values to unpack, received",
                     len(var),
                     "variables and",
-                    len(varName),
+                    len(var_name),
                     "keys",
                 )
-        self.__process.send_vars(varName, var)
+        self.__process.send_vars(var_name, var)
 
-    def __getitem__(self, varName: str) -> Any:
-        return self.__process.recv_vars(varName)
-
+    def __getitem__(self, var_name: str) -> Any:
+        return self.__process.recv_vars(var_name)
     # ----------------------------------------------------------------------------------------------#
 
     def eval(self, input: str):
@@ -275,7 +295,7 @@ class MAD(object):
         """Add ' to either side of a string or each string in a list of strings
         
         Args: 
-            input(str/list[str]): The string or list of strings that you would like to add ' either side to each string.
+            input(str/list[str]): The string(s) that you would like to add ' either side to each string.
 
         Returns:
             A string or list of strings with ' placed at the beginning and the end of each string.
@@ -312,15 +332,15 @@ class MAD(object):
 
     def __dir__(self) -> Iterable[str]:
         pyObjs = [x for x in super(MAD, self).__dir__() if x[0] != "_"]
-        pyObjs.extend(self.env())
+        pyObjs.extend(self.globals())
         pyObjs.extend(dir(self.recv_vars("_G")))
         return pyObjs
 
-    def env(self) -> List[str]:
+    def globals(self) -> List[str]:
         """Retreive the list of names of variables in the environment of MAD
 
         Returns:
-            A list of strings indicating the available variables and modules within the MAD-NG environment
+            A list of strings indicating the globals variables and modules within the MAD-NG environment
         """
         return dir(self.recv_vars(f"{self.py_name}._env"))
 
