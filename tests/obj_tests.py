@@ -1,6 +1,6 @@
 import unittest
 from pymadng import MAD
-from pymadng.mad_classes import madReference, madObject, madFunction
+from pymadng.mad_classes import mad_ref, mad_obj, mad_func
 
 import numpy as np
 import time
@@ -19,13 +19,13 @@ class TestGetSet(unittest.TestCase):
             qf = mad.recv("qf")
             self.assertEqual(qd.__name__, "qd")
             self.assertEqual(qd.__parent__, None)
-            self.assertEqual(qd.__mad__, mad)
+            self.assertEqual(qd.__mad__, mad._MAD__process)
             self.assertEqual(qd.knl, [0, 0.25])
             self.assertEqual(qd.l, 1)
             self.assertRaises(AttributeError, lambda: qd.asdfg)
             self.assertRaises(KeyError, lambda: qd["asdfg"])
             self.assertRaises(IndexError, lambda: qd[1])
-            self.assertTrue(isinstance(qf.qd, madReference))
+            self.assertTrue(isinstance(qf.qd, mad_ref))
             self.assertEqual(qf.qd.knl, [0, 0.25])
             self.assertEqual(qf.qd.l, 1)
             self.assertEqual(qf.qd, qd)
@@ -34,7 +34,7 @@ class TestGetSet(unittest.TestCase):
             objList = mad.recv("objList")
             for i in range(len(objList)):
                 if i % 2 != 0:
-                    self.assertTrue(isinstance(objList[i].qd, madReference))
+                    self.assertTrue(isinstance(objList[i].qd, mad_ref))
                     self.assertEqual(objList[i].qd.__parent__, f"objList[{i+1}]")
                     self.assertEqual(objList[i].qd.knl, [0, 0.25])
                     self.assertEqual(objList[i].qd.l, 1)
@@ -54,7 +54,7 @@ class TestGetSet(unittest.TestCase):
             mad["qd2"] = mad.recv("qd")
             self.assertEqual(mad.qd2.__name__, "qd2")
             self.assertEqual(mad.qd2.__parent__, None)
-            self.assertEqual(mad.qd2.__mad__, mad)
+            self.assertEqual(mad.qd2.__mad__, mad._MAD__process)
             self.assertEqual(mad.qd2.knl, [0, 0.25])
             self.assertEqual(mad.qd2.l, 1)
             self.assertEqual(mad.qd2, mad.qd)
@@ -70,7 +70,7 @@ class TestObjFun(unittest.TestCase):
             mad["qd"] = qd
             self.assertEqual(mad.qd.__name__, "qd")
             self.assertEqual(mad.qd.__parent__, None)
-            self.assertEqual(mad.qd.__mad__, mad)
+            self.assertEqual(mad.qd.__mad__, mad._MAD__process)
             self.assertEqual(mad.qd.knl, [0, 0.25])
             self.assertEqual(mad.qd.l, 1)
 
@@ -79,7 +79,7 @@ class TestObjFun(unittest.TestCase):
             del sd
             self.assertEqual(mad.sd.__name__, "sd")
             self.assertEqual(mad.sd.__parent__, None)
-            self.assertEqual(mad.sd.__mad__, mad)
+            self.assertEqual(mad.sd.__mad__, mad._MAD__process)
             self.assertEqual(mad.sd.knl, [0, 0.25, 0.5])
             self.assertEqual(mad.sd.l, 1)
 
@@ -122,9 +122,9 @@ class TestObjFun(unittest.TestCase):
             lastobj = __mklast__(obj)
             notLast = {mult_rtrn()}
             """)
-            mad["o11", "o12", "o13", "o2"] = madReference("last_rtn", mad)
-            mad["p11", "p12", "p13", "p2"] = madReference("notLast", mad)
-            mad["objCpy"] = madReference("lastobj", mad) #Test single object in __mklast__
+            mad["o11", "o12", "o13", "o2"] = mad_ref("last_rtn", mad)
+            mad["p11", "p12", "p13", "p2"] = mad_ref("notLast", mad)
+            mad["objCpy"] = mad_ref("lastobj", mad) #Test single object in __mklast__
             self.assertEqual(mad.o11.a, 1)
             self.assertEqual(mad.o11.b, 2)
             self.assertEqual(mad.o12.a, 1)
