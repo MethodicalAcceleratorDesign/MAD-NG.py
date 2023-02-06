@@ -4,17 +4,16 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+orginal_dir = os.getcwd()
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
 with MAD() as mad:
-    mad.load("MAD.element.flags", ["observed"])
-    mad.load("MAD.utility", ["assertf", "printf"])
-    mad.load("MAD.gphys", ["mchklost"])
+    mad.load("MAD.utility", "assertf")
 
-    mad.MADX.load(f"'{current_dir}lhc_as-built.seq'", f"'{current_dir}lhc_as-built.mad'")
-    mad.MADX.load(f"'{current_dir}opticsfile.21'", f"'{current_dir}opticsfile.21.mad'")
-    mad.MADX.load(f"'{current_dir}lhc_unset_vars.mad'")
+    mad.MADX.load("'lhc_as-built.seq'", "'lhc_as-built.mad'")
+    mad.MADX.load("'opticsfile.21'", "'opticsfile.21.mad'")
+    mad.MADX.load("'lhc_unset_vars.mad'") # Load a list of unset variables to prevent warnings
 
     mad.load("MADX", ["lhcb1", "nrj"])
 
@@ -85,3 +84,5 @@ with MAD() as mad:
     mad.tbl.write("'after_tune_correction_n'")
     t1 = time.time()
     print("pre-tracking time: " + str(t1 - t0) + "s")
+
+os.chdir(orginal_dir)

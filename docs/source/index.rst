@@ -15,6 +15,7 @@ Welcome to the documentation for PyMAD-NG!
    ex-lowlevel
    ex-managing-refs
    ex-fodo
+   ex-lhc-couplingLocal
    ex-recv-lhc
 
 
