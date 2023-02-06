@@ -9,7 +9,9 @@ Familiarising yourself with pymadng
 ===================================
 
 First, we recommend familiarising yourself with MAD-NG, documentation can be found [here](https://mad.web.cern.ch/mad/releases/madng/html/). Then reading through the [pymadng documentation](https://pymadng.readthedocs.io/en/latest/), where reading through the Low-Level Example Explained should be plenty (alongside knowledge of MAD-NG), assuming you are not planning to use python syntactic sugar. If you plan to use the available pythonic looking code, there are plenty of examples to look at. 
+
 In the documentation, [FODO Examples Explained](https://pymadng.readthedocs.io/en/latest/ex-fodo.html), is a chapter that goes into detail on what is happening on each line of the [FODO example](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-fodo/ex-fodos.py), while [LHC Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html) gives an example of loading the LHC and how to grab intermediate results from a match. 
+
 The only other example that may be of use is the [ps-twiss](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-ps-twiss/ps-twiss.py) example. This is an extremely simple example, extending the FODO example to perform a twiss on the PS sequence.
 If anything does not seem fully explained, initially check the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng) and/or the [MAD-NG Documentation](https://mad.web.cern.ch/mad/releases/madng/html/), then feel free to open an [issue](https://github.com/MethodicalAcceleratorDesign/MADpy/issues) so improvements can be made.
 
