@@ -12,7 +12,7 @@ class MAD(object):
 
     Attributes:
         py_name: A string indicating the name of the reference to python from MAD-NG, for communication from MAD-NG to Python.
-        __MAD_version__: A string indicating the version of MAD-NG being used. (Also accessible from self.MAD.env.version)
+        __MAD_version__: A string indicating the version of MAD-NG being used. (Also accessible from ``pymadng.MAD().MAD.env.version``)
     """
 
     def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num_temp_vars: int = 8, ipython_use_jedi: bool = False):
@@ -24,7 +24,7 @@ class MAD(object):
         Args:
             py_name (str): The name used to interact with the python process from MAD
                 (default = "py")
-            madPath (str): The path to the mad executable, for a value of None, the one that comes with pymadng package will be used
+            mad_path (str): The path to the mad executable, for a value of None, the one that comes with pymadng package will be used
                 (default = None)
             debug (bool): Sets debug mode on or off
                 (default = False)
@@ -147,6 +147,7 @@ class MAD(object):
         Raises:
             AssertionError: The list of monomials must be a 2-D array (each monomial is 1-D).
             AssertionError: The number of monomials and coefficients must be identical.
+            AssertionError: The monomials must be of type 8-bit unsigned integer 
         """
         self.__process.send_tpsa(monos, coefficients)
 
@@ -154,10 +155,12 @@ class MAD(object):
         """Send the monomials and coefficients of a complex TPSA to MAD-NG
 
         The combination of monomials and coefficients creates a table representing the complex TPSA object in MAD-NG.
+        
         Args:
-            See :meth:`send_tpsa`.
+            See: :meth:`send_tpsa`.
+        
         Raises:
-            See :meth:`send_tpsa`.
+            See: :meth:`send_tpsa`.
         """
         self.__process.send_ctpsa(monos, coefficients)
     

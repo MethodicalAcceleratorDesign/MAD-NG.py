@@ -82,6 +82,18 @@ For types that are not naturally found in numpy or python, you will be required 
 || NumPy ndarray (dtype = np.complex128) ||                       ||                                             |
 +----------------------------------------+------------------------+----------------------------------------------+
 
+Recommended reading
+-------------------
+
+First, we recommend familiarising yourself with MAD-NG, documentation can be found `here <https://mad.web.cern.ch/mad/releases/madng/html/>`_. 
+
+Then reading through :doc:`ex-lowlevel` should be sufficient (alongside knowledge of MAD-NG), assuming you are not planning to use any "syntactic sugar". If you plan to use the available pythonic looking code, there are plenty of examples to look at. 
+
+In the documentation, :doc:`ex-fodo` is a chapter that goes into detail on what is happening on each line of the `FODO example <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-fodo/ex-fodos.py>`_, while :doc:`ex-lhc-couplingLocal` gives an example of loading the LHC and how to grab intermediate results from a match. 
+
+The only other example that may be of use is the `ps-twiss <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-ps-twiss/ps-twiss.py>`_ example. This is an extremely simple example, extending the FODO example to perform a twiss on the PS sequence.
+If anything does not seem fully explained, initially check the :mod:`MAD <pymadng.MAD>` module and/or the `MAD-NG Documentation <https://mad.web.cern.ch/mad/releases/madng/html/>`_, then feel free to open an `issue <https://github.com/MethodicalAcceleratorDesign/MADpy/issues>`_ so improvements can be made.
+
 Customising your environment
 ----------------------------
 
@@ -107,3 +119,10 @@ To enable debugging mode:
 
     from pymadng import MAD
     mad = MAD(debug = True)
+
+To increase the number of temporary variables available to you (see :doc:`ex-managing-refs` for more information):
+
+.. code-block::
+
+    from pymadng import MAD
+    mad = MAD(num_temp_vars = 10)
