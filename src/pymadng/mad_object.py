@@ -6,6 +6,7 @@ from .mad_classes import mad_ref, mad_reflast
 from .mad_process import mad_process
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
+# TODO: Should I change anything that atm requires a list at end of function to *args?
 
 class MAD(object):
     """An object that allows communication with MAD-NG
@@ -253,10 +254,9 @@ class MAD(object):
         if isinstance(var_name, tuple):
             var_name = list(var_name)
             if isinstance(var, mad_ref):
-                var = [
-                    type(var)(var.__name__ + f"[{i+1}]", self)
-                    for i in range(len(var_name))
-                ]
+                for i in range(len(var_name)):
+                    self.send(f"{var_name[i]} = {var.__name__}[{i+1}]") # Skip send_vars
+                return
             else:
                 var = list(var)
             if len(var) != len(var_name):
@@ -325,7 +325,7 @@ class MAD(object):
             A reference to the deffered expression object.
         """
         rtrn = self.__mad_reflast()
-        kwargs_string, vars_to_send = self.__get_kwargs_string(**kwargs)
+        kwargs_string, vars_to_send = self.__process.mad_strs.get_kwargs_string(**kwargs)
         self.__process.send(
             f"{rtrn.__name__} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"
         )
