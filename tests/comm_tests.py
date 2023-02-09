@@ -1,4 +1,4 @@
-import unittest
+import unittest, os
 from pymadng import MAD
 import numpy as np
 
@@ -289,6 +289,62 @@ class TestTPSA(unittest.TestCase):
             final = mad.recv()
             self.assertTrue((init[0] == final[0]).all())
             self.assertTrue((init[1] == final[1]).all())
+
+class TestLoad(unittest.TestCase):
+
+    def test_load(self):
+        with MAD() as mad:
+            mad.load("MAD", "matrix")
+            self.assertEqual(mad.matrix, mad.MAD.matrix)
+
+            mad.load("MAD.gmath")
+            self.assertEqual(mad.sin, mad.MAD.gmath.sin)
+            self.assertEqual(mad.cos, mad.MAD.gmath.cos)
+            self.assertEqual(mad.tan, mad.MAD.gmath.tan)
+
+            mad.load("MAD.element", "quadrupole", "sextupole", "drift")
+            self.assertEqual(mad.quadrupole, mad.MAD.element.quadrupole)
+            self.assertEqual(mad.sextupole, mad.MAD.element.sextupole)
+            self.assertEqual(mad.drift, mad.MAD.element.drift)
+
+    def test_run_file(self):
+        with open("test.mad", "w") as f:
+            f.write("""
+            local matrix, cmatrix in MAD
+            a = matrix(4, 5):seq()
+            b = cmatrix(2, 3):seq()
+            """)
+        with MAD() as mad:
+            mad.loadfile("test.mad")
+            self.assertIsNone(mad.matrix)
+            self.assertTrue(np.all(mad.a == mad.MAD.matrix(4, 5).seq() .eval()))
+            self.assertTrue(np.all(mad.b == mad.MAD.cmatrix(2, 3).seq().eval()))
+        os.remove("test.mad")
+
+    def test_load_file(self):
+        with open("test.mad", "w") as f:
+            f.write("""
+            local matrix, cmatrix in MAD
+            local a = matrix(4, 5):seq()
+            local b = cmatrix(5, 3):seq()
+            return {res1 = a * b, res2 = a * b:conj()}
+            """)
+        with MAD() as mad:
+            mad.loadfile("test", "res1", "res2")
+            a = mad.MAD.matrix(4, 5).seq().eval()
+            b = mad.MAD.cmatrix(5, 3).seq().eval()
+            self.assertTrue(np.all(mad.res1 == np.matmul(a, b)))
+            self.assertTrue(np.all(mad.res2 == np.matmul(a, b.conj())))
+        os.remove("test.mad")
+
+        
+class TestOutput(unittest.TestCase):
+
+    def test_print(self):
+        with MAD() as mad:
+            mad.send("print('hello world')")
+            mad.send("py:send('hello world')")
+            self.assertEqual(mad.recv(), "hello world") # Check printing does not affect pipe
 
 if __name__ == '__main__':
     unittest.main()
