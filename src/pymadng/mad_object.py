@@ -54,7 +54,7 @@ class MAD(object):
             "element", "sequence", "mtable", "twiss", "beta0",
             "beam", "survey", "object", "track", "match",
         ]
-        self.load("MAD", modulesToImport)
+        self.load("MAD", *modulesToImport)
         self.__MAD_version__ = self.MAD.env.version
 
     # ------------------------------------------------------------------------------------------#
@@ -123,7 +123,7 @@ class MAD(object):
             stop (float): The end of range (inclusive)
             size (float): The length of range
         """
-        return self.__process.send_rng(start, stop, size)
+        self.__process.send_rng(start, stop, size)
 
     def send_lrng(self, start: float, stop: float, size: int):
         """Send a numpy array as a logrange to MAD-NG, equivalent to np.geomspace, but in MAD-NG.
@@ -133,7 +133,7 @@ class MAD(object):
             stop (float): The end of range (inclusive)
             size (float): The length of range
         """
-        return self.__process.send_lrng(start, stop, size)
+        self.__process.send_lrng(start, stop, size)
 
     def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
         """Send the monomials and coefficients of a TPSA to MAD
@@ -198,49 +198,49 @@ class MAD(object):
         Returns:
             See :meth:`recv`.
         """
-        self.__process.recv_vars(names)
+        return self.__process.recv_vars(names)
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    def load(self, module: str, vars: Union[List[str], str] = []):
+    def load(self, module: str, *vars: str):
         """Import modules into the MAD-NG environment
 
-        Retrieve the classes in MAD-NG from the module ``module``, while only importing the classes in the list ``vars``.
-        If no list or string is provided, it is assumed that you would like to import every class from the module.
+        Retrieve the classes in MAD-NG from the module ``module``, while only importing the classes in the variable length list ``vars``.
+        If no string is provided, it is assumed that you would like to import every class from the module. 
+        
+        For example, ``mad.load("MAD.gmath")`` imports all variables from the module ``MAD.gmath``. 
+        But ``mad.load("MAD", "matrix", "cmatrix")```` only imports the modules ``matrix`` and ``cmatrix`` from the module ``MAD.gmath``.
 
         Args:
             module (str): The name of the module to import from.
-            vars (List[str]/str): The variable(s) to import from module.
-                (default = [])
+            *vars (str): Variable length argument list of the variable(s) to import from module.
         """
         script = ""
-        if vars == []:
+        if vars == ():
             vars = [x.strip("()") for x in dir(mad_ref(module, self.__process))]
-        elif isinstance(vars, str):
-            vars = [vars]
         for className in vars:
             script += f"""{className} = {module}.{className}\n"""
         self.__process.send(script)
 
-    def loadfile(self, path: str, vars: List[str] = None):
+    def loadfile(self, path: str, *vars: str):
         """Load a .mad file into the MAD-NG environment.
 
         If ``vars`` is not provided, this is equivalent to ``assert(loadfile(path))`` in MAD-NG.
         If ``vars`` is provided, for each ``var`` in ``vars``, this is equivalent to ``var = require(path).var`` in MAD-NG.
+        Due to Lua querks, do not include the .mad extension in the path if you provide ``vars``, as this implies you would like to load a module.
 
         Args:
             path (str): The path to the file to import.
-            vars (List[str]): The variables to import from the file.
-                (default = None)
+            *vars (str): Variable length argument list of the variable(s) to import from the file.
         """
-        if vars is None:
-            self.__process.send(f"assert(loadfile({path}))")
+        if vars == ():
+            self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
         else:
             if isinstance(vars, str):
                 vars = [vars]
             script = ""
             for var in vars:
-                script += f"{var} = require({path}).{var}\n"
+                script += f"{var} = require('{path}').{var}\n"
             self.__process.send(script)
 
     # ----------------------- Make the class work with dict and dot access ------------------------#
@@ -345,7 +345,7 @@ class MAD(object):
         Returns:
             A list of strings indicating the globals variables and modules within the MAD-NG environment
         """
-        return dir(self.recv_vars(f"{self.py_name}._env"))
+        return dir(self.__process.recv_vars(f"{self.py_name}._env"))
 
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
