@@ -49,7 +49,7 @@ class mad_process:
             [mad_path, "-q", "-e", startupChunk],
             bufsize=0,
             stdin=mad_read,
-            stdout=mad_write,
+            stdout=sys.stdout.fileno(),
             preexec_fn=os.setpgrp,  # Don't forward signals
             pass_fds=[mad_write, sys.stdout.fileno(), sys.stderr.fileno()],
         )
