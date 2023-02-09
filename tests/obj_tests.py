@@ -58,12 +58,23 @@ class TestGetSet(unittest.TestCase):
             self.assertEqual(mad.qd2.knl, [0, 0.25])
             self.assertEqual(mad.qd2.l, 1)
             self.assertEqual(mad.qd2, mad.qd)
+            mad["a", "b"] = mad.MAD.gmath.reim(9.75 + 1.5j)
+            self.assertEqual(mad.a, 9.75)
+            self.assertEqual(mad.b, 1.5)
+            mad.send("f = \-> (1, 2, 3, 9, 8, 7)")
+            mad["r1", "r2", "r3", "r4", "r5", "r6"] = mad.f()
+            self.assertEqual(mad.r1, 1)
+            self.assertEqual(mad.r2, 2)
+            self.assertEqual(mad.r3, 3)
+            self.assertEqual(mad.r4, 9)
+            self.assertEqual(mad.r5, 8)
+            self.assertEqual(mad.r6, 7)
     
 class TestObjFun(unittest.TestCase):
     
     def test_call_obj(self):
         with MAD() as mad:
-            mad.load("element", ["quadrupole", "sextupole"])
+            mad.load("element", "quadrupole", "sextupole")
             qd = mad.quadrupole(knl=[0, 0.25], l = 1)
             sd = mad.sextupole(knl=[0, 0.25, 0.5], l = 1)
 
@@ -182,7 +193,7 @@ class TestArgsAndKwargs(unittest.TestCase):
 
     def test_args(self):
         with MAD() as mad:
-            mad.load("MAD", ["matrix", "cmatrix"])
+            mad.load("MAD", "matrix", "cmatrix")
             mad["m1"] = mad.matrix(3).seq()
             mad["m2"] = mad.matrix(3).eye(2).mul(mad.m1)
             mad["m3"] = mad.matrix(3).seq().emul(mad.m1)
@@ -208,7 +219,7 @@ class TestDir(unittest.TestCase):
 
     def test_dir(self):
         with MAD() as mad:
-            mad.load("MAD", ["cmatrix", "imatrix", "matrix", "range", "monomial"])
+            mad.load("MAD", "cmatrix", "imatrix", "matrix", "range", "monomial")
             mad.load("element", "quadrupole")
             mat_exp = ['abs', 'accmax', 'accmaxabs', 'accmin', 'accminabs', 'accprod', 'accsum', 'accsumabs', 'accsumsqr', 'accumulate', 'acos', 'acosh', 'acot', 'acoth', 'add', 'all', 'angle', 'any', 'asin', 'asinc', 'asinh', 'asinhc', 'atan', 'atan2', 'atanh', 'bar', 'bytesize', 'cabs', 'carg', 'ceil', 'center', 'circ', 'concat', 'conj', 'conjugate', 'conv', 'copy', 'corr', 'cos', 'cosh', 'cot', 'coth', 'covar', 'cplx', 'cross', 'dawson', 'det', 'diag', 'dif', 'dist', 'div', 'dmul', 'dot', 'ediv', 'eigen', 'emod', 'emul', 'epow', 'eq', 'erf', 'erfc', 'erfcx', 'erfi', 'eval', 'exp', 'eye', 'fabs', 'fft', 'fill', 'filter', 'filter_out', 'floor', 'foldl', 'foldr', 'foreach', 'frac', 'get', 'getcol', 'getdiag', 'getdidx', 'geti', 'getidx', 'getij', 'getrow', 'getsub', 'getvec', 'gmsolve', 'gsolve', 'hypot', 'hypot3', 'ifft', 'imag', 'iminmax', 'infft', 'inner', 'inscol', 'insrow', 'inssub', 'insvec', 'inv', 'invsqrt', 'irfft', 'is_const', 'is_diag', 'is_imag', 'is_real', 'is_symm', 'is_symp', 'kadd', 'kdot', 'ksum', 'log', 'log10', 'macos', 'macosh', 'macot', 'macoth', 'map', 'map2', 'map3', 'masin', 'masinc', 'masinh', 'masinhc', 'matan', 'matanh', 'max', 'maxabs', 'mcos', 'mcosh', 'mcot', 'mcoth', 'mean', 'mexp', 'mfun', 'min', 'minabs', 'minmax', 'mixed', 'mlog', 'mlog10', 'movev', 'msin', 'msinc', 'msinh', 'msinhc', 'msqrt', 'mtan', 'mtanh', 'mul', 'muld', 'mult', 'nfft', 'norm', 'nsolve', 'ones', 'outer', 'pcacnd', 'polar', 'pow', 'print', 'prod', 'proj', 'raccmax', 'raccmaxabs', 'raccmin', 'raccminabs', 'raccprod', 'raccsum', 'raccsumabs', 'raccsumsqr', 'random', 'read', 'real', 'rect', 'reim', 'remcol', 'remrow', 'remsub', 'remvec', 'reshape', 'rev', 'rfft', 'roll', 'rot', 'rotq', 'rotv', 'rotx', 'rotxy', 'rotxyz', 'rotxz', 'rotxzy', 'roty', 'rotyx', 'rotyxz', 'rotyz', 'rotyzx', 'rotz', 'rotzx', 'rotzxy', 'rotzy', 'rotzyx', 'round', 'same', 'scanl', 'scanr', 'seq', 'set', 'setcol', 'setdiag', 'seti', 'setrow', 'setsub', 'setvec', 'shiftv', 'shuffle', 'sign', 'sign1', 'sin', 'sinc', 'sinh', 'sinhc', 'size', 'sizes', 'solve', 'sqr', 'sqrt', 'ssolve', 'sub', 'sum', 'sumabs', 'sumsqr', 'svd', 'svdcnd', 'swpcol', 'swprow', 'swpsub', 'swpvec', 'symp', 'sympconj', 'symperr', 't', 'tan', 'tanh', 'tmul', 'torotq', 'torotv', 'torotxyz', 'torotxzy', 'torotyxz', 'torotyzx', 'torotzxy', 'torotzyx', 'tostring', 'totable', 'tr', 'trace', 'transpose', 'trunc', 'tsizes', 'unit', 'unm', 'variance', 'vec', 'vech', 'wf', 'write', 'zeros', 'zpad']
             self.assertEqual(dir(mad.matrix(3)), mat_exp) #Should grab all the methods from matrix
