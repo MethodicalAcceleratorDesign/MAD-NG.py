@@ -15,7 +15,7 @@ with MAD() as mad:
     mad.MADX.load("'opticsfile.21'", "'opticsfile.21.mad'")
     mad.MADX.load("'lhc_unset_vars.mad'") # Load a list of unset variables to prevent warnings
 
-    mad.load("MADX", ["lhcb1", "nrj"])
+    mad.load("MADX", "lhcb1", "nrj")
 
     mad.assertf("#lhcb1 == 6694",
         "'invalid number of elements %d in LHCB1 (6694 expected)'", "#lhcb1")

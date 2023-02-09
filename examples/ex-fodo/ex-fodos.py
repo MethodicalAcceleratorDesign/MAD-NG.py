@@ -13,7 +13,7 @@ with MAD() as mad:
 
 with MAD() as mad:
     mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
-    mad.load("MADX", ["seq"])
+    mad.load("MADX", "seq")
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
     cols = mad.py_strs_to_mad_strs(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
@@ -28,7 +28,7 @@ with MAD() as mad:
     mad.load("element", "quadrupole")
     mad["circum", "lcell"] = 60, 20
 
-    mad.load("math", ["sin", "pi"])
+    mad.load("math", "sin", "pi")
     mad["v"] = mad.deferred(k="1/(lcell/sin(pi/4)/4)")
 
     mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l=1)
