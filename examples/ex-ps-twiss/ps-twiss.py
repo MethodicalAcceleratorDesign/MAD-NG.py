@@ -4,17 +4,17 @@ from pymadng import MAD
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
-
+orginal_dir = os.getcwd()
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 with MAD(debug=False) as mad:
     mad["psbeam"] = mad.beam(particle="'proton'", pc=2.794987)
     mad.MADX.BEAM = mad.psbeam
     mad.MADX.BRHO = mad.psbeam.brho
-    mad.MADX.load(f"'{current_dir}ps_unset_vars.mad'")
-    mad.MADX.load(f"'{current_dir}ps_mu.seq'")
-    mad.MADX.load(f"'{current_dir}ps_ss.seq'")
-    mad.MADX.load(f"'{current_dir}ps_fb_lhc.str'")
+    mad.MADX.load(f"'ps_unset_vars.mad'")
+    mad.MADX.load(f"'ps_mu.seq'")
+    mad.MADX.load(f"'ps_ss.seq'")
+    mad.MADX.load(f"'ps_fb_lhc.str'")
 
     mad.load("MADX", "ps")
     mad.ps.beam = mad.psbeam
@@ -38,5 +38,7 @@ with MAD(debug=False) as mad:
         mad.py_strs_to_mad_strs(
             ["name", "kind", "s", "x", "px", "beta11", "alfa11", "beta22", "alfa22","dx",
             "dpx", "mu1", "mu2", "l", "angle", "k0l", "k1l", "k2l", "k3l", "hkick", "vkick"]),
-        )
-    time.sleep(1) #So tws:write() can be performed before MAD is shutdown
+        ).eval()
+    #.eval() so tws:write() can be finished before MAD is shutdown
+
+os.chdir(orginal_dir)

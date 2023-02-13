@@ -1,10 +1,11 @@
 from pymadng import MAD
 import matplotlib.pyplot as plt
 import os 
-current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+orginal_dir = os.getcwd()
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 with MAD() as mad:
-    mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
+    mad.MADX.load(f"'fodo.seq'", f"'fodo.mad'")
     mad["seq"] = mad.MADX.seq
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
@@ -12,7 +13,7 @@ with MAD() as mad:
     plt.show()
 
 with MAD() as mad:
-    mad.MADX.load(f"'{current_dir}fodo.seq'", f"'{current_dir}fodo.mad'")
+    mad.MADX.load(f"'fodo.seq'", f"'fodo.mad'")
     mad.load("MADX", "seq")
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
@@ -54,7 +55,7 @@ with MAD() as mad:
 
 with MAD() as mad:
     mad.send(f"""
-    MADX:load("{current_dir}fodo.seq", "{current_dir}fodo.mad")
+    MADX:load("fodo.seq", "fodo.mad")
     local seq in MADX
     seq.beam = beam -- use default beam
     mtbl, mflw = twiss {{sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}}
@@ -70,3 +71,5 @@ with MAD() as mad:
     
     plt.legend()
     plt.show()
+
+os.chdir(orginal_dir)

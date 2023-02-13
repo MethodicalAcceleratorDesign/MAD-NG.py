@@ -3,7 +3,8 @@ import numpy as np
 import os, sys, time
 import matplotlib.pyplot as plt
 
-current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+orginal_dir = os.getcwd()
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 pid = os.fork()
 #Test 1
@@ -64,7 +65,7 @@ else:
     with MAD() as mad:
         mad.load("element", "quadrupole")
         # METHOD 1
-        mad.MADX.load(f"'{current_dir}fodo.seq'",f"'{current_dir}fodo.mad'")
+        mad.MADX.load(f"'fodo.seq'",f"'fodo.mad'")
         mad["seq"] = mad.MADX.seq
         mad.seq.beam = mad.beam()
         mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, chrom=True)
@@ -93,4 +94,6 @@ else:
         plt.plot(mad.mtbl2.s, mad.mtbl2["beta11"])
         plt.show()
         print(mad.mtbl2.header)
-    sys.exit()
+    sys.exit() # exit the child process
+
+os.chdir(orginal_dir)
