@@ -51,8 +51,8 @@ Managing References Example
 .. literalinclude:: ../../examples/ex-managing-refs/ex-managing-refs.py
    :linenos:
 
-Receving Data from the LHC Example
-----------------------------------
+Receiving Data from the LHC Example
+-----------------------------------
 
 .. _ex-recv-lhc:
 
