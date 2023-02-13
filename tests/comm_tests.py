@@ -115,7 +115,6 @@ class TestNums(unittest.TestCase):
                 py:send(is_integer(num))
                 """)
                 mad.send(int_lst[i])
-                print("testing: ", int_lst[i])
                 recv_num = mad.recv()
                 self.assertEqual(recv_num, int_lst[i])
                 self.assertTrue(isinstance(recv_num, int))
