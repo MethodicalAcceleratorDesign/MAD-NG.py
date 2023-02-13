@@ -1,12 +1,12 @@
 LHC Example
 ===========
 
-The file `ex-lhc-couplingLocal/lhc-couplingLocal.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-lhc-couplingLocal/lhc-couplingLocal.py>`_ contains an example of loading the required files to use and run the LHC, while including a method to receive and plot intermediate results of a match.
+The file :ref:`ex-lhc-couplingLocal/lhc-couplingLocal.py <ex-lhc>` contains an example of loading the required files to use and run the LHC, while including a method to receive and plot intermediate results of a match.
 
 Loading the LHC 
 ---------------
 
-The following lines loads the required variables and files for the example. ``assertf`` is not required, but it is used to check if the loading of the LHC is successful. The two string inputs to ``mad.MADX.load`` is also not required, but it is used to specify the final destination of the translated files from MAD-X to MAD-NG. The important point to note is that to input strings into functions in MAD-NG, they must be enclosed in quotes as any string input from the side of python is evaluated by MAD-NG, therefore can be a variable or expressions.
+The following lines loads the required variables and files for the example. ``assertf`` is not required, but it is used to check if the loading of the LHC is successful. The two string inputs to ``mad.MADX.load`` is also not required, but it is used to specify the final destination of the translated files from MAD-X to MAD-NG. Also, line 5 is not required as this is just to prevent MAD-NG from reporting warnings of unset variables from loading the LHC. Once again, in this extract, the important point to note is that to input strings into functions in MAD-NG, they must be enclosed in quotes. This is because any string input from the side of python is evaluated by MAD-NG, therefore the input can be a variable or expressions.
 
 To grab variables from the MAD-X environment, we use ``mad.load("MADX", ...)``.
 
@@ -19,7 +19,7 @@ Receving intermediate results
 
 The most complicated part of the example includes the following set of lines. 
 
-From lines 4 - 8 below, we define a function that will be invoked during the optimization process at each iteration. Within this function, we perform a twiss for the match function to use, while also sending to python some information on the twiss on line 6. 
+From lines 4 - 8 below, we define a function that will be invoked during the optimization process at each iteration. Within this function, we perform a twiss for the match function to use, while also sending some information on the twiss to python, on line 6. 
 
 From lines 10 - 21, we run a match, with a **reference** to the match result returned to the variable ``match_rtrn``. Line 22 is a very important line, as this is something you place in the pipe to MAD-NG for MAD-NG to execute once the match is done. Lines 23-25 receive the first result returned during the match, so that we can start plotting the results.
 

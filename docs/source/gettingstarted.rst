@@ -46,41 +46,45 @@ Communication protocol
 
 For types that are not naturally found in numpy or python, you will be required to use a different function to *send* data (see below). The functions used in these specific cases can be found in the :mod:`MAD <pymadng.MAD>` documentation. To *receive* any data just use :meth:`mad.recv() <pymadng.MAD.recv>`.
 
-+----------------------------------------+------------------------+----------------------------------------------+
-| Type in Python                         | Type in MAD            | Function to send from Python                 |
-+========================================+========================+==============================================+
-| None                                   | nil                    | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| str                                    | string                 | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| int                                    | number :math:`<2^{31}` | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| float                                  | number                 | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| complex                                | complex                | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| list                                   | table                  | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| bool                                   | bool                   | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| NumPy ndarray (dtype = np.float64)     | matrix                 | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| NumPy ndarray (dtype = np.complex128)  | cmatrix                | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| NumPy ndarray (dtype = np.int32)       | imatrix                | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| range                                  | irange                 | :meth:`send <pymadng.MAD.send>`              |
-+----------------------------------------+------------------------+----------------------------------------------+
-| start(float), stop(float), size(int)   | range                  | :meth:`send_rng <pymadng.MAD.send_rng>`      |
-+----------------------------------------+------------------------+----------------------------------------------+
-| start(float), stop(float), size(int)   | logrange               | :meth:`send_lrng <pymadng.MAD.send_lrng>`    |
-+----------------------------------------+------------------------+----------------------------------------------+
-|| NumPy ndarray (dtype = np.uint8) and  || TPSA                  || :meth:`send_tpsa <pymadng.MAD.send_tpsa>`   |
-|| NumPy ndarray (dtype = np.float64)    ||                       ||                                             |
-+----------------------------------------+------------------------+----------------------------------------------+
-|| NumPy ndarray (dtype = np.uint8) and  || CTPSA                 || :meth:`send_ctpsa <pymadng.MAD.send_ctpsa>` |
-|| NumPy ndarray (dtype = np.complex128) ||                       ||                                             |
-+----------------------------------------+------------------------+----------------------------------------------+
+.. _typestbl:
+
+.. table:: Types that can be sent to MAD-NG and the function to use to send them
+    
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | Type in Python                         | Type in MAD            | Function to send from Python                 |
+    +========================================+========================+==============================================+
+    | None                                   | nil                    | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | str                                    | string                 | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | int                                    | number :math:`<2^{31}` | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | float                                  | number                 | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | complex                                | complex                | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | list                                   | table                  | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | bool                                   | bool                   | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | NumPy ndarray (dtype = np.float64)     | matrix                 | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | NumPy ndarray (dtype = np.complex128)  | cmatrix                | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | NumPy ndarray (dtype = np.int32)       | imatrix                | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | range                                  | irange                 | :meth:`send <pymadng.MAD.send>`              |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | start(float), stop(float), size(int)   | range                  | :meth:`send_rng <pymadng.MAD.send_rng>`      |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    | start(float), stop(float), size(int)   | logrange               | :meth:`send_lrng <pymadng.MAD.send_lrng>`    |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    || NumPy ndarray (dtype = np.uint8) and  || TPSA                  || :meth:`send_tpsa <pymadng.MAD.send_tpsa>`   |
+    || NumPy ndarray (dtype = np.float64)    ||                       ||                                             |
+    +----------------------------------------+------------------------+----------------------------------------------+
+    || NumPy ndarray (dtype = np.uint8) and  || CTPSA                 || :meth:`send_ctpsa <pymadng.MAD.send_ctpsa>` |
+    || NumPy ndarray (dtype = np.complex128) ||                       ||                                             |
+    +----------------------------------------+------------------------+----------------------------------------------+
 
 Recommended reading
 -------------------
@@ -89,9 +93,9 @@ First, we recommend familiarising yourself with MAD-NG, documentation can be fou
 
 Then reading through :doc:`ex-lowlevel` should be sufficient (alongside knowledge of MAD-NG), assuming you are not planning to use any "syntactic sugar". If you plan to use the available pythonic looking code, there are plenty of examples to look at. 
 
-In the documentation, :doc:`ex-fodo` is a chapter that goes into detail on what is happening on each line of the `FODO example <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-fodo/ex-fodos.py>`_, while :doc:`ex-lhc-couplingLocal` gives an example of loading the LHC and how to grab intermediate results from a match. 
+In the documentation, :doc:`ex-fodo` is a chapter that goes into detail on what is happening on each line of the :ref:`FODO example <ex-fodo>`, while :doc:`ex-lhc-couplingLocal` gives an example of loading the LHC and how to grab intermediate results from a match. 
 
-The only other example that may be of use is the `ps-twiss <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-ps-twiss/ps-twiss.py>`_ example. This is an extremely simple example, extending the FODO example to perform a twiss on the PS sequence.
+The only other example that may be of use is the :ref:`ps-twiss <ex-ps-twiss>` example. This is an extremely simple example, extending the FODO example to perform a twiss on the PS sequence.
 If anything does not seem fully explained, initially check the :mod:`MAD <pymadng.MAD>` module and/or the `MAD-NG Documentation <https://mad.web.cern.ch/mad/releases/madng/html/>`_, then feel free to open an `issue <https://github.com/MethodicalAcceleratorDesign/MADpy/issues>`_ so improvements can be made.
 
 Customising your environment

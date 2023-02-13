@@ -2,10 +2,10 @@ Low-Level Example Explained
 ===========================
 
 
-Sending Multiple types
-----------------------
+Sending and Receiving Multiple types
+------------------------------------
 
-To start, the file `ex-LowLevel/ex-send-multypes.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-LowLevel/ex-send-multypes.py>`_ imports all the necessary modules, creates a large numpy array, setups the ``mad`` object to communicate with MAD-NG, and then creates a string to send to MAD.
+To start, the file :ref:`ex-LowLevel/ex-send-multypes.py <ex-send-multypes>` imports all the necessary modules, creates a large numpy array, setups the ``mad`` object to communicate with MAD-NG, and then creates a string to send to MAD.
 
 .. literalinclude:: ../../examples/ex-LowLevel/ex-send-multypes.py
     :lines: 1-12
@@ -37,7 +37,7 @@ The rest of the file shows and tests sending and receiving some of the available
 Sending and Receiving Large Datasets
 ------------------------------------
 
-The file `ex-LowLevel/ex-send-recv.py <https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-LowLevel/ex-send-recv.py>`_ shows sending 960 MB arrays and then receiving manipulated versions of these arrays and verifies the manipulations.
+The file :ref:`ex-LowLevel/ex-send-recv.py <ex-send-recv>` shows sending 960 MB arrays and then receiving manipulated versions of these arrays and verifies the manipulations.
 
 Sending and Receiving Scripts
 """""""""""""""""""""""""""""

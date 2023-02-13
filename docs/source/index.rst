@@ -17,6 +17,7 @@ Welcome to the documentation for PyMAD-NG!
    ex-fodo
    ex-lhc-couplingLocal
    ex-recv-lhc
+   examples
 
 
 Indices and tables
