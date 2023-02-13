@@ -26,6 +26,9 @@ extensions = [
 templates_path = ['_templates']
 exclude_patterns = []
 
+#Number figures
+numfig = True
+numfig_secnum_depth = 2
 
 #Napolean options
 napoleon_include_init_with_doc = True
