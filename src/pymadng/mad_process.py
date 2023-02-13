@@ -176,6 +176,11 @@ class mad_process:
 def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
     if isinstance(a, np.ndarray):
         return a.dtype
+    elif isinstance(a, int):
+        if a.bit_length() < 31: # Check for signed 32 bit int
+            return int
+        else: 
+            return float
     else:
         return type(a)
 

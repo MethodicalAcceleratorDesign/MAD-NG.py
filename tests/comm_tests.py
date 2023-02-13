@@ -97,35 +97,64 @@ class TestList(unittest.TestCase):
     
 class TestNums(unittest.TestCase):
 
+    eps = 2**-52; tiny = 2**-1022; huge = 2**1023
+    flt_lst = [0, tiny, 2**-64, 2**-63, 2**-53, eps, 2**-52, 2*eps, 2**-32, 2**-31, 1e-9,
+                0.1-eps, 0.1, 0.1+eps, 0.5, 0.7-eps, 0.7, 0.7+eps, 1-eps, 1, 1+eps,
+                1.1, 1.7, 2, 10, 1e2, 1e3, 1e6, 1e9, 2**31, 2**32, 2**52, 2**53,
+                2**63, 2**64, huge]
+
     def test_send_recv_int(self):
         with MAD() as mad:
-            myInt = 4
-            mad.send("""
-            local myInt = py:recv()
-            py:send(myInt+2)
-            """)
-            mad.send(myInt)
-            self.assertEqual(mad.recv(), 6)
+            int_lst = [0, 1, 2, 10, 1e2, 1e3, 1e6, 1e9, 2**31-1]
+            for i in range(len(int_lst)):
+                mad.send("""
+                local is_integer in MAD.typeid
+                local num = py:recv()
+                py:send( num)
+                py:send(-num)
+                py:send(is_integer(num))
+                """)
+                mad.send(int_lst[i])
+                print("testing: ", int_lst[i])
+                recv_num = mad.recv()
+                self.assertEqual(recv_num, int_lst[i])
+                self.assertTrue(isinstance(recv_num, int))
+                recv_num = mad.recv()
+                self.assertEqual(recv_num, -int_lst[i])
+                self.assertTrue(isinstance(recv_num, int))
+                self.assertTrue(mad.recv())
 
     def test_send_recv_num(self):
         with MAD() as mad:
-            myFloat = 6.612
-            mad.send("""
-            local myFloat = py:recv()
-            py:send(myFloat + 0.56)
-            """)
-            mad.send(myFloat)
-            self.assertEqual(mad.recv(), 6.612 + 0.56)
+            for i in range(len(self.flt_lst)):
+                mad.send("""
+                local num = py:recv()
+                local negative = py:recv()
+                py:send(num)
+                py:send(negative)
+                py:send(num * 1.61)
+                """)
+                mad.send(self.flt_lst[i])
+                mad.send(-self.flt_lst[i])
+                self.assertEqual(mad.recv(),  self.flt_lst[i]) #Check individual floats
+                self.assertEqual(mad.recv(), -self.flt_lst[i]) #Check negation
+                self.assertEqual(mad.recv(),  self.flt_lst[i] * 1.61) #Check manipulation
 
     def test_send_recv_cpx(self):
         with MAD() as mad:
-            myCpx = 6.612 + 4j
-            mad.send("""
-            local myCpx = py:recv()
-            py:send(myCpx + 0.5i)
-            """)
-            mad.send(myCpx)
-            self.assertEqual(mad.recv(), 6.612 + 4.5j)
+            for i in range(len(self.flt_lst)):
+                for j in range(len(self.flt_lst)):
+                    mad.send("""
+                    local my_cpx = py:recv()
+                    py:send(my_cpx)
+                    py:send(-my_cpx)
+                    py:send(my_cpx * 1.31i)
+                    """)
+                    my_cpx = self.flt_lst[i] + 1j * self.flt_lst[j]
+                    mad.send(my_cpx)
+                    self.assertEqual(mad.recv(),  my_cpx)
+                    self.assertEqual(mad.recv(), -my_cpx)
+                    self.assertEqual(mad.recv(),  my_cpx * 1.31j)
 
 class TestRngs(unittest.TestCase):
 
