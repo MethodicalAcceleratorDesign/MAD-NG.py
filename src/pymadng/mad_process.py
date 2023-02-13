@@ -262,7 +262,7 @@ def recv_str(self: mad_process) -> str:
     return self.ffrom_mad.read(recv_int(self)).decode("utf-8")
 
 def recv_int(self: mad_process) -> int:  # Must be int32
-    return int.from_bytes(self.ffrom_mad.read(4), sys.byteorder)
+    return int.from_bytes(self.ffrom_mad.read(4), sys.byteorder, signed=True)
 
 def recv_num(self: mad_process) -> float:
     return np.frombuffer(self.ffrom_mad.read(8), dtype=np.float64)[0]
