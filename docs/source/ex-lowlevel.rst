@@ -33,9 +33,9 @@ We then receive all of the variables in the same order they were sent, time the 
     :lines: 33-49
     :linenos:
 
-.. important:: The examples above break what we describe as *sequencing*, therefore, if you are not careful with the procedure, you may end up with a **deadlock**. This is because both MAD-NG and python are waiting for the other to receive the data that is being sent. See :ref:`below <deadlock>` for more details.
+.. important:: The examples above break what we describe as *sequencing*, therefore, if you are not careful with the procedure, you may end up with a **deadlock**. This is because both MAD-NG and python can wait for the other to receive the data that is being sent. See :ref:`below <deadlock>` for more details.
 
-The rest of the file shows and tests sending and receiving some of the available types.
+The rest of the ex-send-multypes.py file shows and tests sending and receiving some of the available types.
 
 .. _deadlock:
 
@@ -53,8 +53,8 @@ To cause a deadlock, the easiest way is to send and ask for lots of large data w
     # Send data to MAD-NG
     mad.send(arr0)               
 
-    # Ask MAD-NG to send data back to python, since this fills the buffer, 
-    # it will hang until python receives the data
+    # Ask MAD-NG to send data back to python.
+    # Since this fills the buffer, it will hang until python receives the data
     mad.send('py:send(arr)')     # Danger starts here, as MAD-NG is hanging, waiting for python to receive the data
     arr2 = arr0 * 2              # Manipulate data in python
     
