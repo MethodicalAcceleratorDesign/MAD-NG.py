@@ -1,0 +1,11 @@
+List of changes to PyMAD-NG
+
+0.3.8 (2023/03/08)
+
+Update MAD-NG binaries
+
+0.3.7
+
+Update MAD-NG binaries
+Fix bug with negative integer values
+Initialise CHANGELOG
