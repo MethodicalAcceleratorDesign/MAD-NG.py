@@ -4,6 +4,7 @@ from .mad_classes import mad_ref
 # Should this be a class or a set of functions, py_name is the only issue here?
 # For now, it's a class and this gives the option to add more functionality later
 
+# TODO: Remove from this class, it's not needed
 class mad_strings:
     def __init__(self, py_name: str):
         self.py_name = py_name
@@ -40,16 +41,11 @@ class mad_strings:
             return "nil", []
         elif isinstance(var, str):
             return var, []
-        elif isinstance(var, complex):
-            string = str(var)
-            return (string[0] == "(" and string[1:-1] or string).replace("j", "i"), []
         elif isinstance(var, mad_ref):
             return var.__name__, []
         elif isinstance(var, dict):
             return self.get_kwargs_string(**var)
         elif isinstance(var, bool):
             return str(var).lower(), []
-        elif isinstance(var, (float, int)):
-            return str(var), []
         else:
             return f"{self.py_name}:recv()", [var]

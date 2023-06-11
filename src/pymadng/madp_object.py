@@ -3,7 +3,7 @@ from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
 # Custom Classes:
 from .mad_classes import mad_ref, mad_reflast
-from .mad_process import mad_process
+from .madp_process import mad_process
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 # TODO: Should I change anything that atm requires a list at end of function to *args?

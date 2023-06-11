@@ -1,9 +1,11 @@
 import struct, os, subprocess, sys, platform, select
 from typing import Union, Tuple, Callable, Any
 import numpy as np
+
+# TODO: Remove these dependencies
 from .mad_classes import mad_obj, mad_ref, mad_func, mad_reflast, mad_objlast
-from .mad_strings import mad_strings
-from .mad_last import last_counter
+from .madp_strings import mad_strings
+from .madp_last import last_counter
 
 __all__ = ["mad_process"]
 
@@ -30,6 +32,8 @@ data_types = {
         np.dtype("ubyte")       : "mono",
 }
 
+bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src", "bin")  
+
 class mad_process:
     def __init__(self, py_name: str, mad_path: str, debug: bool, num_temp_vars: int = 8, ipython_use_jedi: bool = False) -> None:
         self.py_name = py_name
@@ -37,7 +41,7 @@ class mad_process:
         self.last_counter = last_counter(num_temp_vars) # The mad objects require access to this
         self.ipython_use_jedi = ipython_use_jedi        # ditto, but not entirely necessary
 
-        mad_path = mad_path or os.path.dirname(os.path.abspath(__file__)) + "/mad_" + platform.system()
+        mad_path = mad_path or bin_path + "/mad_" + platform.system()
 
         self.from_mad, mad_write = os.pipe()
         mad_read, self.to_mad = os.pipe()

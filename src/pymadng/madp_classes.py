@@ -4,6 +4,8 @@ import numpy as np
 # TODO: Are you able to store the actual parent? 
 # TODO: Verify if functions need kwargs or not. 
 # BUG: In the case of MADX, the ?only? object that includes methods and functions, we attempt to call the functions like methods. Try MAD.MADX.abs(1).
+# TODO: Separate the required usage for mad_process into a separate class.
+# TODO: Fix the bug by having a special MADX class (all functions are attributes) 
 class mad_ref(object):    
     def __init__(self, name: str, mad_proc):
         assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the receive functions?"
