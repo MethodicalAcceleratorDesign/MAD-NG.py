@@ -1,6 +1,9 @@
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
+import os, platform
+bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src/pymadng", "bin") 
+
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
 from .madp_pymad import mad_process, str_to_fun
@@ -18,7 +21,7 @@ class MAD(object):
     __MAD_version__: A string indicating the version of MAD-NG being used. (Also accessible from ``pymadng.MAD().MAD.env.version``)
   """
 
-  def __init__(self, py_name: str = "py", mad_path: str = None, debug: bool = False, num_temp_vars: int = 8, ipython_use_jedi: bool = False):
+  def __init__(self, mad_path: str = None, py_name: str = "py", debug: bool = False, num_temp_vars: int = 8, ipython_use_jedi: bool = False):
     """Create a MAD Object to interface with MAD-NG.
 
     The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
@@ -55,7 +58,8 @@ class MAD(object):
     str_to_fun["obj_"]["recv"] = recv_obj
     str_to_fun["fun_"]["recv"] = recv_fun
 
-    self.__process = mad_process(py_name, mad_path, debug, ipython_use_jedi)
+    mad_path = mad_path or bin_path + "/mad_" + platform.system()
+    self.__process = mad_process(mad_path, py_name, debug, ipython_use_jedi)
     #----------------------------------------------------------------------#
 
     ## Store the relavent objects into a function to get reference objects

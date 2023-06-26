@@ -1,10 +1,8 @@
-import struct, os, subprocess, sys, platform, select
-from typing import Union, Tuple, Callable, Any
+import struct, os, subprocess, sys, select
+from typing import Union, Callable, Any
 import numpy as np
 
 __all__ = ["mad_process"]
-
-bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src/pymadng", "bin")  
 
 def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
   if isinstance(a, np.ndarray):
@@ -33,11 +31,9 @@ data_types = {
   np.dtype("ubyte")       : "mono",
 }
 class mad_process:
-  def __init__(self, py_name: str, mad_path: str, debug: bool, ipython_use_jedi: bool = False) -> None:
+  def __init__(self, mad_path: str, py_name: str = "py", debug: bool = False, ipython_use_jedi: bool = False) -> None:
     self.py_name = py_name
     self.ipython_use_jedi = ipython_use_jedi        # ditto, but not entirely necessary
-
-    mad_path = mad_path or bin_path + "/mad_" + platform.system()
 
     self.from_mad, mad_write = os.pipe()
     mad_read, self.to_mad = os.pipe()
