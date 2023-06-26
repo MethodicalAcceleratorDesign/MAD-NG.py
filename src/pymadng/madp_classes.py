@@ -1,6 +1,6 @@
 from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
-from .madp_process import mad_process, mad_ref, data_types
+from .madp_pymad import mad_process, mad_ref, data_types
 from .madp_strings import get_args_string, get_kwargs_string
 from .madp_last import last_counter
 

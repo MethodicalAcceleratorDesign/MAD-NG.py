@@ -3,7 +3,7 @@ from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
-from .madp_process import mad_process, str_to_fun
+from .madp_pymad import mad_process, str_to_fun
 from .madp_strings import get_kwargs_string
 from .madp_last    import last_counter
 

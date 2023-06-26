@@ -1,5 +1,5 @@
 from typing import Any
-from .madp_process import mad_ref
+from .madp_pymad import mad_ref
 
 # Should this be a class or a set of functions, py_name is the only issue here?
 # For now, it's a class and this gives the option to add more functionality later
