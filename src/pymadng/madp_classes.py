@@ -104,14 +104,8 @@ class madhl_obj(madhl_ref):
     kwargs_string, kwargs_to_send = get_kwargs_string(self.__mad__.py_name, **kwargs)
     args_string  ,   args_to_send = get_args_string(self.__mad__.py_name, *args)
     
-    # If the object is MADX, we will be calling a function not a method
-    if self.__name__ == "MADX" or self.__parent__ and ("MADX"  in self.__parent__):
-      first_arg = ""
-    else:
-      first_arg = self.__name__
-    
     self.__mad__.send(
-      f"{last_obj.__name__} = __mklast__( {first_arg} {{ {kwargs_string[1:-1]} {args_string} }} )"
+      f"{last_obj.__name__} = __mklast__( {self.__name__} {{ {kwargs_string[1:-1]} {args_string} }} )"
     )
     for var in kwargs_to_send + args_to_send:
       self.__mad__.send(var)
@@ -144,9 +138,9 @@ class madhl_fun(madhl_ref):
   # ---------------------------------------------------------------------------------------------------#
   
   def __call__(self, *args: Any) -> Any:
-    ismethod = self.__parent__ and self.__mad__.safe_recv(f"""
+    ismethod = self.__parent__ and (self.__mad__.safe_recv(f"""
     MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__})
-    """)
+    """) and not self.__parent__.split("['")[-1].strip("']") == "MADX")
     if ismethod:
       return self.__call_func(self.__name__, self.__parent__, *args)
     else:

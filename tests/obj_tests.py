@@ -155,6 +155,18 @@ class TestObjFun(unittest.TestCase):
       self.assertEqual(mad.p2.b , 3)
       self.assertEqual(mad.objCpy, mad.obj)
 
+  def test_MADX(self):
+    from pymadng import MAD
+    mad = MAD()
+    self.assertEqual(mad.MADX.abs (-1) , 1)
+    self.assertEqual(mad.MADX.ceil(1.2), 2)
+
+    self.assertEqual(mad.MAD.MADX.abs (-1) , 1)
+    self.assertEqual(mad.MAD.MADX.ceil(1.2), 2)
+    
+    self.assertEqual(mad.MADX.MAD.MADX.abs (-1) , 1)
+    self.assertEqual(mad.MADX.MAD.MADX.ceil(1.2), 2)
+
 class TestOps(unittest.TestCase):
 
   def test_matrix(self):
