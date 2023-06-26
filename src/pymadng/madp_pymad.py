@@ -98,11 +98,12 @@ class mad_process:
       f"Unsupported data type, expected a type in: \n{list(data_types.keys())}, got {type(data)}"
     )
 
-  def safe_send(self, string: str):
-    """Send a string to MAD, but first enable error handling, so that if an error occurs, an error is returned"""
+  def psend(self, string: str):
+    """Perform a protected send to MAD, by first enabling error handling, so that if an error occurs, an error is returned"""
     return self.send(f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);")
   
-  def safe_recv(self, name: str):
+  def precv(self, name: str):
+    """Perform a protected send receive to MAD, by first enabling error handling, so that if an error occurs, an error is received"""
     return self.send(f"{self.py_name}:__err(true):send({name}):__err(false)").recv(name)
 
   def errhdlr(self, on_off: bool):
@@ -146,7 +147,7 @@ class mad_process:
     rtrn_vars = []
     for name in names:
       if name[:2] != "__" or name[:8] == "__last__":  # Check for private variables
-        rtrn_vars.append(self.safe_recv(name))        
+        rtrn_vars.append(self.precv(name))        
     return cnvrt(rtrn_vars)
 
   # -------------------------------------------------------------------------#
@@ -174,11 +175,11 @@ class mad_ref(object):
 
   def __getitem__(self, item: Union[str, int]):
     if isinstance(item, int):
-      result = self.__mad__.safe_recv(f"{self.__name__}[{item+1}]")
+      result = self.__mad__.precv(f"{self.__name__}[{item+1}]")
       if result is None:
         raise IndexError(item)  # For python
     elif isinstance(item, str):
-      result = self.__mad__.safe_recv(f"{self.__name__}['{item}']")
+      result = self.__mad__.precv(f"{self.__name__}['{item}']")
       if result is None:
         raise KeyError(item)  # For python
     else:

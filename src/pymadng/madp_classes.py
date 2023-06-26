@@ -58,11 +58,11 @@ class madhl_ref(mad_ref):
 
   def __gOp__(self, rhs, operator: str):
     rtrn = madhl_reflast(self.__mad__, self.__lst_cntr__)
-    self.__mad__.safe_send(f"{rtrn.__name__} = {self.__name__} {operator} {self.__mad__.py_name}:recv()").send(rhs)
+    self.__mad__.psend(f"{rtrn.__name__} = {self.__name__} {operator} {self.__mad__.py_name}:recv()").send(rhs)
     return rtrn
 
   def __len__(self):
-    return self.__mad__.safe_recv(f"#{self.__name__}")
+    return self.__mad__.precv(f"#{self.__name__}")
 
   def __str__(self):
     val = self.__mad__.recv_vars(self.__name__)
@@ -85,15 +85,15 @@ class madhl_ref(mad_ref):
       local modList={{}}; local i = 1;
       for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
       {self.__mad__.py_name}:send(modList)"""
-    self.__mad__.safe_send(script)
+    self.__mad__.psend(script)
     varnames = [x for x in self.__mad__.recv() if isinstance(x, str) and x[0] != "_"]
     return varnames
 
 class madhl_obj(madhl_ref):
   def __dir__(self) -> Iterable[str]:
     if not self.__mad__.ipython_use_jedi:
-      self.__mad__.safe_send(f"{self.__mad__.py_name}:send({self.__name__}:get_varkeys(MAD.object))")
-    varnames = self.__mad__.safe_recv(f"{self.__name__}:get_varkeys(MAD.object, false)")
+      self.__mad__.psend(f"{self.__mad__.py_name}:send({self.__name__}:get_varkeys(MAD.object))")
+    varnames = self.__mad__.precv(f"{self.__name__}:get_varkeys(MAD.object, false)")
 
     if not self.__mad__.ipython_use_jedi:
       varnames.extend([x + "()" for x in self.__mad__.recv() if not x in varnames])
@@ -138,7 +138,7 @@ class madhl_fun(madhl_ref):
   # ---------------------------------------------------------------------------------------------------#
   
   def __call__(self, *args: Any) -> Any:
-    ismethod = self.__parent__ and (self.__mad__.safe_recv(f"""
+    ismethod = self.__parent__ and (self.__mad__.precv(f"""
     MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__})
     """) and not self.__parent__.split("['")[-1].strip("']") == "MADX")
     if ismethod:
