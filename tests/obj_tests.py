@@ -1,9 +1,8 @@
-import unittest
+import unittest, os, time
+
 from pymadng import MAD
 from pymadng.madp_classes import madhl_ref, madhl_obj, madhl_fun
-
 import numpy as np
-import time
 
 # TODO: test setting variables inside classes
 # TODO: think of more objects to test __dir__ with
@@ -166,6 +165,15 @@ class TestObjFun(unittest.TestCase):
     
     self.assertEqual(mad.MADX.MAD.MADX.abs (-1) , 1)
     self.assertEqual(mad.MADX.MAD.MADX.ceil(1.2), 2)
+
+    with open("test.seq", "w") as f:
+      f.write("""
+      qd: quadrupole, l=1, knl:={0, 0.25};
+      """)
+    mad.MADX.load("'test.seq'")
+    self.assertEqual(mad.MADX.qd.l, 1)
+    self.assertEqual(mad.MADX.qd.knl, [0, 0.25])
+    os.remove("test.seq")
 
 class TestOps(unittest.TestCase):
 

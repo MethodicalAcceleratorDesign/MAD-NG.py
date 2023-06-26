@@ -6,6 +6,8 @@ from .madp_last import last_counter
 
 # TODO: Are you able to store the actual parent? 
 # TODO: Verify if functions need kwargs or not. (I would  not)
+
+MADX_methods = ["load", "open_env", "close_env"]
 class madhl_ref(mad_ref):    
   def __init__(self, name: str, mad_proc: mad_process, last_counter: last_counter):
     super(madhl_ref, self).__init__(name, mad_proc)
@@ -138,10 +140,14 @@ class madhl_fun(madhl_ref):
   # ---------------------------------------------------------------------------------------------------#
   
   def __call__(self, *args: Any) -> Any:
+    # Checks for MADX methods
+    call_from_madx = self.__parent__ and self.__parent__.split("['")[-1].strip("']") == "MADX"
+    if call_from_madx: funcname = self.__name__.split("['")[-1].strip("']")
+
     ismethod = self.__parent__ and (self.__mad__.precv(f"""
     MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__})
-    """) and not self.__parent__.split("['")[-1].strip("']") == "MADX")
-    if ismethod:
+    """))
+    if ismethod and not (call_from_madx and not funcname in MADX_methods):
       return self.__call_func(self.__name__, self.__parent__, *args)
     else:
       return self.__call_func(self.__name__, *args)
