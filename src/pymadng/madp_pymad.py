@@ -120,6 +120,8 @@ class mad_process:
 
   def recv_and_exec(self, env: dict = {}) -> dict:
     """Read data from MAD and execute it"""
+    try:             env["mad"]        # Check if user has already defined mad (madp_object will have mad defined)
+    except KeyError: env["mad"] = self # If not, define it
     exec(compile(self.recv(), "ffrom_mad", "exec"), self.globalVars, env)
     return env
 
