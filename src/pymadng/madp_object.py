@@ -59,7 +59,8 @@ class MAD(object):
     str_to_fun["fun_"]["recv"] = recv_fun
 
     mad_path = mad_path or bin_path + "/mad_" + platform.system()
-    self.__process = mad_process(mad_path, py_name, debug, ipython_use_jedi)
+    self.__process = mad_process(mad_path, py_name, debug)
+    self.__process.ipython_use_jedi = ipython_use_jedi
     #----------------------------------------------------------------------#
 
     ## Store the relavent objects into a function to get reference objects
