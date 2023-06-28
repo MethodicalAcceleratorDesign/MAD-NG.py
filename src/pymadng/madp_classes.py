@@ -6,6 +6,7 @@ from .madp_last import last_counter
 
 # TODO: Are you able to store the actual parent? 
 # TODO: Verify if functions need kwargs or not. (I would  not)
+# TODO: Allow __setitem__ to work with multiple indices (Should be a simple recursive loop)
 
 MADX_methods = ["load", "open_env", "close_env"]
 class madhl_ref(mad_ref):    
