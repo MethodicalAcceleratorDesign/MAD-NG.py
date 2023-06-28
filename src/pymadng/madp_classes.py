@@ -4,12 +4,13 @@ from .madp_pymad import mad_process, mad_ref, type_str
 from .madp_strings import get_args_string, get_kwargs_string
 from .madp_last import last_counter
 
-# TODO: Are you able to store the actual parent? 
-# TODO: Verify if functions need kwargs or not. (I would  not)
+# TODO: Are you able to store the actual parent?
 # TODO: Allow __setitem__ to work with multiple indices (Should be a simple recursive loop)
 
 MADX_methods = ["load", "open_env", "close_env"]
-class madhl_ref(mad_ref):    
+
+
+class madhl_ref(mad_ref):
   def __init__(self, name: str, mad_proc: mad_process, last_counter: last_counter):
     super(madhl_ref, self).__init__(name, mad_proc)
     self.__parent__ = (
@@ -33,7 +34,9 @@ class madhl_ref(mad_ref):
     elif isinstance(item, str):
       self.__mad__.send_vars(**{f"{self.__name__}['{item}']": value})
     else:
-      raise TypeError("Cannot index type of ", type(item), "expected string or int")
+      raise TypeError(
+        "Cannot index type of ", type(item), "expected string or int"
+      )
 
   def __add__(self, rhs):
     return self.__gOp__(rhs, "+")
@@ -54,14 +57,16 @@ class madhl_ref(mad_ref):
     return self.__gOp__(rhs, "%")
 
   def __eq__(self, rhs):
-    if (isinstance(rhs, type(self)) and self.__name__ == rhs.__name__):
+    if isinstance(rhs, type(self)) and self.__name__ == rhs.__name__:
       return True
     else:
       return self.__gOp__(rhs, "==").eval()
 
   def __gOp__(self, rhs, operator: str):
     rtrn = madhl_reflast(self.__mad__, self.__lst_cntr__)
-    self.__mad__.psend(f"{rtrn.__name__} = {self.__name__} {operator} {self.__mad__.py_name}:recv()").send(rhs)
+    self.__mad__.psend(
+      f"{rtrn.__name__} = {self.__name__} {operator} {self.__mad__.py_name}:recv()"
+    ).send(rhs)
     return rtrn
 
   def __len__(self):
@@ -85,30 +90,38 @@ class madhl_ref(mad_ref):
     if name[:8] == "__last__":
       name = name + ".__metatable or " + name
     script = f"""
-      local modList={{}}; local i = 1;
-      for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
-      {self.__mad__.py_name}:send(modList)"""
+    local modList={{}}; local i = 1;
+    for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
+    {self.__mad__.py_name}:send(modList)
+    """
     self.__mad__.psend(script)
-    varnames = [x for x in self.__mad__.recv() if isinstance(x, str) and x[0] != "_"]
+    varnames = [
+      x for x in self.__mad__.recv() if isinstance(x, str) and x[0] != "_"
+    ]
     return varnames
+
 
 class madhl_obj(madhl_ref):
   def __dir__(self) -> Iterable[str]:
     if not self.__mad__.ipython_use_jedi:
-      self.__mad__.psend(f"{self.__mad__.py_name}:send({self.__name__}:get_varkeys(MAD.object))")
+      self.__mad__.psend(
+        f"{self.__mad__.py_name}:send({self.__name__}:get_varkeys(MAD.object))"
+      )
     varnames = self.__mad__.precv(f"{self.__name__}:get_varkeys(MAD.object, false)")
 
     if not self.__mad__.ipython_use_jedi:
-      varnames.extend([x + "()" for x in self.__mad__.recv() if not x in varnames])
+      varnames.extend(
+        [x + "()" for x in self.__mad__.recv() if not x in varnames]
+      )
     return varnames
 
   def __call__(self, *args, **kwargs):
     last_obj = madhl_objlast(self.__mad__, self.__lst_cntr__)
-    kwargs_string, kwargs_to_send = get_kwargs_string(self.__mad__.py_name, **kwargs)
-    args_string  ,   args_to_send = get_args_string(self.__mad__.py_name, *args)
-    
+    kwargs_str, kwargs_to_send = get_kwargs_string(self.__mad__.py_name, **kwargs)
+    args_str, args_to_send = get_args_string(self.__mad__.py_name, *args)
+
     self.__mad__.send(
-      f"{last_obj.__name__} = __mklast__( {self.__name__} {{ {kwargs_string[1:-1]} {args_string} }} )"
+      f"{last_obj.__name__} = __mklast__( {self.__name__} {{ {kwargs_str[1:-1]} {args_str} }} )"
     )
     for var in kwargs_to_send + args_to_send:
       self.__mad__.send(var)
@@ -138,34 +151,45 @@ class madhl_fun(madhl_ref):
     for var in vars_to_send:
       self.__mad__.send(var)
     return rtrn_ref
+
   # ---------------------------------------------------------------------------------------------------#
-  
+
   def __call__(self, *args: Any) -> Any:
     # Checks for MADX methods
-    call_from_madx = self.__parent__ and self.__parent__.split("['")[-1].strip("']") == "MADX"
-    if call_from_madx: funcname = self.__name__.split("['")[-1].strip("']")
+    call_from_madx = (
+      self.__parent__ and self.__parent__.split("['")[-1].strip("']") == "MADX"
+    )
+    if call_from_madx:
+      funcname = self.__name__.split("['")[-1].strip("']")
 
-    ismethod = self.__parent__ and (self.__mad__.precv(f"""
-    MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__})
-    """))
+    ismethod = self.__parent__ and (
+      self.__mad__.precv(
+        f"""
+  MAD.typeid.is_object({self.__parent__}) or MAD.typeid.isy_matrix({self.__parent__})
+  """
+      )
+    )
     if ismethod and not (call_from_madx and not funcname in MADX_methods):
       return self.__call_func(self.__name__, self.__parent__, *args)
     else:
       return self.__call_func(self.__name__, *args)
+
   def __dir__(self):
     return super(madhl_ref, self).__dir__()
 
+
 # Separate class for __last__ objects for simplicity and fewer if statements
-class madhl_last(): # The init and del for a __last__ object
+class madhl_last:  # The init and del for a __last__ object
   def __init__(self, mad_proc: mad_process, last_counter: last_counter):
     self.__lastnum__ = last_counter.get()
     self.__name__ = f"__last__[{self.__lastnum__}]"
     self.__mad__ = mad_proc
     self.__parent__ = "__last__"
     self.__lst_cntr__ = last_counter
-  
+
   def __del__(self):
     self.__lst_cntr__.set(self.__lastnum__)
+
 
 class madhl_reflast(madhl_last, madhl_ref):
   def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -174,12 +198,14 @@ class madhl_reflast(madhl_last, madhl_ref):
       return obj(*args, **kwargs)
     else:
       raise TypeError("Cannot call " + str(obj))
-  
+
   def __dir__(self):
     return super(madhl_reflast, self).__dir__()
 
+
 class madhl_objlast(madhl_last, madhl_obj):
   pass
+
 
 type_str[madhl_ref] = "ref_"
 type_str[madhl_obj] = "obj_"
