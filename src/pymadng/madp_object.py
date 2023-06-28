@@ -210,13 +210,10 @@ class MAD(object):
     Send the variables in vars with the names in names to MAD-NG.
 
     Args:
-      names (str/List[str]): The name(s) that would like to assign your python variable(s) in MAD-NG.
       **vars (List[str/int/float/ndarray/bool/list]): The variables to send with the assigned name in MAD-NG by the keyword argument.
 
     Raises:
-      AssertionError: A list of names must be matched with a list of variables
-      AssertionError: The number of names must match the number of variables
-      Other Errors: See :meth:`send`.
+      See :meth:`send`.
     """
     self.__process.send_vars(**vars)
 
