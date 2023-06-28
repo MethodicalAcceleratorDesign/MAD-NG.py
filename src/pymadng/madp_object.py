@@ -42,7 +42,7 @@ class MAD(object):
     Returns:
       A MAD object, allowing for communication with MAD-NG
     """
-    # ----------------------- Create the process --------------------------#
+    # --------------------- Overload recv_ref functions ---------------------- #
     lst_cntr = last_counter(num_temp_vars)
     # Override the type of reference created by python.
     def recv_ref(self: mad_process) -> madhl_ref:
@@ -57,11 +57,13 @@ class MAD(object):
     str_to_fun["ref_"]["recv"] = recv_ref
     str_to_fun["obj_"]["recv"] = recv_obj
     str_to_fun["fun_"]["recv"] = recv_fun
+    # ------------------------------------------------------------------------ #
 
+    # ------------------------- Create the process --------------------------- #
     mad_path = mad_path or bin_path + "/mad_" + platform.system()
     self.__process = mad_process(mad_path, py_name, debug)
     self.__process.ipython_use_jedi = ipython_use_jedi
-    #----------------------------------------------------------------------#
+    # ------------------------------------------------------------------------ #
 
     ## Store the relavent objects into a function to get reference objects
     self.__mad_reflast = lambda: madhl_reflast(self.__process, lst_cntr)
