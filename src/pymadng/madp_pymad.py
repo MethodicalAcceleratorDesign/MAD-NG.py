@@ -286,7 +286,7 @@ def send_gtpsa(
   self: mad_process,
   monos: np.ndarray,
   coefficients: np.ndarray,
-  send_num: Callable[[mad_process, Union[float, complex]]],
+  send_num: Callable[[mad_process, Union[float, complex]], None],
 ):
   assert len(monos.shape) == 2, "The list of monomials must have two dimensions"
   assert len(monos) == len(coefficients), "The number of monomials must be equal to the number of coefficients"
