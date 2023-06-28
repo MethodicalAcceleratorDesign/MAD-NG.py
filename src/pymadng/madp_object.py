@@ -204,38 +204,34 @@ class MAD(object):
   # ---------------------------------------------------------------------------------------------------------#
   
   # -------------------------------- Dealing with communication of variables --------------------------------#
-  def send_vars(
-    self,
-    names: Union[str, List[str]],
-    vars: List[Union[str, int, float, np.ndarray, bool, list]],
-  ):
+  def send_vars(self, **vars: List[Union[str, int, float, np.ndarray, bool, list]]):
     """Send variables to the MAD-NG process.
 
     Send the variables in vars with the names in names to MAD-NG.
 
     Args:
       names (str/List[str]): The name(s) that would like to assign your python variable(s) in MAD-NG.
-      vars (List[str/int/float/ndarray/bool/list]): The variables to send with the name(s) 'names' in MAD-NG.
+      **vars (List[str/int/float/ndarray/bool/list]): The variables to send with the assigned name in MAD-NG by the keyword argument.
 
     Raises:
       AssertionError: A list of names must be matched with a list of variables
       AssertionError: The number of names must match the number of variables
       Other Errors: See :meth:`send`.
     """
-    self.__process.send_vars(names, vars)
+    self.__process.send_vars(**vars)
 
-  def recv_vars(self, names: Union[str, List[str]]) -> Any:
+  def recv_vars(self, *names: str) -> Any:
     """Receive variables from the MAD-NG process
 
     Given a list of variable names, receive the variables from the MAD-NG process.
 
     Args:
-      names (str/List[str]): The name(s) of variables that you would like to receive from MAD-NG.
+      *names (str): The name(s) of variables that you would like to receive from MAD-NG.
 
     Returns:
       See :meth:`recv`.
     """
-    return self.__process.recv_vars(names)
+    return self.__process.recv_vars(*names)
 
   # -------------------------------------------------------------------------------------------------------------#
 
@@ -287,23 +283,18 @@ class MAD(object):
     return self.__process.recv_vars(item)
 
   def __setitem__(self, var_name: str, var: Any) -> None:
-    if isinstance(var_name, tuple):
-      var_name = list(var_name)
-      if isinstance(var, madhl_ref):
-        for i in range(len(var_name)):
-          self.send(f"{var_name[i]} = {var.__name__}[{i+1}]") # Skip send_vars
-        return
-      else:
-        var = list(var)
-      if len(var) != len(var_name):
-        raise ValueError(
-          "Incorrect number of values to unpack, received",
-          len(var),
-          "variables and",
-          len(var_name),
-          "keys",
-        )
-    self.__process.send_vars(var_name, var)
+    if not isinstance(var_name, tuple):
+      var_name = (var_name,)
+      var      = (var     ,)
+    if len(var) != len(var_name):
+      raise ValueError(
+        "Incorrect number of values to unpack, received",
+        len(var),
+        "variables and",
+        len(var_name),
+        "keys",
+      )
+    self.__process.send_vars(**dict(zip(var_name, var)))
 
   def __getitem__(self, var_name: str) -> Any:
     return self.__process.recv_vars(var_name)
