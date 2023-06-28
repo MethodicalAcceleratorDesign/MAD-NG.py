@@ -2,16 +2,18 @@ import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
 import os, platform
-bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src/pymadng", "bin") 
+
+bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src/pymadng", "bin")
 
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
 from .madp_pymad import mad_process, type_fun
 from .madp_strings import get_kwargs_string
-from .madp_last    import last_counter
+from .madp_last import last_counter
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 # TODO: Should I change anything that atm requires a list at end of function to *args?
+
 
 class MAD(object):
   """An object that allows communication with MAD-NG
@@ -21,7 +23,14 @@ class MAD(object):
     __MAD_version__: A string indicating the version of MAD-NG being used. (Also accessible from ``pymadng.MAD().MAD.env.version``)
   """
 
-  def __init__(self, mad_path: str = None, py_name: str = "py", debug: bool = False, num_temp_vars: int = 8, ipython_use_jedi: bool = False):
+  def __init__(
+    self,
+    mad_path: str = None,
+    py_name: str = "py",
+    debug: bool = False,
+    num_temp_vars: int = 8,
+    ipython_use_jedi: bool = False,
+  ):
     """Create a MAD Object to interface with MAD-NG.
 
     The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
@@ -29,31 +38,32 @@ class MAD(object):
 
     Args:
       py_name (str): The name used to interact with the python process from MAD
-        (default = "py")
+      (default = "py")
       mad_path (str): The path to the mad executable, for a value of None, the one that comes with pymadng package will be used
-        (default = None)
+      (default = None)
       debug (bool): Sets debug mode on or off
-        (default = False)
+      (default = False)
       num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>`
-        (default = 8)
+      (default = 8)
       ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
-        (default = False)
+      (default = False)
 
     Returns:
       A MAD object, allowing for communication with MAD-NG
     """
     # --------------------- Overload recv_ref functions ---------------------- #
     lst_cntr = last_counter(num_temp_vars)
+
     # Override the type of reference created by python.
     def recv_ref(self: mad_process) -> madhl_ref:
       return madhl_ref(self.varname, self, lst_cntr)
-    
+
     def recv_obj(self: mad_process) -> madhl_obj:
       return madhl_obj(self.varname, self, lst_cntr)
-    
+
     def recv_fun(self: mad_process) -> madhl_fun:
       return madhl_fun(self.varname, self, lst_cntr)
-    
+
     type_fun["ref_"]["recv"] = recv_ref
     type_fun["obj_"]["recv"] = recv_obj
     type_fun["fun_"]["recv"] = recv_fun
@@ -68,31 +78,41 @@ class MAD(object):
     ## Store the relavent objects into a function to get reference objects
     self.__mad_reflast = lambda: madhl_reflast(self.__process, lst_cntr)
     self.__mad_ref = lambda name: madhl_ref(name, self.__process, lst_cntr)
-    if not ipython_use_jedi: #Stop jedi running getattr on my classes...
+    if not ipython_use_jedi:  # Stop jedi running getattr on my classes...
       try:
         ipython = get_ipython()
-        if ipython.__class__.__name__ == 'TerminalInteractiveShell':
-          ipython.Completer.use_jedi = False 
+        if ipython.__class__.__name__ == "TerminalInteractiveShell":
+          ipython.Completer.use_jedi = False
       except NameError:
         pass
     self.py_name = py_name
     # --------------------------------Retrieve the modules of MAD-------------------------------#
     # Limit the 80 modules
     modulesToImport = [
-      "element", "sequence", "mtable", "twiss", "beta0",
-      "beam", "survey", "object", "track", "match",
+      "element",
+      "sequence",
+      "mtable",
+      "twiss",
+      "beta0",
+      "beam",
+      "survey",
+      "object",
+      "track",
+      "match",
     ]
     self.load("MAD", *modulesToImport)
     self.__MAD_version__ = self.MAD.env.version
 
-    self.send("""
-    function __mklast__ (a, b, ...)
-      if type(b) == "nil" then return a
-      else                     return {a, b, ...}
-      end
-    end
-    __last__ = {}
-    """)
+    self.send(
+      """
+function __mklast__ (a, b, ...)
+  if type(b) == "nil" then return a
+  else                     return {a, b, ...}
+  end
+end
+__last__ = {}
+  """
+    )
 
   # ------------------------------------------------------------------------------------------#
 
@@ -104,13 +124,13 @@ class MAD(object):
 
     Args:
       varname(str): The name of the variable you are receiving (Only useful when receiving references)
-        (default is None)
+      (default is None)
 
     Returns:
       Data from MAD-NG with type str/int/float/ndarray/bool/list, depending what was asked from MAD-NG.
 
     Raises:
-      TypeError: If you forget to give a name when receiving a reference,  
+      TypeError: If you forget to give a name when receiving a reference,
     """
     return self.__process.recv(varname)
 
@@ -127,7 +147,7 @@ class MAD(object):
 
     Args:
       env (dict): The environment you would like the string to be executed in.
-        (default = {})
+      (default = {})
 
     Returns:
       The updated environment after executing the string.
@@ -184,7 +204,7 @@ class MAD(object):
     Raises:
       AssertionError: The list of monomials must be a 2-D array (each monomial is 1-D).
       AssertionError: The number of monomials and coefficients must be identical.
-      AssertionError: The monomials must be of type 8-bit unsigned integer 
+      AssertionError: The monomials must be of type 8-bit unsigned integer
     """
     self.__process.send_tpsa(monos, coefficients)
 
@@ -192,17 +212,17 @@ class MAD(object):
     """Send the monomials and coefficients of a complex TPSA to MAD-NG
 
     The combination of monomials and coefficients creates a table representing the complex TPSA object in MAD-NG.
-    
+
     Args:
       See: :meth:`send_tpsa`.
-    
+
     Raises:
       See: :meth:`send_tpsa`.
     """
     self.__process.send_ctpsa(monos, coefficients)
-  
+
   # ---------------------------------------------------------------------------------------------------------#
-  
+
   # -------------------------------- Dealing with communication of variables --------------------------------#
   def send_vars(self, **vars: List[Union[str, int, float, np.ndarray, bool, list]]):
     """Send variables to the MAD-NG process.
@@ -236,9 +256,9 @@ class MAD(object):
     """Import modules into the MAD-NG environment
 
     Retrieve the classes in MAD-NG from the module ``module``, while only importing the classes in the variable length list ``vars``.
-    If no string is provided, it is assumed that you would like to import every class from the module. 
-    
-    For example, ``mad.load("MAD.gmath")`` imports all variables from the module ``MAD.gmath``. 
+    If no string is provided, it is assumed that you would like to import every class from the module.
+
+    For example, ``mad.load("MAD.gmath")`` imports all variables from the module ``MAD.gmath``.
     But ``mad.load("MAD", "matrix", "cmatrix")```` only imports the modules ``matrix`` and ``cmatrix`` from the module ``MAD.gmath``.
 
     Args:
@@ -264,13 +284,13 @@ class MAD(object):
       *vars (str): Variable length argument list of the variable(s) to import from the file.
     """
     if vars == ():
-      self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
+      self.__process.send(
+        f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
+      )
     else:
-      if isinstance(vars, str):
-        vars = [vars]
-      script = ""
+      script = f"local __req = require('{path}')"  
       for var in vars:
-        script += f"{var} = require('{path}').{var}\n"
+        script += f"{var} = __req.{var}\n"
       self.__process.send(script)
 
   # ----------------------- Make the class work with dict and dot access ------------------------#
@@ -282,7 +302,7 @@ class MAD(object):
   def __setitem__(self, var_name: str, var: Any) -> None:
     if not isinstance(var_name, tuple):
       var_name = (var_name,)
-      var      = (var     ,)
+      var = (var,)
     if len(var) != len(var_name):
       raise ValueError(
         "Incorrect number of values to unpack, received",
@@ -295,6 +315,7 @@ class MAD(object):
 
   def __getitem__(self, var_name: str) -> Any:
     return self.__process.recv_vars(var_name)
+
   # ----------------------------------------------------------------------------------------------#
 
   def eval(self, input: str):
@@ -320,8 +341,8 @@ class MAD(object):
 
   def py_strs_to_mad_strs(self, input: Union[str, List[str]]):
     """Add ' to either side of a string or each string in a list of strings
-    
-    Args: 
+
+    Args:
       input(str/list[str]): The string(s) that you would like to add ' either side to each string.
 
     Returns:
