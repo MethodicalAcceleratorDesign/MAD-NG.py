@@ -48,7 +48,7 @@ if pid > 0:
         print(f"send {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
-        mad.send_vars(list(varNameList), values)
+        mad.send_vars(**dict(zip(varNameList, values)))
         print(f"send {numVars} vals v2", time.time() - start_time)
 
         start_time = time.time()
@@ -58,7 +58,7 @@ if pid > 0:
         print(f"receive {numVars} vals", time.time() - start_time)
 
         start_time = time.time()
-        mad.recv_vars(list(varNameList))
+        mad.recv_vars(*varNameList)
         print(f"receive {numVars} vals v2", time.time() - start_time)
     print("proc1 ended", time.time() - start_time)
 else:
@@ -70,7 +70,7 @@ else:
         mad.seq.beam = mad.beam()
         mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, chrom=True)
         plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
-        plt.show()
+        # plt.show()
 
         # METHOD 2
         mad["circum", "lcell"] = 60, 20

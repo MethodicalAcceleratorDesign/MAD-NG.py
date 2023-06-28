@@ -12,6 +12,11 @@ def get_typestring(a: Union[str, int, float, np.ndarray, bool, list]):
     else:                   return float
   else:
     return type(a)
+
+def is_not_private(varname):
+  if varname[:2] == "__" and varname[:8] != "__last__":
+    return False
+  return True
   
 data_types = {
   type(None)              : "nil_",
@@ -24,6 +29,7 @@ data_types = {
   np.complex128           : "cpx_",
   bool                    : "bool",
   list                    : "tbl_",
+  tuple                   : "tbl_",
   range                   : "irng",
   np.dtype("float64")     : "mat_",
   np.dtype("complex128")  : "cmat",
@@ -125,31 +131,19 @@ class mad_process:
     return env
 
   # ----------------- Dealing with communication of variables ---------------#
-  def send_vars(self, names, vars):
-    if isinstance(names, str): 
-      names = [names]
-      vars = [vars]
-    else:
-      assert isinstance(vars, list), "A list of names must be matched with a list of variables"
-      assert len(vars) == len(names), "The number of names must match the number of variables"
-    for i, var in enumerate(vars):
-      if isinstance(vars[i], mad_ref):
-        self.send(f"{names[i]} = {var.__name__}")
+  def send_vars(self, **vars):
+    for name, var in vars.items():
+      if isinstance(var, mad_ref):
+        self.send(f"{name} = {var.__name__}")
       else:
-        self.send(f"{names[i]} = {self.py_name}:recv()").send(var)
+        self.send(f"{name} = {self.py_name}:recv()").send(var)
 
-  def recv_vars(self, names) -> Any:
-    if isinstance(names, str): 
-      names = [names]
-      cnvrt = lambda rtrn: rtrn[0]
-    else: 
-      cnvrt = lambda rtrn: tuple(rtrn)
-
-    rtrn_vars = []
-    for name in names:
-      if name[:2] != "__" or name[:8] == "__last__":  # Check for private variables
-        rtrn_vars.append(self.precv(name))        
-    return cnvrt(rtrn_vars)
+  def recv_vars(self, *names) -> Any:
+    if len(names) == 1:
+      if is_not_private(names[0]):
+        return self.precv(names[0])
+    else:
+      return tuple(self.precv(name) for name in names if is_not_private(name))
 
   # -------------------------------------------------------------------------#
 
@@ -298,9 +292,9 @@ def recv_list(self: mad_process) -> list:
   vals = [self.recv(varname and varname + f"[{i+1}]") for i in range(lstLen)]
   self.varname = varname  # reset
   if haskeys and lstLen == 0:
-    return recv_ref(self)
+    return str_to_fun["ref_"]["recv"](self)
   elif haskeys:
-    return vals, recv_ref(self)
+    return vals, str_to_fun["ref_"]["recv"](self)
   else:
     return vals
 

@@ -6,6 +6,7 @@ from .madp_last import last_counter
 
 # TODO: Are you able to store the actual parent? 
 # TODO: Verify if functions need kwargs or not. (I would  not)
+# TODO: Allow __setitem__ to work with multiple indices (Should be a simple recursive loop)
 
 MADX_methods = ["load", "open_env", "close_env"]
 class madhl_ref(mad_ref):    
@@ -28,9 +29,9 @@ class madhl_ref(mad_ref):
     value: Union[str, int, float, np.ndarray, bool, list],
   ):
     if isinstance(item, int):
-      self.__mad__.send_vars(f"{self.__name__}[{item+1}]", value)
+      self.__mad__.send_vars(**{f"{self.__name__}[{item+1}]": value})
     elif isinstance(item, str):
-      self.__mad__.send_vars(f"{self.__name__}['{item}']", value)
+      self.__mad__.send_vars(**{f"{self.__name__}['{item}']": value})
     else:
       raise TypeError("Cannot index type of ", type(item), "expected string or int")
 

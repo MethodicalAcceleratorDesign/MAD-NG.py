@@ -20,7 +20,18 @@ To begin communication with MAD-NG, you simply are required to do:
 Communication protocol
 ----------------------
 
-.. important:: **Before you send data to MAD-NG, you must always send MAD-NG the instructions to read the data. Before you receive any data from MAD-NG, you must always ask MAD-NG to send the data.**
+The communication protocol has been presented previously in a meeting that can be found here: `MAD-NG Python interface <https://indico.cern.ch/event/1224204/>`_. The essential points are:
+
+- PyMAD-NG communicates through pipes (first in, first out)
+- Communication occurs by sending MAD-NG scripts (as strings) to MAD
+- Retrieve data from MAD to Python pipe.
+- The stdout of MAD is redirected to the stdout of Python (not intercepted by PyMAD-NG)
+
+The first point is the most consequential for the user, as it means that the order in which you send data to MAD-NG is the order in which it will be received and vice versa for retrieving data. Therefore, you must adhere to the following rules:
+
+.. important:: 
+    - **Before you receive any data from MAD-NG, you must always ask MAD-NG to send the data.**
+    - **Before you send data to MAD-NG, you must always send MAD-NG the instructions to read the data.**
 
 .. code-block:: 
     :caption: An example of using the MAD object to communicate with MAD-NG
