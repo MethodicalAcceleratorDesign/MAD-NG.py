@@ -1,6 +1,6 @@
 from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
-from .madp_pymad import mad_process, mad_ref, data_types
+from .madp_pymad import mad_process, mad_ref, type_str
 from .madp_strings import get_args_string, get_kwargs_string
 from .madp_last import last_counter
 
@@ -181,9 +181,9 @@ class madhl_reflast(madhl_last, madhl_ref):
 class madhl_objlast(madhl_last, madhl_obj):
   pass
 
-data_types[madhl_ref] = "ref_"
-data_types[madhl_obj] = "obj_"
-data_types[madhl_fun] = "fun_"
+type_str[madhl_ref] = "ref_"
+type_str[madhl_obj] = "obj_"
+type_str[madhl_fun] = "fun_"
 
-data_types[madhl_reflast] = "ref_"
-data_types[madhl_objlast] = "obj_"
+type_str[madhl_reflast] = "ref_"
+type_str[madhl_objlast] = "obj_"

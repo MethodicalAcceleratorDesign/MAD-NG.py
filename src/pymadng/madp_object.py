@@ -6,7 +6,7 @@ bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src/pymadng", "bi
 
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
-from .madp_pymad import mad_process, str_to_fun
+from .madp_pymad import mad_process, type_fun
 from .madp_strings import get_kwargs_string
 from .madp_last    import last_counter
 
@@ -54,9 +54,9 @@ class MAD(object):
     def recv_fun(self: mad_process) -> madhl_fun:
       return madhl_fun(self.varname, self, lst_cntr)
     
-    str_to_fun["ref_"]["recv"] = recv_ref
-    str_to_fun["obj_"]["recv"] = recv_obj
-    str_to_fun["fun_"]["recv"] = recv_fun
+    type_fun["ref_"]["recv"] = recv_ref
+    type_fun["obj_"]["recv"] = recv_obj
+    type_fun["fun_"]["recv"] = recv_fun
     # ------------------------------------------------------------------------ #
 
     # ------------------------- Create the process --------------------------- #
