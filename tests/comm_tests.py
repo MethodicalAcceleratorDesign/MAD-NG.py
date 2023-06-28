@@ -117,10 +117,10 @@ class TestNums(unittest.TestCase):
         mad.send(int_lst[i])
         recv_num = mad.recv()
         self.assertEqual(recv_num, int_lst[i])
-        self.assertTrue(isinstance(recv_num, int))
+        self.assertTrue(isinstance(recv_num, np.int32))
         recv_num = mad.recv()
         self.assertEqual(recv_num, -int_lst[i])
-        self.assertTrue(isinstance(recv_num, int))
+        self.assertTrue(isinstance(recv_num, np.int32))
         self.assertTrue(mad.recv())
 
   def test_send_recv_num(self):
@@ -154,6 +154,44 @@ class TestNums(unittest.TestCase):
           self.assertEqual(mad.recv(),  my_cpx)
           self.assertEqual(mad.recv(), -my_cpx)
           self.assertEqual(mad.recv(),  my_cpx * 1.31j)
+
+class TestMatrices(unittest.TestCase):
+
+  def test_send_recv_imat(self):
+    with MAD() as mad:
+      mad.send("""
+      local imat = py:recv()
+      py:send(imat)
+      py:send(MAD.imatrix(3, 5):seq())
+      """)
+      imat = np.random.randint(0, 255, (5, 5), dtype=np.int32)
+      mad.send(imat)
+      self.assertTrue(np.all(mad.recv() == imat))
+      self.assertTrue(np.all(mad.recv() == np.arange(1, 16).reshape(3, 5)))
+
+  def test_send_recv_mat(self):
+    with MAD() as mad:
+      mad.send("""
+      local mat = py:recv()
+      py:send(mat)
+      py:send(MAD.matrix(3, 5):seq() / 2)
+      """)
+      mat = np.arange(1, 25).reshape(4, 6) / 4
+      mad.send(mat)
+      self.assertTrue(np.all(mad.recv() == mat))
+      self.assertTrue(np.all(mad.recv() == np.arange(1, 16).reshape(3, 5) / 2))
+
+  def test_send_recv_cmat(self):
+    with MAD() as mad:
+      mad.send("""
+      local cmat = py:recv()
+      py:send(cmat)
+      py:send(MAD.cmatrix(3, 5):seq() / 2i)
+      """)
+      cmat = np.arange(1, 25).reshape(4, 6) / 4 + 1j * np.arange(1, 25).reshape(4, 6) / 4
+      mad.send(cmat)
+      self.assertTrue(np.all(mad.recv() == cmat))
+      self.assertTrue(np.all(mad.recv() == (np.arange(1, 16).reshape(3, 5) / 2j)))
 
 class TestRngs(unittest.TestCase):
 
