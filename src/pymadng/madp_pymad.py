@@ -298,9 +298,9 @@ def recv_list(self: mad_process) -> list:
   vals = [self.recv(varname and varname + f"[{i+1}]") for i in range(lstLen)]
   self.varname = varname  # reset
   if haskeys and lstLen == 0:
-    return recv_ref(self)
+    return str_to_fun["ref_"]["recv"](self)
   elif haskeys:
-    return vals, recv_ref(self)
+    return vals, str_to_fun["ref_"]["recv"](self)
   else:
     return vals
 
