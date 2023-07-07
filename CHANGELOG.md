@@ -1,3 +1,11 @@
+0.4.1 (2023/06/28)
+
+Change the way `send_vars` and `recv_vars` work, they now use kwargs and args respectively. \
+Fix bug with receiving lists \
+Allow tuples to be sent and received (they are converted to lists) \
+Completely refactor the underlying process again (this time for symmetry) \
+Update Documentation
+
 0.4.0 (2023/06/26)
 
 Fix MADX issue
