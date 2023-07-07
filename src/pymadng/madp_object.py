@@ -224,16 +224,16 @@ __last__ = {}
   # ---------------------------------------------------------------------------------------------------------#
 
   # -------------------------------- Dealing with communication of variables --------------------------------#
-  def send_vars(self, **vars: List[Union[str, int, float, np.ndarray, bool, list]]):
+  def send_vars(self, **vars: Union[str, int, float, np.ndarray, bool, list]):
     """Send variables to the MAD-NG process.
 
     Send the variables in vars with the names in names to MAD-NG.
 
     Args:
-      **vars (List[str/int/float/ndarray/bool/list]): The variables to send with the assigned name in MAD-NG by the keyword argument.
+      **vars (str/int/float/ndarray/bool/list): The variables to send with the assigned name in MAD-NG by the keyword argument.
 
     Raises:
-      See :meth:`send`.
+      See: :meth:`send`.
     """
     self.__process.send_vars(**vars)
 
