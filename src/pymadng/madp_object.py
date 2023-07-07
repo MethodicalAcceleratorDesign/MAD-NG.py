@@ -12,7 +12,13 @@ from .madp_strings import get_kwargs_string
 from .madp_last import last_counter
 
 # TODO: Make it so that MAD does the loop for variables not python (speed)
-# TODO: Should I change anything that atm requires a list at end of function to *args?
+# TODO: Review recv_and exec:
+"""
+Default arguments are evaluated once at module load time. 
+This may cause problems if the argument is a mutable object such as a list or a dictionary. 
+If the function modifies the object (e.g., by appending an item to a list), the default value is modified.
+Source: https://google.github.io/styleguide/pyguide.html
+"""
 
 
 class MAD(object):
@@ -37,16 +43,11 @@ class MAD(object):
     the MAD-NG environment by default.
 
     Args:
+      mad_path (str): The path to the mad executable, for the default value of None, the one that comes with pymadng package will be used
       py_name (str): The name used to interact with the python process from MAD
-      (default = "py")
-      mad_path (str): The path to the mad executable, for a value of None, the one that comes with pymadng package will be used
-      (default = None)
       debug (bool): Sets debug mode on or off
-      (default = False)
       num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>`
-      (default = 8)
       ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
-      (default = False)
 
     Returns:
       A MAD object, allowing for communication with MAD-NG
@@ -124,7 +125,6 @@ __last__ = {}
 
     Args:
       varname(str): The name of the variable you are receiving (Only useful when receiving references)
-      (default is None)
 
     Returns:
       Data from MAD-NG with type str/int/float/ndarray/bool/list, depending what was asked from MAD-NG.
@@ -147,7 +147,6 @@ __last__ = {}
 
     Args:
       env (dict): The environment you would like the string to be executed in.
-      (default = {})
 
     Returns:
       The updated environment after executing the string.
