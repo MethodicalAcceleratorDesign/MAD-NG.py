@@ -5,10 +5,10 @@ import numpy as np
 __all__ = ["mad_process"]
 
 
-def is_not_private(varname):
-  if varname[:2] == "__" and varname[:8] != "__last__":
-    return False
-  return True
+def is_private(varname):
+  if varname[0] == "_" and varname[:6] != "_last[":
+    return True
+  return False
 
 
 class mad_process:
@@ -125,16 +125,16 @@ class mad_process:
   def send_vars(self, **vars):
     for name, var in vars.items():
       if isinstance(var, mad_ref):
-        self.send(f"{name} = {var.__name__}")
+        self.send(f"{name} = {var._name}")
       else:
         self.send(f"{name} = {self.py_name}:recv()").send(var)
 
   def recv_vars(self, *names):
     if len(names) == 1:
-      if is_not_private(names[0]):
+      if not is_private(names[0]):
         return self.precv(names[0])
     else:
-      return tuple(self.precv(name) for name in names if is_not_private(name))
+      return tuple(self.precv(name) for name in names if not is_private(name))
 
   # -------------------------------------------------------------------------- #
 
@@ -149,11 +149,11 @@ class mad_process:
 class mad_ref(object):
   def __init__(self, name: str, mad_proc: mad_process):
     assert name is not None, "Reference must have a variable to reference to. Did you forget to put a name in the receive functions?"
-    self.__name__ = name
-    self.__mad__ = mad_proc
+    self._name = name
+    self._mad = mad_proc
 
   def __getattr__(self, item):
-    if item[0] != "_":
+    if not is_private(item):
       try:
         return self[item]
       except (IndexError, KeyError):
@@ -162,11 +162,11 @@ class mad_ref(object):
 
   def __getitem__(self, item: Union[str, int]):
     if isinstance(item, int):
-      result = self.__mad__.precv(f"{self.__name__}[{item+1}]")
+      result = self._mad.precv(f"{self._name}[{item+1}]")
       if result is None:
         raise IndexError(item)  # For python
     elif isinstance(item, str):
-      result = self.__mad__.precv(f"{self.__name__}['{item}']")
+      result = self._mad.precv(f"{self._name}['{item}']")
       if result is None:
         raise KeyError(item)  # For python
     else:
@@ -175,7 +175,7 @@ class mad_ref(object):
     return result
 
   def eval(self):
-    return self.__mad__.recv_vars(self.__name__)
+    return self._mad.recv_vars(self._name)
 
 
 # data transfer -------------------------------------------------------------- #
@@ -337,7 +337,7 @@ def recv_list(self: mad_process) -> list:
 # object (table with metatable are treated as pure reference) ---------------- #
 
 recv_ref = lambda self: mad_ref(self.varname, self)
-send_ref = lambda self, obj: send_str(self, f"return {obj.__name__}")
+send_ref = lambda self, obj: send_str(self, f"return {obj._name}")
 
 # error ---------------------------------------------------------------------- #
 

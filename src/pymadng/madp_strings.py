@@ -37,7 +37,7 @@ def to_MAD_string(py_name, var: Any):
 	elif isinstance(var, str):
 		return var, []
 	elif isinstance(var, mad_ref):
-		return var.__name__, []
+		return var._name, []
 	elif isinstance(var, dict):
 		return get_kwargs_string(py_name, **var)
 	elif isinstance(var, bool):

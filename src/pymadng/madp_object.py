@@ -7,7 +7,7 @@ bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src/pymadng", "bi
 
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
-from .madp_pymad import mad_process, type_fun
+from .madp_pymad import mad_process, type_fun, is_private
 from .madp_strings import get_kwargs_string
 from .madp_last import last_counter
 
@@ -111,7 +111,7 @@ function __mklast__ (a, b, ...)
   else                     return {a, b, ...}
   end
 end
-__last__ = {}
+_last = {}
   """
     )
 
@@ -294,7 +294,7 @@ __last__ = {}
 
   # ----------------------- Make the class work with dict and dot access ------------------------#
   def __getattr__(self, item):
-    if item[0] == "_" and not item[:8] == "__last__":
+    if is_private(item): 
       raise AttributeError(item)
     return self.__process.recv_vars(item)
 
@@ -327,7 +327,7 @@ __last__ = {}
       The evaluated result.
     """
     rtrn = self.__mad_reflast()
-    self.send(f"{rtrn.__name__} =" + input)
+    self.send(f"{rtrn._name} =" + input)
     return rtrn.eval()
 
   def MADX_env_send(self, input: str):
@@ -371,7 +371,7 @@ __last__ = {}
     rtrn = self.__mad_reflast()
     kwargs_string, vars_to_send = get_kwargs_string(self.py_name, **kwargs)
     self.__process.send(
-      f"{rtrn.__name__} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"
+      f"{rtrn._name} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"
     )
     for var in vars_to_send:
       self.send(var)
