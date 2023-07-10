@@ -62,9 +62,9 @@ class TestGetSet(unittest.TestCase):
       mad.send("""qf = quadrupole {qd = qd} py:send(qf) """) 
       qd = mad.recv("qd")
       qf = mad.recv("qf")
-      self.assertEqual(qd.__name__, "qd")
-      self.assertEqual(qd.__parent__, None)
-      self.assertEqual(qd.__mad__, mad._MAD__process)
+      self.assertEqual(qd._name, "qd")
+      self.assertEqual(qd._parent, None)
+      self.assertEqual(qd._mad, mad._MAD__process)
       self.assertEqual(qd.knl, [0, 0.25])
       self.assertEqual(qd.l, 1)
       self.assertRaises(AttributeError, lambda: qd.asdfg)
@@ -80,7 +80,7 @@ class TestGetSet(unittest.TestCase):
       for i in range(len(objList)):
         if i % 2 != 0:
           self.assertTrue(isinstance(objList[i].qd, madhl_ref))
-          self.assertEqual(objList[i].qd.__parent__, f"objList[{i+1}]")
+          self.assertEqual(objList[i].qd._parent, f"objList[{i+1}]")
           self.assertEqual(objList[i].qd.knl, [0, 0.25])
           self.assertEqual(objList[i].qd.l, 1)
           self.assertEqual(objList[i].qd, qd)
@@ -89,7 +89,7 @@ class TestGetSet(unittest.TestCase):
           self.assertEqual(objList[i].knl, [0, 0.25])
           self.assertEqual(objList[i].l, 1)
           self.assertEqual(objList[i], qd)
-        self.assertEqual(objList[i].__parent__, f"objList")
+        self.assertEqual(objList[i]._parent, f"objList")
       
   
   def test_set(self): #Need more?
@@ -97,9 +97,9 @@ class TestGetSet(unittest.TestCase):
       mad.load("element", "quadrupole")
       mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1} py:send(qd)""") 
       mad["qd2"] = mad.recv("qd")
-      self.assertEqual(mad.qd2.__name__, "qd2")
-      self.assertEqual(mad.qd2.__parent__, None)
-      self.assertEqual(mad.qd2.__mad__, mad._MAD__process)
+      self.assertEqual(mad.qd2._name, "qd2")
+      self.assertEqual(mad.qd2._parent, None)
+      self.assertEqual(mad.qd2._mad, mad._MAD__process)
       self.assertEqual(mad.qd2.knl, [0, 0.25])
       self.assertEqual(mad.qd2.l, 1)
       self.assertEqual(mad.qd2, mad.qd)
@@ -124,30 +124,30 @@ class TestObjFun(unittest.TestCase):
       sd = mad.sextupole(knl=[0, 0.25, 0.5], l = 1)
 
       mad["qd"] = qd
-      self.assertEqual(mad.qd.__name__, "qd")
-      self.assertEqual(mad.qd.__parent__, None)
-      self.assertEqual(mad.qd.__mad__, mad._MAD__process)
+      self.assertEqual(mad.qd._name, "qd")
+      self.assertEqual(mad.qd._parent, None)
+      self.assertEqual(mad.qd._mad, mad._MAD__process)
       self.assertEqual(mad.qd.knl, [0, 0.25])
       self.assertEqual(mad.qd.l, 1)
 
       sdc = sd
       mad["sd"] = sd
       del sd
-      self.assertEqual(mad.sd.__name__, "sd")
-      self.assertEqual(mad.sd.__parent__, None)
-      self.assertEqual(mad.sd.__mad__, mad._MAD__process)
+      self.assertEqual(mad.sd._name, "sd")
+      self.assertEqual(mad.sd._parent, None)
+      self.assertEqual(mad.sd._mad, mad._MAD__process)
       self.assertEqual(mad.sd.knl, [0, 0.25, 0.5])
       self.assertEqual(mad.sd.l, 1)
 
       #Reference counting
       qd = mad.quadrupole(knl=[0, 0.3], l = 1)
-      self.assertEqual(sdc.__name__, "__last__[2]")
-      self.assertEqual(qd.__name__, "__last__[3]")
+      self.assertEqual(sdc._name, "_last[2]")
+      self.assertEqual(qd._name, "_last[3]")
       self.assertEqual(qd.knl, [0, 0.3])
       qd = mad.quadrupole(knl=[0, 0.25], l = 1)
-      self.assertEqual(qd.__name__, "__last__[1]") 
+      self.assertEqual(qd._name, "_last[1]") 
 
-  def test_call__last__(self):
+  def test_call_last(self):
     with MAD() as mad:
       mad.send("func_test = \\a-> \\b-> \\c-> a+b*c")
       self.assertRaises(TypeError, lambda: mad.MAD())
