@@ -6,6 +6,7 @@ __all__ = ["mad_process"]
 
 
 def is_private(varname):
+  assert isinstance(varname, str), "Variable name to receive must be a string"
   if varname[0] == "_" and varname[:6] != "_last[":
     return True
   return False

@@ -313,7 +313,10 @@ _last = {}
     self.__process.send_vars(**dict(zip(var_name, var)))
 
   def __getitem__(self, var_name: str) -> Any:
-    return self.__process.recv_vars(var_name)
+    if isinstance(var_name, tuple):
+      return self.__process.recv_vars(*var_name)
+    else:
+      return self.__process.recv_vars(var_name)
 
   # ----------------------------------------------------------------------------------------------#
 
