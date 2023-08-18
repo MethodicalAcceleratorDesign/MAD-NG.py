@@ -3,7 +3,7 @@ from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
 import os, platform
 
-bin_path = os.path.dirname(os.path.abspath(__file__)).replace("src/pymadng", "bin")
+bin_path = os.path.dirname(os.path.abspath(__file__)) + "/../../bin"
 
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
@@ -19,6 +19,22 @@ This may cause problems if the argument is a mutable object such as a list or a 
 If the function modifies the object (e.g., by appending an item to a list), the default value is modified.
 Source: https://google.github.io/styleguide/pyguide.html
 """
+# --------------------- Overload recv_ref functions ---------------------- #
+
+# Override the type of reference created by python.
+def recv_ref(self: mad_process) -> madhl_ref:
+  return madhl_ref(self.varname, self)
+
+def recv_obj(self: mad_process) -> madhl_obj:
+  return madhl_obj(self.varname, self)
+
+def recv_fun(self: mad_process) -> madhl_fun:
+  return madhl_fun(self.varname, self)
+
+type_fun["ref_"]["recv"] = recv_ref
+type_fun["obj_"]["recv"] = recv_obj
+type_fun["fun_"]["recv"] = recv_fun
+# ------------------------------------------------------------------------ #
 
 
 class MAD(object):
@@ -52,33 +68,18 @@ class MAD(object):
     Returns:
       A MAD object, allowing for communication with MAD-NG
     """
-    # --------------------- Overload recv_ref functions ---------------------- #
-    lst_cntr = last_counter(num_temp_vars)
-
-    # Override the type of reference created by python.
-    def recv_ref(self: mad_process) -> madhl_ref:
-      return madhl_ref(self.varname, self, lst_cntr)
-
-    def recv_obj(self: mad_process) -> madhl_obj:
-      return madhl_obj(self.varname, self, lst_cntr)
-
-    def recv_fun(self: mad_process) -> madhl_fun:
-      return madhl_fun(self.varname, self, lst_cntr)
-
-    type_fun["ref_"]["recv"] = recv_ref
-    type_fun["obj_"]["recv"] = recv_obj
-    type_fun["fun_"]["recv"] = recv_fun
-    # ------------------------------------------------------------------------ #
 
     # ------------------------- Create the process --------------------------- #
     mad_path = mad_path or bin_path + "/mad_" + platform.system()
     self.__process = mad_process(mad_path, py_name, debug)
     self.__process.ipython_use_jedi = ipython_use_jedi
+    self.__process.lst_cntr = last_counter(num_temp_vars)
     # ------------------------------------------------------------------------ #
 
     ## Store the relavent objects into a function to get reference objects
-    self.__mad_reflast = lambda: madhl_reflast(self.__process, lst_cntr)
-    self.__mad_ref = lambda name: madhl_ref(name, self.__process, lst_cntr)
+    self.__mad_reflast = lambda: madhl_reflast(self.__process)
+    self.__mad_ref = lambda name: madhl_ref(name, self.__process)
+    
     if not ipython_use_jedi:  # Stop jedi running getattr on my classes...
       try:
         ipython = get_ipython()

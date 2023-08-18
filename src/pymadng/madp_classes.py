@@ -2,7 +2,6 @@ from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
 from .madp_pymad import mad_process, mad_ref, type_str, is_private
 from .madp_strings import get_args_string, get_kwargs_string
-from .madp_last import last_counter
 
 # TODO: Are you able to store the actual parent?
 # TODO: Allow __setitem__ to work with multiple indices (Should be a simple recursive loop)
@@ -11,12 +10,12 @@ MADX_methods = ["load", "open_env", "close_env"]
 
 
 class madhl_ref(mad_ref):
-  def __init__(self, name: str, mad_proc: mad_process, last_counter: last_counter):
+  def __init__(self, name: str, mad_proc: mad_process):
     super(madhl_ref, self).__init__(name, mad_proc)
     self._parent = (
       "[" in name and "[".join(name.split("[")[:-1]) or None
     )  # if name is compound, get parent by string manipulation
-    self._lst_cntr = last_counter
+    self._lst_cntr = mad_proc.lst_cntr
 
   def __setattr__(self, item, value):
     if is_private(item):
@@ -62,7 +61,7 @@ class madhl_ref(mad_ref):
       return self.__gOp__(rhs, "==").eval()
 
   def __gOp__(self, rhs, operator: str):
-    rtrn = madhl_reflast(self._mad, self._lst_cntr)
+    rtrn = madhl_reflast(self._mad)
     self._mad.psend(
       f"{rtrn._name} = {self._name} {operator} {self._mad.py_name}:recv()"
     ).send(rhs)
@@ -115,7 +114,7 @@ class madhl_obj(madhl_ref):
     return varnames
 
   def __call__(self, *args, **kwargs):
-    last_obj = madhl_objlast(self._mad, self._lst_cntr)
+    last_obj = madhl_objlast(self._mad)
     kwargs_str, kwargs_to_send = get_kwargs_string(self._mad.py_name, **kwargs)
     args_str, args_to_send = get_args_string(self._mad.py_name, *args)
 
@@ -142,7 +141,7 @@ class madhl_fun(madhl_ref):
   # ----------------------------------Calling/Creating functions--------------------------------------#
   def __call_func(self, funcName: str, *args):
     """Call the function funcName and store the result in ``_last``."""
-    rtrn_ref = madhl_reflast(self._mad, self._lst_cntr)
+    rtrn_ref = madhl_reflast(self._mad)
     args_string, vars_to_send = get_args_string(self._mad.py_name, *args)
     self._mad.send(
       f"{rtrn_ref._name} = __mklast__({funcName}({args_string}))\n"
@@ -179,12 +178,12 @@ class madhl_fun(madhl_ref):
 
 # Separate class for _last objects for simplicity and fewer if statements
 class madhl_last:  # The init and del for a _last object
-  def __init__(self, mad_proc: mad_process, last_counter: last_counter):
-    self._lastnum = last_counter.get()
-    self._name = f"_last[{self._lastnum}]"
+  def __init__(self, mad_proc: mad_process):
     self._mad = mad_proc
-    self._parent = "_last"
-    self._lst_cntr = last_counter
+    self._lst_cntr = mad_proc.lst_cntr
+    self._lastnum  = mad_proc.lst_cntr.get()
+    self._name     = f"_last[{self._lastnum}]"
+    self._parent   =  "_last"
 
   def __del__(self):
     self._lst_cntr.set(self._lastnum)
