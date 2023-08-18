@@ -4,8 +4,8 @@ class last_counter:
 
   def get(self):
     assert (
-        len(self.counter) != 0
-    ), "Assigned too many anonymous, variables, increase num_temp_vars or assign the variables into MAD"
+        len(self.counter) > 0
+    ), "Assigned too many anonymous variables, increase num_temp_vars or assign the variables into MAD"
     return self.counter.pop()
 
   def set(self, idx):
