@@ -1,11 +1,11 @@
 include pyproject.toml
 
-# Include the README
+# Include the README and CHANGELOG
 include *.md
 
 # Include the license file
 include LICENSE
 
 #Include the MAD Files
-include src/pymadng/mad_Linux
-include src/pymadng/mad_Darwin
+include src/pymadng/bin/mad_Linux
+include src/pymadng/bin/mad_Darwin

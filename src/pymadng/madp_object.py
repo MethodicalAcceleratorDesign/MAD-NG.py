@@ -3,7 +3,7 @@ from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
 import os, platform
 
-bin_path = os.path.dirname(os.path.abspath(__file__)) + "/../../bin"
+bin_path = os.path.dirname(os.path.abspath(__file__)) + "/bin"
 
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
