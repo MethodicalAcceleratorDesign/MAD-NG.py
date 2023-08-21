@@ -1,2 +1,0 @@
-src/pymadng/bin/mad_Darwin filter=lfs diff=lfs merge=lfs -text
-src/pymadng/bin/mad_Linux filter=lfs diff=lfs merge=lfs -text
