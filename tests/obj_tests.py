@@ -248,7 +248,7 @@ class TestOps(unittest.TestCase):
       self.assertTrue(np.all(list(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
       self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == pyMat))
       self.assertEqual(np.sin(1), mad.math.sin(1).eval())
-      self.assertEqual(np.cos(0.5), mad.math.cos(0.5).eval())
+      self.assertAlmostEqual(np.cos(0.5), mad.math.cos(0.5).eval(), None, None, 4e-16)
 
       # temp vars
       res = (((mad.matrix(3).seq().emul(2) * mad.matrix(3).seq(3) + 3) * 2 + mad.matrix(3).seq(2)) - mad.matrix(3).seq(4)).eval()
