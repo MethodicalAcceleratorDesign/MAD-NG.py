@@ -3,15 +3,10 @@
 
 name: Python package
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+on: workflow_dispatch
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,11 +20,16 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Get MAD Binaries
+      run: |
+        mkdir src/pymadng/bin 
+        curl http://madx.web.cern.ch/madx/releases/madng/0.9/mad-linux-0.9.6 -o src/pymadng/bin/mad_Linux
+        curl http://madx.web.cern.ch/madx/releases/madng/0.9/mad-macos-0.9.6 -o src/pymadng/bin/mad_Darwin
+        chmod +x src/pymadng/bin/mad_Linux src/pymadng/bin/mad_Darwin
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install .
     - name: Test with python
       run: |
-        cd tests/
         python -m unittest tests/*
