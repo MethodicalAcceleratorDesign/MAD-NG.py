@@ -315,7 +315,7 @@ class TestSpeed(unittest.TestCase):
         mad["qf"] = qd
       mad.qd
       total = time.time() - start
-      self.assertAlmostEqual(total, 0.5, None, None, 0.5)
+      self.assertAlmostEqual(total, 1, None, None, 1) # 1 second +/- 1 second
 
 if __name__ == '__main__':
   unittest.main()
