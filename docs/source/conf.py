@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath("../../src/pymadng/"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'PyMAD-NG'
-copyright = '2022, Joshua Gray, Laurent Deniau'
+copyright = '2023, Joshua Gray, Laurent Deniau'
 author = 'Joshua Gray, Laurent Deniau'
 import pymadng
 release = pymadng.__version__
