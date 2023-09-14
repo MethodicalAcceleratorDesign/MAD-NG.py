@@ -35,4 +35,4 @@ dependencies = [
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "foo.__version__"}
+version = {attr = "pymadng.__version__"}
