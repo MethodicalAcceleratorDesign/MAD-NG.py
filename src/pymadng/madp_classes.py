@@ -137,7 +137,7 @@ class madhl_obj(madhl_ref):
       raise StopIteration
 
   def to_df(self):
-    """Converts the object to a pandas dataframe"""
+    """Converts the object to a pandas dataframe, thanks to Pierre Schnizer for the idea and code."""
     if not self._mad.precv(f"MAD.typeid.is_mtable({self._name})"):
       raise TypeError("Object is not a table, cannot convert to dataframe")
     
