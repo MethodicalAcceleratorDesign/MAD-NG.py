@@ -136,6 +136,50 @@ class madhl_obj(madhl_ref):
     except IndexError:
       raise StopIteration
 
+  def to_df(self):
+    """Converts the object to a pandas dataframe"""
+    if not self._mad.precv(f"MAD.typeid.is_mtable({self._name})"):
+      raise TypeError("Object is not a table, cannot convert to dataframe")
+    
+    import pandas as pd
+    py_name, name = self._mad.py_name, self._name
+    self._mad.send(f"""
+-- Get the column names and column count
+local colnames = {name}:colnames()
+{py_name}:send({name}:ncol())
+
+-- Loop through all the columns and send them
+for i, colname in ipairs(colnames) do
+  local col = {name}:getcol(colname)
+
+  -- If the column is a reference, convert it to a table
+  if not MAD.typeid.is_vector(col) or MAD.typeid.is_table(col) then
+    local tbl = table.new(#col, 0)
+    for i, val in ipairs(col) do tbl[i] = val end
+    col = tbl
+  end
+
+  -- Send the column
+  {py_name}:send(colname):send(col)
+end
+
+-- Get the header names and send the count
+local header = {self._name}.header
+{py_name}:send(#header)
+
+-- Loop through all the header names and send them
+for i, attr in ipairs(header) do 
+  {py_name}:send({self._name}[attr]):send(attr)
+end
+""")
+    ncol = self._mad.recv()     
+    df = pd.DataFrame.from_dict(
+      {self._mad.recv(): np.array(self._mad.recv()).squeeze() for _ in range(ncol)}
+      )
+    for _ in range(self._mad.recv()):
+      df.attrs[self._mad.recv()] = self._mad.recv()
+    return df
+  
 
 class madhl_fun(madhl_ref):
   # ----------------------------------Calling/Creating functions--------------------------------------#
