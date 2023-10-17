@@ -24,7 +24,10 @@ with MAD(debug=False) as mad:
         mad.py_strs_to_mad_strs(["name", "kind", "s", "l", "angle", "x", "y", "z", "theta"]),
         )
 
+    import time
+    start = time.time()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.ps, method=6, nslice=3, chrom=True)
+    print("twiss time:", time.time() - start)
 
     mad.load("MAD.gphys", "melmcol")
     #Add element properties as columns
@@ -40,5 +43,11 @@ with MAD(debug=False) as mad:
             "dpx", "mu1", "mu2", "l", "angle", "k0l", "k1l", "k2l", "k3l", "hkick", "vkick"]),
         ).eval()
     #.eval() so tws:write() can be finished before MAD is shutdown
+
+    start = time.time()
+    df = mad.mtbl.to_df()
+    print("to_df time:", time.time() - start)
+    print(df)
+    print(df.attrs)
 
 os.chdir(orginal_dir)
