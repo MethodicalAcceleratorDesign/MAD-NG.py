@@ -87,14 +87,12 @@ class madhl_ref(mad_ref):
     name = self._name
     if name[:5] == "_last":
       name = name + ".__metatable or " + name
-    script = f"""
+    self._mad.psend(f"""
     local modList={{}}; local i = 1;
     for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
     {self._mad.py_name}:send(modList)
-    """
-    self._mad.psend(script)
-    varnames = [x for x in self._mad.recv() if isinstance(x, str) and x[0] != "_"]
-    return varnames
+    """)
+    return [x for x in self._mad.recv() if isinstance(x, str) and x[0] != "_"]
 
 
 class madhl_obj(madhl_ref):
@@ -133,7 +131,7 @@ class madhl_obj(madhl_ref):
       raise StopIteration
 
   def to_df(self, columns: list = None):
-    """Converts the object to a pandas dataframe, thanks to Pierre Schnizer for the idea and code.
+    """Converts the object to a pandas dataframe.
 
     This function imports pandas and tfs-pandas, if tfs-pandas is not installed, it will only return a pandas dataframe.
 
@@ -156,7 +154,7 @@ class madhl_obj(madhl_ref):
       DataFrame, header = pd.DataFrame, "attrs"
 
     py_name, name = self._mad.py_name, self._name
-    self._mad.send(
+    self._mad.send( # Sending every value individually is slow (sending vectors is fast)
       f"""
 -- Get the column names and column count
 {py_name}:send({name}:ncol())
@@ -165,11 +163,16 @@ class madhl_obj(madhl_ref):
 for i, colname in ipairs({name}:colnames()) do
   local col = {name}:getcol(colname)
 
-  -- If the column is a reference, convert it to a table
-  if not MAD.typeid.is_vector(col) or MAD.typeid.is_table(col) then
+  -- If the column is not a vector and has a metatable, then convert it to a table (reference or generator columns)
+  if not MAD.typeid.is_vector(col) and getmetatable(col) then
     local tbl = table.new(#col, 0)
-    for i, val in ipairs(col) do tbl[i] = val end
-    col = tbl
+    conv_to_vec = true
+    for i, val in ipairs(col) do 
+      tbl[i] = val 
+      -- From testing, checking if I can convert to a vector is faster than sending the table
+      conv_to_vec = conv_to_vec and MAD.typeid.is_number(val)
+    end
+    col = conv_to_vec and MAD.vector(tbl) or tbl
   end
 
   -- Send the column name and the column data
