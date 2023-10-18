@@ -1,4 +1,4 @@
-import time
+import time, pandas
 from pymadng import MAD
 
 import numpy as np
@@ -24,7 +24,6 @@ with MAD(debug=False) as mad:
         mad.py_strs_to_mad_strs(["name", "kind", "s", "l", "angle", "x", "y", "z", "theta"]),
         )
 
-    import time
     start = time.time()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.ps, method=6, nslice=3, chrom=True)
     print("twiss time:", time.time() - start)

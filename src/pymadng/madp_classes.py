@@ -93,9 +93,7 @@ class madhl_ref(mad_ref):
     {self._mad.py_name}:send(modList)
     """
     self._mad.psend(script)
-    varnames = [
-      x for x in self._mad.recv() if isinstance(x, str) and x[0] != "_"
-    ]
+    varnames = [x for x in self._mad.recv() if isinstance(x, str) and x[0] != "_"]
     return varnames
 
 
@@ -108,9 +106,7 @@ class madhl_obj(madhl_ref):
     varnames = self._mad.precv(f"{self._name}:get_varkeys(MAD.object, false)")
 
     if not self._mad.ipython_use_jedi:
-      varnames.extend(
-        [x + "()" for x in self._mad.recv() if not x in varnames]
-      )
+      varnames.extend([x + "()" for x in self._mad.recv() if not x in varnames])
     return varnames
 
   def __call__(self, *args, **kwargs):
@@ -136,20 +132,37 @@ class madhl_obj(madhl_ref):
     except IndexError:
       raise StopIteration
 
-  def to_df(self):
-    """Converts the object to a pandas dataframe, thanks to Pierre Schnizer for the idea and code."""
+  def to_df(self, columns: list = None):
+    """Converts the object to a pandas dataframe, thanks to Pierre Schnizer for the idea and code.
+
+    This function imports pandas and tfs-pandas, if tfs-pandas is not installed, it will only return a pandas dataframe.
+
+    Args:
+            columns (list, optional): List of columns to include in the dataframe. Defaults to None.
+
+    Returns:
+            pandas.DataFrame or tfs.TfsDataFrame: The dataframe containing the object's data.
+    """
     if not self._mad.precv(f"MAD.typeid.is_mtable({self._name})"):
       raise TypeError("Object is not a table, cannot convert to dataframe")
-    
+
     import pandas as pd
+
+    try:
+      import tfs
+
+      DataFrame, header = tfs.TfsDataFrame, "headers"
+    except ImportError:
+      DataFrame, header = pd.DataFrame, "attrs"
+
     py_name, name = self._mad.py_name, self._name
-    self._mad.send(f"""
+    self._mad.send(
+      f"""
 -- Get the column names and column count
-local colnames = {name}:colnames()
 {py_name}:send({name}:ncol())
 
--- Loop through all the columns and send them
-for i, colname in ipairs(colnames) do
+-- Loop through all the column names and send them with their data
+for i, colname in ipairs({name}:colnames()) do
   local col = {name}:getcol(colname)
 
   -- If the column is a reference, convert it to a table
@@ -159,7 +172,7 @@ for i, colname in ipairs(colnames) do
     col = tbl
   end
 
-  -- Send the column
+  -- Send the column name and the column data
   {py_name}:send(colname):send(col)
 end
 
@@ -169,17 +182,32 @@ local header = {self._name}.header
 
 -- Loop through all the header names and send them
 for i, attr in ipairs(header) do 
-  {py_name}:send({self._name}[attr]):send(attr)
+  {py_name}:send(attr):send({self._name}[attr])
 end
-""")
-    ncol = self._mad.recv()     
-    df = pd.DataFrame.from_dict(
-      {self._mad.recv(): np.array(self._mad.recv()).squeeze() for _ in range(ncol)}
+"""
+    )
+    # Get the columns and header from the mad process
+    full_tbl = {  # Not keen on the .squeeze() but it works (ng always sends 2D arrays, but I need the columns in 1D)
+      self._mad.recv(): np.array(self._mad.recv()).squeeze()
+      for _ in range(self._mad.recv())  # Evaluated first
+    }
+
+    # Check if the user wants all the columns or just a few
+    if columns:
+      df = DataFrame.from_dict(
+        {key: val for key, val in full_tbl.items() if key in columns}
       )
-    for _ in range(self._mad.recv()):
-      df.attrs[self._mad.recv()] = self._mad.recv()
+    else:
+      df = DataFrame.from_dict(full_tbl)
+
+    # Get the header and add it to the dataframe
+    setattr(
+      df,
+      header,
+      {self._mad.recv(): self._mad.recv() for _ in range(self._mad.recv())},
+    )
     return df
-  
+
 
 class madhl_fun(madhl_ref):
   # ----------------------------------Calling/Creating functions--------------------------------------#
@@ -187,9 +215,7 @@ class madhl_fun(madhl_ref):
     """Call the function funcName and store the result in ``_last``."""
     rtrn_ref = madhl_reflast(self._mad)
     args_string, vars_to_send = get_args_string(self._mad.py_name, *args)
-    self._mad.send(
-      f"{rtrn_ref._name} = __mklast__({funcName}({args_string}))\n"
-    )
+    self._mad.send(f"{rtrn_ref._name} = __mklast__({funcName}({args_string}))\n")
     for var in vars_to_send:
       self._mad.send(var)
     return rtrn_ref
@@ -225,9 +251,9 @@ class madhl_last:  # The init and del for a _last object
   def __init__(self, mad_proc: mad_process):
     self._mad = mad_proc
     self._lst_cntr = mad_proc.lst_cntr
-    self._lastnum  = mad_proc.lst_cntr.get()
-    self._name     = f"_last[{self._lastnum}]"
-    self._parent   =  "_last"
+    self._lastnum = mad_proc.lst_cntr.get()
+    self._name = f"_last[{self._lastnum}]"
+    self._parent = "_last"
 
   def __del__(self):
     self._lst_cntr.set(self._lastnum)

@@ -14,8 +14,8 @@ from .madp_last import last_counter
 # TODO: Make it so that MAD does the loop for variables not python (speed)
 # TODO: Review recv_and exec:
 """
-Default arguments are evaluated once at module load time. 
-This may cause problems if the argument is a mutable object such as a list or a dictionary. 
+Default arguments are evaluated once at module load time.
+This may cause problems if the argument is a mutable object such as a list or a dictionary.
 If the function modifies the object (e.g., by appending an item to a list), the default value is modified.
 Source: https://google.github.io/styleguide/pyguide.html
 """
