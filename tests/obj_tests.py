@@ -1,4 +1,4 @@
-import unittest, os, time
+import unittest, os, time, sys, tfs, pandas
 
 from pymadng import MAD
 from pymadng.madp_classes import madhl_ref, madhl_obj, madhl_fun
@@ -299,6 +299,84 @@ class TestDir(unittest.TestCase):
       self.assertEqual(dir(mad.quadrupole(knl=[0, 0.3], l = 1)), quad_exp) #Dir of instance of class should be the same as the class
       self.assertEqual(dir(mad.quadrupole(asd = 10, qwe = 20)), sorted(quad_exp + ["asd", "qwe"])) #Adding to the instance should change the dir
 
+class TestDataFrame(unittest.TestCase):
+
+  def generalDataFrame(self, headers, DataFrame):
+    mad = MAD()
+    mad.send("""
+test = mtable{
+    {"string"}, "number", "integer", "complex", "boolean", "list", "table", "range",! "generator",
+    name     = "test",
+    header   = {"string", "number", "integer", "complex", "boolean", "list", "table", "range"},
+    string   = "string",
+    number   = 1.234567890,
+    integer  = 12345670,
+    complex  = 1.3 + 1.2i,
+    boolean  = true,
+    list     = {1, 2, 3, 4, 5},
+    table    = {1, 2, ["key"] = "value"},
+    range    = 1..11,
+}
+    + {"a", 1.1, 1, 1 + 2i, true , {1, 2 }, {1 , 2 , ["3" ] = 3 }, 1..11,}
+    + {"b", 2.2, 2, 2 + 3i, false, {3, 4 }, {4 , 5 , ["6" ] = 6 }, 2..12,}
+    + {"c", 3.3, 3, 3 + 4i, true , {5, 6 }, {7 , 8 , ["9" ] = 9 }, 3..13,}
+    + {"d", 4.4, 4, 4 + 5i, false, {7, 8 }, {10, 11, ["12"] = 12}, 4..14,}
+    + {"e", 5.5, 5, 5 + 6i, true , {9, 10}, {13, 14, ["15"] = 15}, 5..15,}
+
+test:addcol("generator", \\ri, m -> m:getcol("number")[ri] + 1i * m:getcol("number")[ri])
+test:write("test")
+             """
+    )
+    df = mad.test.to_df()
+    self.assertTrue(isinstance(df, DataFrame))
+    self.assertEqual(getattr(df, headers)["name"], "test")
+    self.assertEqual(getattr(df, headers)["string"], "string")
+    self.assertEqual(getattr(df, headers)["number"], 1.234567890)
+    self.assertEqual(getattr(df, headers)["integer"], 12345670)
+    self.assertEqual(getattr(df, headers)["complex"], 1.3 + 1.2j)
+    self.assertEqual(getattr(df, headers)["boolean"], True)
+    self.assertEqual(getattr(df, headers)["list"], [1, 2, 3, 4, 5])
+    lst, hsh = getattr(df, headers)["table"]
+    self.assertEqual(lst, [1, 2])
+    self.assertEqual(hsh["key"], "value")
+
+    self.assertEqual(df["string"].tolist(), ["a", "b", "c", "d", "e"])
+    self.assertEqual(df["number"].tolist(), [1.1, 2.2, 3.3, 4.4, 5.5])
+    self.assertEqual(df["integer"].tolist(), [1, 2, 3, 4, 5])
+    self.assertEqual(df["complex"].tolist(), [1 + 2j, 2 + 3j, 3 + 4j, 4 + 5j, 5 + 6j])
+    self.assertEqual(df["boolean"].tolist(), [True, False, True, False, True])
+    self.assertEqual(df["list"].tolist(), [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]])
+    tbl = df["table"].tolist()
+    for i in range(len(tbl)):
+      lst, hsh = tbl[i]
+      self.assertEqual(lst, [i*3 + 1, i*3 + 2])
+      self.assertEqual(hsh[str((i+1) * 3)], (i+1) * 3)
+    self.assertEqual(
+      df["range"].tolist(), 
+      [range(1, 12), range(2, 13), range(3, 14), range(4, 15), range(5, 16)]
+    )
+  
+  def testTfsDataFrame(self):
+    self.generalDataFrame("headers", tfs.TfsDataFrame)
+  
+  def testPandasDataFrame(self):
+    sys.modules["tfs"] = None #Remove tfs-pandas
+    self.generalDataFrame("attrs", pandas.DataFrame)
+    del sys.modules["tfs"]
+  
+  def testFailure(self):
+    with MAD() as mad:
+      mad.send("""
+test = mtable{"string", "number"} + {"a", 1.1} + {"b", 2.2}
+               """)
+      pandas = sys.modules["pandas"]
+      sys.modules["pandas"] = None
+      self.assertRaises(ImportError, lambda: mad.test.to_df())
+      sys.modules["pandas"] = pandas
+      df = mad.test.to_df()
+      self.assertTrue(isinstance(df, tfs.TfsDataFrame))
+      self.assertEqual(df["string"].tolist(), ["a", "b"])
+      self.assertEqual(df["number"].tolist(), [1.1, 2.2])
 
 class TestSpeed(unittest.TestCase):
 

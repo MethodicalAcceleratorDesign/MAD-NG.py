@@ -153,15 +153,16 @@ class madhl_obj(madhl_ref):
     except ImportError:
       DataFrame, header = pd.DataFrame, "attrs"
 
-    py_name, name = self._mad.py_name, self._name
+    py_name, obj_name = self._mad.py_name, self._name
     self._mad.send( # Sending every value individually is slow (sending vectors is fast)
       f"""
--- Get the column names and column count
-{py_name}:send({name}:ncol())
+-- Get the column names 
+colnames = {obj_name}:colnames()
+{py_name}:send(colnames)
 
 -- Loop through all the column names and send them with their data
-for i, colname in ipairs({name}:colnames()) do
-  local col = {name}:getcol(colname)
+for i, colname in ipairs(colnames) do
+  local col = {obj_name}:getcol(colname)
 
   -- If the column is not a vector and has a metatable, then convert it to a table (reference or generator columns)
   if not MAD.typeid.is_vector(col) and getmetatable(col) then
@@ -175,33 +176,39 @@ for i, colname in ipairs({name}:colnames()) do
     col = conv_to_vec and MAD.vector(tbl) or tbl
   end
 
-  -- Send the column name and the column data
-  {py_name}:send(colname):send(col)
+  -- Send the column data
+  {py_name}:send(col)
 end
 
 -- Get the header names and send the count
-local header = {self._name}.header
-{py_name}:send(#header)
+local header = {obj_name}.header
+{py_name}:send(header)
 
 -- Loop through all the header names and send them
 for i, attr in ipairs(header) do 
-  {py_name}:send(attr):send({self._name}[attr])
+  {py_name}:send({obj_name}[attr])
 end
 """
     )
     # Create the dataframe from the data sent
+    colnames = self._mad.recv()
+    full_tbl = { # The string is in case references are within the table
+      col: self._mad.recv(f"{obj_name}:getcol('{col}')") for col in colnames
+    }
+
     # Not keen on the .squeeze() but it works (ng always sends 2D arrays, but I need the columns in 1D)
-    df = DataFrame.from_dict({
-      self._mad.recv(): np.array(self._mad.recv()).squeeze()
-      for _ in range(self._mad.recv())  # Evaluated first
-    })
+    for key, val in full_tbl.items():
+      if isinstance(val, np.ndarray):
+        full_tbl[key] = val.squeeze()
+    df = DataFrame(full_tbl)
 
     if columns:
       df = df[columns] # Only keep the columns specified
 
     # Get the header and add it to the dataframe
+    hnams = self._mad.recv()
     setattr(df, header,
-      {self._mad.recv(): self._mad.recv() for _ in range(self._mad.recv())},
+      {hnam: self._mad.recv(f"{obj_name}['{hnam}']") for hnam in hnams}
     )
     return df
 
