@@ -156,37 +156,32 @@ class madhl_obj(madhl_ref):
     py_name, obj_name = self._mad.py_name, self._name
     self._mad.send( # Sending every value individually is slow (sending vectors is fast)
       f"""
--- Get the column names 
-colnames = {obj_name}:colnames()
-{py_name}:send(colnames)
+local is_vector, is_number in MAD.typeid
+local colnames = {obj_name}:colnames() -- Get the column names 
+{py_name}:send(colnames)               -- Send the column names
 
 -- Loop through all the column names and send them with their data
 for i, colname in ipairs(colnames) do
   local col = {obj_name}:getcol(colname)
 
   -- If the column is not a vector and has a metatable, then convert it to a table (reference or generator columns)
-  if not MAD.typeid.is_vector(col) and getmetatable(col) then
-    local tbl = table.new(#col, 0)
-    conv_to_vec = true
+  if not is_vector(col) and getmetatable(col) then
+    local tbl, conv_to_vec = table.new(#col, 0), true
     for i, val in ipairs(col) do 
-      tbl[i] = val 
-      -- From testing, checking if I can convert to a vector is faster than sending the table
-      conv_to_vec = conv_to_vec and MAD.typeid.is_number(val)
+    -- From testing, checking if I can convert to a vector is faster than sending the table
+      conv_to_vec, tbl[i] = conv_to_vec and is_number(val), val
     end
     col = conv_to_vec and MAD.vector(tbl) or tbl
   end
 
-  -- Send the column data
-  {py_name}:send(col)
+  {py_name}:send(col) -- Send the column data
 end
 
--- Get the header names and send the count
-local header = {obj_name}.header
-{py_name}:send(header)
+local header = {obj_name}.header -- Get the header names 
+{py_name}:send(header)           -- Send the header names
 
--- Loop through all the header names and send them
 for i, attr in ipairs(header) do 
-  {py_name}:send({obj_name}[attr])
+  {py_name}:send({obj_name}[attr]) -- Send the header data
 end
 """
     )
