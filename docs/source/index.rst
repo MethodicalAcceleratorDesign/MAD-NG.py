@@ -16,6 +16,7 @@ Welcome to the documentation for PyMAD-NG!
    ex-managing-refs
    ex-fodo
    ex-lhc-couplingLocal
+   dataframes
    ex-recv-lhc
    examples
 

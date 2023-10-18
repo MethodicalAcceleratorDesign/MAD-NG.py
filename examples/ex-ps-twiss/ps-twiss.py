@@ -46,4 +46,6 @@ with MAD(debug=False) as mad:
         print("tfs-pandas not installed, so the header is stored in attrs instead of headers")
         print(df.attrs)
 
+    print(mad.srv.to_df())
+
 os.chdir(orginal_dir)
