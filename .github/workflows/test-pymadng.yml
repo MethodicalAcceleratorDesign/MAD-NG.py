@@ -3,7 +3,11 @@
 
 name: Test pymadng
 
-on: workflow_dispatch
+on: 
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
   build:
