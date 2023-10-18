@@ -7,6 +7,6 @@ The package `pandas` is an optional module, that has an inbuilt function to conv
     :lines: 18, 24, 41-49
     :linenos:
 
-In this script, we create the variables ``srv`` and ``mtbl`` which are ``mtable``s created by ``survey`` and ``twiss`` respectively. Then first, we convert the ``mtbl`` to a ``DataFrame`` and print it, before checking if you have `tfs-pandas` installed to check if we need to print out the header of the TFS table, which is stored in the attrs attribute of the ``DataFrame``, but is automatically printed when using `tfs-pandas`. Then we convert the ``srv`` to a ``DataFrame`` and print it.
+In this script, we create the variables ``srv`` and ``mtbl`` which are ``mtable``\ s created by ``survey`` and ``twiss`` respectively. Then first, we convert the ``mtbl`` to a ``DataFrame`` and print it, before checking if you have `tfs-pandas` installed to check if we need to print out the header of the TFS table, which is stored in the attrs attribute of the ``DataFrame``, but is automatically printed when using `tfs-pandas`. Then we convert the ``srv`` to a ``DataFrame`` and print it.
 
 Note: If your object is not an ``mtable`` then this function will raise a ``TypeError``, but it is available to call on all ``object`` types in MAD-NG.
