@@ -1,9 +1,6 @@
-import time
+import os, time, pandas
 from pymadng import MAD
 
-import numpy as np
-import matplotlib.pyplot as plt
-import os
 orginal_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -37,8 +34,18 @@ with MAD(debug=False) as mad:
     mad.mtbl.write("'PS_twiss_py.tfs'",
         mad.py_strs_to_mad_strs(
             ["name", "kind", "s", "x", "px", "beta11", "alfa11", "beta22", "alfa22","dx",
-            "dpx", "mu1", "mu2", "l", "angle", "k0l", "k1l", "k2l", "k3l", "hkick", "vkick"]),
-        ).eval()
-    #.eval() so tws:write() can be finished before MAD is shutdown
+            "dpx", "mu1", "mu2", "l", "angle", "k0l", "k1l", "k2l", "k3l", "hkick", "vkick"]
+            )
+        )
+    
+    df = mad.mtbl.to_df()
+    print(df)
+    try:
+        import tfs
+    except ImportError:
+        print("tfs-pandas not installed, so the header is stored in attrs instead of headers")
+        print(df.attrs)
+
+    print(mad.srv.to_df())
 
 os.chdir(orginal_dir)

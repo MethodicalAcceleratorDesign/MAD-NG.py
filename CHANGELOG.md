@@ -1,3 +1,7 @@
+0.4.2 (2023/10/18)
+
+Add `to_df` method to objects, allowing for easy conversion to pandas dataframes. \
+
 0.4.1 (2023/08/19)
 
 Change the way `send_vars` and `recv_vars` work, they now use kwargs and args respectively. \

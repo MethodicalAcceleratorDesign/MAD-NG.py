@@ -1,7 +1,15 @@
 API Reference
 =============
 
-.. toctree::
-   :maxdepth: 4
+PyMAD-NG Module contents
+------------------------
 
-   pymadng
+.. automodule:: pymadng
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Useful functions for MAD References
+-----------------------------------
+
+.. autofunction:: pymadng.madp_classes.madhl_obj.to_df
