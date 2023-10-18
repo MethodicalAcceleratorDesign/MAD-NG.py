@@ -189,24 +189,18 @@ for i, attr in ipairs(header) do
 end
 """
     )
-    # Get the columns and header from the mad process
-    full_tbl = {  # Not keen on the .squeeze() but it works (ng always sends 2D arrays, but I need the columns in 1D)
+    # Create the dataframe from the data sent
+    # Not keen on the .squeeze() but it works (ng always sends 2D arrays, but I need the columns in 1D)
+    df = DataFrame.from_dict({
       self._mad.recv(): np.array(self._mad.recv()).squeeze()
       for _ in range(self._mad.recv())  # Evaluated first
-    }
+    })
 
-    # Check if the user wants all the columns or just a few
     if columns:
-      df = DataFrame.from_dict(
-        {key: val for key, val in full_tbl.items() if key in columns}
-      )
-    else:
-      df = DataFrame.from_dict(full_tbl)
+      df = df[columns] # Only keep the columns specified
 
     # Get the header and add it to the dataframe
-    setattr(
-      df,
-      header,
+    setattr(df, header,
       {self._mad.recv(): self._mad.recv() for _ in range(self._mad.recv())},
     )
     return df
