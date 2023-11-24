@@ -340,12 +340,13 @@ class TestTPSA(unittest.TestCase):
   def test_send_recv_damap(self):
     with MAD() as mad:
       mad.send("""
+      py:__err(true)
       local sin in MAD.gmath
       MAD.gtpsad(6, 5)
       local M = MAD.damap {xy = 5}
-      M.x  = 1 ; M.y  = 2 ; M.t  = 3
-      M.px = 2 ; M.py = 1 ; M.pt = 1
-      res = sin(M.x) * sin(M.y)
+      M[1] = 1 ; M[3] = 2 ; M[5] = 3
+      M[2] = 2 ; M[4] = 1 ; M[6] = 1
+      res = sin(M[1]) * sin(M[3])
       py:send(res)
       recved = MAD.tpsa():fromtable(py:recv())
       py:send(recved)
