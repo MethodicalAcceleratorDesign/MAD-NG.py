@@ -1,3 +1,8 @@
+0.4.3 (2023/11/25)
+
+Update GitHub Actions to always use the latest version of MAD-NG \
+Update tests to be more robust.
+
 0.4.2 (2023/10/18)
 
 Add `to_df` method to objects, allowing for easy conversion to pandas dataframes. \
