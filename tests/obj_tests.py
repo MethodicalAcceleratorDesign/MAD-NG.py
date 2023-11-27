@@ -152,6 +152,13 @@ class TestObjFun(unittest.TestCase):
       mad.send("func_test = \\a-> \\b-> \\c-> a+b*c")
       self.assertRaises(TypeError, lambda: mad.MAD())
       self.assertEqual(mad.func_test(1)(2)(3), 7)
+  
+  def test_call_fail(self):
+    with MAD() as mad:
+      mad.send("func_test = \\a-> \\b-> \\c-> 'a'+b")
+      mad.func_test(1)(2)(3)
+      self.assertRaises(RuntimeError, lambda: mad.recv())
+      self.assertRaises(RuntimeError, lambda: mad.mtable.read("'abad.tfs'").eval())
 
   def test_call_func(self):
     with MAD() as mad:
@@ -377,7 +384,6 @@ test = mtable{"string", "number"} + {"a", 1.1} + {"b", 2.2}
       self.assertTrue(isinstance(df, tfs.TfsDataFrame))
       self.assertEqual(df["string"].tolist(), ["a", "b"])
       self.assertEqual(df["number"].tolist(), [1.1, 2.2])
-
 class TestSpeed(unittest.TestCase):
 
   def test_benchmark(self):

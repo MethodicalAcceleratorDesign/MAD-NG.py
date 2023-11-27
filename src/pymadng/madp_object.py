@@ -288,7 +288,7 @@ _last = {}
         f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
       )
     else:
-      script = f"local __req = require('{path}')"  
+      script = f"local __req = require('{path}')"
       for var in vars:
         script += f"{var} = __req.{var}\n"
       self.__process.send(script)

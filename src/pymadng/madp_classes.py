@@ -112,7 +112,7 @@ class madhl_obj(madhl_ref):
     kwargs_str, kwargs_to_send = get_kwargs_string(self._mad.py_name, **kwargs)
     args_str, args_to_send = get_args_string(self._mad.py_name, *args)
 
-    self._mad.send(
+    self._mad.psend(
       f"{last_obj._name} = __mklast__( {self._name} {{ {kwargs_str[1:-1]} {args_str} }} )"
     )
     for var in kwargs_to_send + args_to_send:
@@ -154,7 +154,7 @@ class madhl_obj(madhl_ref):
       DataFrame, header = pd.DataFrame, "attrs"
 
     py_name, obj_name = self._mad.py_name, self._name
-    self._mad.send( # Sending every value individually is slow (sending vectors is fast)
+    self._mad.psend( # Sending every value individually is slow (sending vectors is fast)
       f"""
 local is_vector, is_number in MAD.typeid
 local colnames = {obj_name}:colnames() -- Get the column names 
@@ -214,7 +214,7 @@ class madhl_fun(madhl_ref):
     """Call the function funcName and store the result in ``_last``."""
     rtrn_ref = madhl_reflast(self._mad)
     args_string, vars_to_send = get_args_string(self._mad.py_name, *args)
-    self._mad.send(f"{rtrn_ref._name} = __mklast__({funcName}({args_string}))\n")
+    self._mad.psend(f"{rtrn_ref._name} = __mklast__({funcName}({args_string}))\n")
     for var in vars_to_send:
       self._mad.send(var)
     return rtrn_ref
