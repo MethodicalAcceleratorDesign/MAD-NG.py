@@ -1,3 +1,7 @@
+0.4.5 (2024/01/17)
+
+No change, releasing with MAD 0.9.8
+
 0.4.4 (2023/11/27)
 
 Remove and test bug where pymadng is not made aware of error during calling an object, leading to returning of incorrect data.
