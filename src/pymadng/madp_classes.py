@@ -149,9 +149,9 @@ class madhl_obj(madhl_ref):
     try:
       import tfs
 
-      DataFrame, header = tfs.TfsDataFrame, "headers"
+      DataFrame, hattr = tfs.TfsDataFrame, "headers"
     except ImportError:
-      DataFrame, header = pd.DataFrame, "attrs"
+      DataFrame, hattr = pd.DataFrame, "attrs"
 
     py_name, obj_name = self._mad.py_name, self._name
     self._mad.psend( # Sending every value individually is slow (sending vectors is fast)
@@ -177,7 +177,7 @@ for i, colname in ipairs(colnames) do
   {py_name}:send(col) -- Send the column data
 end
 
-local header = {obj_name}.header -- Get the header names 
+local header = {obj_name}.header -- Get the header names
 {py_name}:send(header)           -- Send the header names
 
 for i, attr in ipairs(header) do 
@@ -191,20 +191,21 @@ end
       col: self._mad.recv(f"{obj_name}:getcol('{col}')") for col in colnames
     }
 
+    # Get the header names and data
+    hnams = self._mad.recv()
+    header = {hnam: self._mad.recv(f"{obj_name}['{hnam}']") for hnam in hnams}
+    
     # Not keen on the .squeeze() but it works (ng always sends 2D arrays, but I need the columns in 1D)
     for key, val in full_tbl.items():
       if isinstance(val, np.ndarray):
         full_tbl[key] = val.squeeze()
+      
+    # Now create the dataframe
     df = DataFrame(full_tbl)
-
     if columns:
       df = df[columns] # Only keep the columns specified
+    setattr(df, hattr, header)
 
-    # Get the header and add it to the dataframe
-    hnams = self._mad.recv()
-    setattr(df, header,
-      {hnam: self._mad.recv(f"{obj_name}['{hnam}']") for hnam in hnams}
-    )
     return df
 
 

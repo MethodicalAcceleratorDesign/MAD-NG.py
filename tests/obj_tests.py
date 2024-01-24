@@ -363,15 +363,15 @@ test:write("test")
       [range(1, 12), range(2, 13), range(3, 14), range(4, 15), range(5, 16)]
     )
   
-  def testTfsDataFrame(self):
+  def test_tfsDataFrame(self):
     self.generalDataFrame("headers", tfs.TfsDataFrame)
   
-  def testPandasDataFrame(self):
+  def test_pandasDataFrame(self):
     sys.modules["tfs"] = None #Remove tfs-pandas
     self.generalDataFrame("attrs", pandas.DataFrame)
     del sys.modules["tfs"]
   
-  def testFailure(self):
+  def test_failure(self):
     with MAD() as mad:
       mad.send("""
 test = mtable{"string", "number"} + {"a", 1.1} + {"b", 2.2}
