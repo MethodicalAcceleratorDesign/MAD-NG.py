@@ -336,16 +336,17 @@ test:write("test")
     )
     df = mad.test.to_df()
     self.assertTrue(isinstance(df, DataFrame))
-    self.assertEqual(getattr(df, headers)["name"], "test")
-    self.assertEqual(getattr(df, headers)["string"], "string")
-    self.assertEqual(getattr(df, headers)["number"], 1.234567890)
-    self.assertEqual(getattr(df, headers)["integer"], 12345670)
-    self.assertEqual(getattr(df, headers)["complex"], 1.3 + 1.2j)
-    self.assertEqual(getattr(df, headers)["boolean"], True)
-    self.assertEqual(getattr(df, headers)["list"], [1, 2, 3, 4, 5])
-    lst, hsh = getattr(df, headers)["table"]
-    self.assertEqual(lst, [1, 2])
-    self.assertEqual(hsh["key"], "value")
+    header = getattr(df, headers)
+    self.assertEqual(header["name"], "test")
+    self.assertEqual(header["string"], "string")
+    self.assertEqual(header["number"], 1.234567890)
+    self.assertEqual(header["integer"], 12345670)
+    self.assertEqual(header["complex"], 1.3 + 1.2j)
+    self.assertEqual(header["boolean"], True)
+    self.assertEqual(header["list"], [1, 2, 3, 4, 5])
+    tbl = getattr(df, headers)["table"]
+    self.assertEqual([x for x in tbl], [1, 2])
+    self.assertEqual(tbl["key"], "value")
 
     self.assertEqual(df["string"].tolist(), ["a", "b", "c", "d", "e"])
     self.assertEqual(df["number"].tolist(), [1.1, 2.2, 3.3, 4.4, 5.5])
@@ -355,9 +356,9 @@ test:write("test")
     self.assertEqual(df["list"].tolist(), [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]])
     tbl = df["table"].tolist()
     for i in range(len(tbl)):
-      lst, hsh = tbl[i]
-      self.assertEqual(lst, [i*3 + 1, i*3 + 2])
-      self.assertEqual(hsh[str((i+1) * 3)], (i+1) * 3)
+      lst = tbl[i]
+      self.assertEqual([lst[0], lst[1]], [i*3 + 1, i*3 + 2])
+      self.assertEqual(lst[str((i+1) * 3)], (i+1) * 3)
     self.assertEqual(
       df["range"].tolist(), 
       [range(1, 12), range(2, 13), range(3, 14), range(4, 15), range(5, 16)]

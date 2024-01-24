@@ -87,10 +87,10 @@ class TestList(unittest.TestCase):
       list1 = mad.recv("list")
       list2 = mad.recv("list2")
       self.assertEqual(len(list1), 2)
-      self.assertEqual(list2[0], [1, 2, 3, 4, 5])
-      self.assertEqual(list2[1].a, 10)
-      self.assertEqual(list2[1].b, 3)
-      self.assertEqual(list2[1].c, 4)
+      self.assertEqual([x for x in list2], [1, 2, 3, 4, 5])
+      self.assertEqual(list2["a"], 10)
+      self.assertEqual(list2["b"], 3)
+      self.assertEqual(list2["c"], 4)
       self.assertEqual(list1[0].a, 2)
       self.assertEqual(list1[1].b, 2)
 
@@ -318,7 +318,7 @@ class TestTPSA(unittest.TestCase):
   def test_send_tpsa(self):
     with MAD() as mad:
       mad.send("""
-      local tab = py:recv()
+      tab = py:recv()
       py:send(tab)
       """)
       monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
@@ -329,7 +329,7 @@ class TestTPSA(unittest.TestCase):
   def test_send_ctpsa(self):
     with MAD() as mad:
       mad.send("""
-      local tab = py:recv()
+      tab = py:recv()
       py:send(tab)
       """)
       monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
