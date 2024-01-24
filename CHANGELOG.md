@@ -1,3 +1,7 @@
+0.4.6 (2024/01/17)
+
+No change, releasing with MAD 0.9.8-1
+
 0.4.5 (2024/01/17)
 
 No change, releasing with MAD 0.9.8
