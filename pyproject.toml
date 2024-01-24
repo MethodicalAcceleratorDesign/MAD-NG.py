@@ -38,5 +38,7 @@ where = ["src"]
 version = {attr = "pymadng.__version__"}
 
 [project.optional-dependencies]
-pandas = ["pandas>=1.0,<2.1.0"]
-tfs = ["tfs-pandas>3.0.0"]
+tfs = [
+  "pandas>=1.0,<2.1.0", 
+  "tfs-pandas>3.0.0"
+]
