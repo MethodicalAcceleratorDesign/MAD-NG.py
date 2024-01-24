@@ -23,8 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install pymadng
-        python -m pip install tfs-pandas
+        python -m pip install pymadng[tfs]
         
     - name: Test with python
       run: |
