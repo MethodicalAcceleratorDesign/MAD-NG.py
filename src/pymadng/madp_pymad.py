@@ -1,4 +1,4 @@
-import struct, os, subprocess, sys, select, warnings, io
+import struct, os, subprocess, sys, select
 from typing import Union, Callable, Any
 import numpy as np
 
@@ -178,17 +178,6 @@ class mad_ref(object):
   def eval(self):
     return self._mad.recv_vars(self._name)
   
-  def __deepcopy__(self, memo):
-
-    val = self.eval()
-    if isinstance(val, list):
-      for i, v in enumerate(val):
-        if isinstance(v, mad_ref):
-          val[i] = v.__deepcopy__(memo)
-    elif isinstance(val, type(self)) and val._name == self._name:
-      warnings.warn("An attempt to deepcopy a mad_ref has been made, this is not supported and will result in a copy of the reference.")
-    return val
-
 # data transfer -------------------------------------------------------------- #
 
 # Data ----------------------------------------------------------------------- #

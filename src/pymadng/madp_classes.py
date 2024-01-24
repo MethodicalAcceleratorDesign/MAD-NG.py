@@ -1,3 +1,4 @@
+import warnings # To warn the user when they try to deepcopy a mad_ref
 from typing import Iterable, Union, Any  # To make stuff look nicer
 import numpy as np
 from .madp_pymad import mad_process, mad_ref, type_str, is_private
@@ -93,6 +94,17 @@ class madhl_ref(mad_ref):
     {self._mad.py_name}:send(modList)
     """)
     return [x for x in self._mad.recv() if isinstance(x, str) and x[0] != "_"]
+
+  def __deepcopy__(self, memo):
+    val = self.eval()
+    if isinstance(val, list):
+      for i, v in enumerate(val):
+        if isinstance(v, mad_ref):
+          val[i] = v.__deepcopy__(memo)
+    elif isinstance(val, type(self)) and val._name == self._name:
+      warnings.warn("An attempt to deepcopy a mad_ref has been made, this is not supported and will result in a copy of the reference.")
+    return val
+
 
 
 class madhl_obj(madhl_ref):
