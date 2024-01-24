@@ -13,7 +13,7 @@ def is_private(varname):
 
 
 class mad_process:
-  def __init__(self, mad_path: str, py_name: str = "py", debug: bool = False) -> None:
+  def __init__(self, mad_path: str, py_name: str = "py", debug: bool = False, stdout = None) -> None:
     self.py_name = py_name
 
     # Create the pipes for communication
@@ -28,12 +28,22 @@ class mad_process:
       f"MAD.pymad '{py_name}' {{_dbg = {str(debug).lower()}}} :__ini({mad_write})"
     )
 
+    if stdout is None: stdout = sys.stdout
+    if hasattr(stdout, 'write'):
+        # Detect if stdout is attached to a jupyter notebook:
+        cls = getattr(stdout, '__class__', type(None))
+        qualname = cls.__module__ + '.' + cls.__name__
+        if qualname == 'ipykernel.iostream.OutStream': stdout = stdout.write
+        else: 
+            try:                                       stdout = stdout.fileno()
+            except (AttributeError, OSError, IOError): stdout = stdout.write
+
     # Start the process
     self.process = subprocess.Popen(
       [mad_path, "-q", "-e", startupChunk],
       bufsize=0,
       stdin=mad_read,  # Set the stdin of MAD to the read end of the pipe
-      stdout=sys.stdout.fileno(),  # Forward stdout
+      stdout=stdout,  # Forward stdout
       preexec_fn=os.setpgrp,  # Don't forward signals
       pass_fds=[
         mad_write,

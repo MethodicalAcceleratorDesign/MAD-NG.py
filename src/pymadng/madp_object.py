@@ -50,6 +50,7 @@ class MAD(object):
     mad_path: str = None,
     py_name: str = "py",
     debug: bool = False,
+    stdout = None,
     num_temp_vars: int = 8,
     ipython_use_jedi: bool = False,
   ):
@@ -71,7 +72,7 @@ class MAD(object):
 
     # ------------------------- Create the process --------------------------- #
     mad_path = mad_path or bin_path + "/mad_" + platform.system()
-    self.__process = mad_process(mad_path, py_name, debug)
+    self.__process = mad_process(mad_path, py_name, debug, stdout)
     self.__process.ipython_use_jedi = ipython_use_jedi
     self.__process.lst_cntr = last_counter(num_temp_vars)
     # ------------------------------------------------------------------------ #

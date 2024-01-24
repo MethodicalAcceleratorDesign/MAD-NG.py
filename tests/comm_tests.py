@@ -361,10 +361,14 @@ class TestTPSA(unittest.TestCase):
 class TestOutput(unittest.TestCase):
 
   def test_print(self):
-    with MAD() as mad:
-      mad.send("print('hello world')")
-      mad.send("py:send('hello world')")
-      self.assertEqual(mad.recv(), "hello world") # Check printing does not affect pipe
+    with open("test_print.txt", "w") as f:
+      with MAD(stdout=f) as mad:
+        mad.send("print('hello world')")
+        mad.send("py:send('hello world')")
+        self.assertEqual(mad.recv(), "hello world") # Check printing does not affect pipe
+    with open("test_print.txt", "r") as f:
+      self.assertEqual(f.read(), "hello world\n")
+    os.remove("test_print.txt")
 
 if __name__ == '__main__':
   unittest.main()
