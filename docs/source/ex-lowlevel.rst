@@ -1,5 +1,5 @@
-Low-Level Example Explained
-===========================
+Low-Level PyMAD-NG
+==================
 
 
 Sending and Receiving Multiple types
@@ -97,3 +97,17 @@ Then the second script explicitly sent to MAD-NG, extends the first script, so t
     :lines: 61-80
 
 On success of both scripts, the print command sent by MAD-NG will only be executed after the explicit print commands, visible in python
+
+Local and Global Scopes
+-----------------------
+
+If you are used to coding in MAD-NG, you will be familiar with the use of the statement ``local``, which allows you to define variables in the local scope. This is done because as you increase the number of global variables, the slower the code will run, and because otherwise you will get a warning from MAD-NG. In PyMAD-NG, it is not entirely necessary to use, but it is recommended in order to ensure scope management, however you will not get a warning if you do not use it. This is because every use of the ``mad.send()`` function is an separate scope, so if a variable is made local in one scope, it will not be available in another scope. If the ``local`` is ommitted, then the variable will exist within the scope of the ``MAD`` instance, and will be available to all subsequent calls to ``mad.send()``. To see this in action, see below:
+
+.. code:: python
+
+    mad.send("""
+    a = 10
+    local b = 20
+    print(a+b) -- 30
+    """)
+    mad.send("print(a+(b or 5))") # b is not defined, so it becomes a + 5 = 15
