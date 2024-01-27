@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/MethodicalAcceleratorDesign/MADpy"
+"Repository" = "https://github.com/MethodicalAcceleratorDesign/MADpy"
 "Bug Tracker" = "https://github.com/MethodicalAcceleratorDesign/MADpy/issues"
 "MAD Source" = "https://github.com/MethodicalAcceleratorDesign/MAD"
 "Documentation" = "https://pymadng.readthedocs.io/en/latest/"
