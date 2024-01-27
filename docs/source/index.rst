@@ -11,13 +11,13 @@ Welcome to the documentation for PyMAD-NG!
    :caption: Contents:
 
    gettingstarted
-   modules
    ex-lowlevel
+   highlevel
    ex-managing-refs
    ex-fodo
    ex-lhc-couplingLocal
    dataframes
-   ex-recv-lhc
+   modules
    examples
 
 
