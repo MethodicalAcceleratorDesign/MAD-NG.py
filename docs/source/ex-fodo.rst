@@ -1,5 +1,5 @@
-FODO Examples Explained
-=======================
+FODO Examples
+=============
 
 The file :ref:`ex-fodo/ex-fodos.py <ex-fodo>` has several methods of loading the same FODO cell and then plotting :math:`s` and :math:`\beta_{xx}` (known as beta11 in MAD-NG).
 
