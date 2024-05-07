@@ -193,20 +193,26 @@ def recv_dat(self: mad_process, dat_sz: int, dat_typ: np.dtype):
 
 # None ----------------------------------------------------------------------- #
 
-send_nil = lambda self, input: None
-recv_nil = lambda self: None
+def send_nil(self: mad_process, input):
+  return None
+
+def recv_nil(self: mad_process):
+  return None
 
 # Boolean -------------------------------------------------------------------- #
+def send_bool(self: mad_process, input: bool):
+  return self.fto_mad.write(struct.pack("?", input))
 
-send_bool = lambda self, input: self.fto_mad.write(struct.pack("?", input))
-recv_bool = lambda self: recv_dat(self, 1, np.bool_)[0]
+def recv_bool(self: mad_process) -> bool:
+  return recv_dat(self, 1, np.bool_)[0]
 
 # int32 ---------------------------------------------------------------------- #
 
-send_int = lambda self, input: send_dat(self, "i", input)
-recv_int = lambda self: recv_dat(self, 4, np.int32)[
-  0
-]  # Should it be a python int or a numpy int32?
+def send_int(self: mad_process, input: int):
+  return send_dat(self, "i", input)
+
+def recv_int(self: mad_process) -> int:
+  return recv_dat(self, 4, np.int32)[0]
 
 # String --------------------------------------------------------------------- #
 
@@ -217,23 +223,30 @@ def send_str(self: mad_process, input: str):
 
 
 def recv_str(self: mad_process) -> str:
-  return self.ffrom_mad.read(recv_int(self)).decode("utf-8")
+  res = self.ffrom_mad.read(recv_int(self)).decode("utf-8")
+  return res
 
 
 # number (float64) ----------------------------------------------------------- #
 
-send_num = lambda self, input: send_dat(self, "d", input)
-recv_num = lambda self: recv_dat(self, 8, np.float64)[0]
+def send_num(self: mad_process, input: float):
+  return send_dat(self, "d", input)
+
+def recv_num(self: mad_process) -> float:
+  return recv_dat(self, 8, np.float64)[0]
 
 # Complex (complex128) ------------------------------------------------------- #
 
-send_cpx = lambda self, input: send_dat(self, "dd", input.real, input.imag)
-recv_cpx = lambda self: recv_dat(self, 16, np.complex128)[0]
+def send_cpx(self: mad_process, input: complex):
+  return send_dat(self, "dd", input.real, input.imag)
+
+def recv_cpx(self: mad_process) -> complex:
+  return recv_dat(self, 16, np.complex128)[0]
 
 # Range ---------------------------------------------------------------------- #
 
-send_grng = lambda self, start, stop, size: send_dat(self, "ddi", start, stop, size)
-
+def send_grng(self, start: float, stop: float, size: int):
+  send_dat(self, "ddi", start, stop, size)
 
 def recv_rng(self: mad_process) -> np.ndarray:
   return np.linspace(*struct.unpack("ddi", self.ffrom_mad.read(20)))
@@ -245,7 +258,8 @@ def recv_lrng(self: mad_process) -> np.ndarray:
 
 # irange --------------------------------------------------------------------- #
 
-send_irng = lambda self, rng: send_dat(self, "iii", rng.start, rng.stop, rng.step)
+def send_irng(self: mad_process, rng: range):
+  return send_dat(self, "iii", rng.start, rng.stop, rng.step)
 
 def recv_irng(self: mad_process) -> range:
   start, stop, step = recv_dat(self, 12, np.int32)
@@ -266,9 +280,14 @@ def recv_gmat(self: mad_process, dtype: np.dtype) -> str:
   return recv_dat(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(shape)
 
 
-recv_mat = lambda self: recv_gmat(self, np.dtype("float64"))
-recv_cmat = lambda self: recv_gmat(self, np.dtype("complex128"))
-recv_imat = lambda self: recv_gmat(self, np.dtype("int32"))
+def recv_mat(self: mad_process) -> np.ndarray:
+  return recv_gmat(self, np.dtype("float64"))
+                   
+def recv_cmat(self: mad_process) -> np.ndarray:
+  return recv_gmat(self, np.dtype("complex128"))
+                   
+def recv_imat(self: mad_process) -> np.ndarray:
+  return recv_gmat(self, np.dtype("int32"))
 
 # monomial ------------------------------------------------------------------- #
 
@@ -277,7 +296,8 @@ def send_mono(self: mad_process, mono: np.ndarray):
   send_int(self, mono.size)
   self.fto_mad.write(mono.tobytes())
 
-recv_mono = lambda self: recv_dat(self, recv_int(self), np.ubyte)
+def recv_mono(self: mad_process) -> np.ndarray:
+  return recv_dat(self, recv_int(self), np.ubyte)
 
 # TPSA ----------------------------------------------------------------------- #
 
@@ -308,6 +328,12 @@ def recv_gtpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
   return mono_list, coefficients
 
 
+def recv_ctpa(self: mad_process):
+  return recv_gtpsa(self, np.dtype("complex128"))
+
+def recv_tpsa(self: mad_process):
+  return recv_gtpsa(self, np.dtype("float64"))
+
 recv_ctpa = lambda self: recv_gtpsa(self, np.dtype("complex128"))
 recv_tpsa = lambda self: recv_gtpsa(self, np.dtype("float64"))
 
@@ -334,8 +360,11 @@ def recv_list(self: mad_process) -> list:
 
 # object (table with metatable are treated as pure reference) ---------------- #
 
-recv_ref = lambda self: mad_ref(self.varname, self)
-send_ref = lambda self, obj: send_str(self, f"return {obj._name}")
+def recv_ref(self: mad_process):
+  return mad_ref(self.varname, self)
+
+def send_ref(self, obj: mad_ref):
+  return send_str(self, f"return {obj._name}")
 
 # error ---------------------------------------------------------------------- #
 
