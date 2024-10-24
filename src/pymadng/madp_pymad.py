@@ -1,4 +1,9 @@
-import struct, os, subprocess, sys, select
+import struct
+import os
+import subprocess 
+import sys
+import select
+import signal
 from typing import Union, Callable, Any
 import numpy as np
 
@@ -13,7 +18,7 @@ def is_private(varname):
 
 
 class mad_process:
-  def __init__(self, mad_path: str, py_name: str = "py", debug: bool = False) -> None:
+  def __init__(self, mad_path: str, py_name: str = "py", debug: Union[int, str, bool] = False) -> None:
     self.py_name = py_name
 
     # Create the pipes for communication
@@ -23,21 +28,38 @@ class mad_process:
     # Open the pipes for communication to MAD (the stdin of MAD)
     self.fto_mad = os.fdopen(self.to_mad, "wb", buffering=0)
 
+    if isinstance(debug, str):
+      debug_file = open(debug, "w")
+      stdout = debug_file.fileno()
+    elif isinstance(debug, bool):
+      stdout = sys.stdout.fileno()
+    elif isinstance(debug, int):
+      stdout = debug
+    else:
+      raise TypeError("Debug must be a file name, file descriptor or a boolean")
+
     # Create a chunk of code to start the process
     startupChunk = (
-      f"MAD.pymad '{py_name}' {{_dbg = {str(debug).lower()}}} :__ini({mad_write})"
+      f"MAD.pymad '{py_name}' {{_dbg = {str(bool(debug)).lower()}}} :__ini({mad_write})"
     )
+    original_sigint_handler = signal.getsignal(signal.SIGINT)
+    def delete_process(sig, frame):
+        self.process.terminate()  # In case user left mad waiting
+        self.fto_mad.close()
+        self.process.wait()
+        signal.signal(signal.SIGINT, original_sigint_handler)
+        raise KeyboardInterrupt("MAD process was interrupted, and has been deleted")
+    signal.signal(signal.SIGINT, delete_process)  # Delete the process if interrupted
 
     # Start the process
     self.process = subprocess.Popen(
       [mad_path, "-q", "-e", startupChunk],
       bufsize=0,
       stdin=mad_read,  # Set the stdin of MAD to the read end of the pipe
-      stdout=sys.stdout.fileno(),  # Forward stdout
-      preexec_fn=os.setpgrp,  # Don't forward signals
+      stdout=stdout,  # Forward stdout
       pass_fds=[
         mad_write,
-        sys.stdout.fileno(),
+        stdout,
         sys.stderr.fileno(),
       ],  # Don't close these (python closes all fds by default)
     )
@@ -51,17 +73,19 @@ class mad_process:
 
     # Open the pipe from MAD (this is where MAD will no longer hang)
     self.ffrom_mad = os.fdopen(self.from_mad, "rb")
+    self.history = "" # Begin the recording of the history
 
     # stdout should be line buffered by default, but for jupyter notebook,
     # stdout is redirected and not line buffered by default
-    self.send(
-      f"""io.stdout:setvbuf('line')
-    {self.py_name}:send(1)"""
-    )
+    self.send("io.stdout:setvbuf('line')")
+    
+    # Check if MAD started successfully
+    self.send(f"{self.py_name}:send(1)")
+    checker = select.select([self.ffrom_mad], [], [], 10)  # May not work on windows
 
     # Check if MAD started successfully using select
-    checker = select.select([self.ffrom_mad], [], [], 1)  # May not work on windows
     if not checker[0] or self.recv() != 1:  # Need to check number?
+      del self
       raise OSError(f"Unsuccessful starting of {mad_path} process")
 
   def send_rng(self, start: float, stop: float, size: int):
@@ -140,10 +164,17 @@ class mad_process:
   # -------------------------------------------------------------------------- #
 
   def __del__(self):
-    self.send(f"{self.py_name}:__fin()")
-    self.ffrom_mad.close()
-    self.process.terminate()  # In case user left mad waiting
-    self.fto_mad.close()
+    if self.process.poll() is None: # If process is still running
+      self.send(f"{self.py_name}:__fin()") # Tell the mad side to finish
+      self.process.terminate() # Terminate the process on the python side
+
+    # Close the pipes
+    if not self.ffrom_mad.closed:  
+      self.ffrom_mad.close()
+    if not self.fto_mad.closed: 
+      self.fto_mad.close()
+    
+    # Wait for the process to finish
     self.process.wait()
 
 
@@ -218,6 +249,7 @@ def recv_int(self: mad_process) -> int:
 
 
 def send_str(self: mad_process, input: str):
+  self.history += input + "\n"
   send_int(self, len(input))
   self.fto_mad.write(input.encode("utf-8"))
 

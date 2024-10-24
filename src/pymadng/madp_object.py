@@ -1,7 +1,8 @@
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
-import os, platform
+import os
+import platform
 
 bin_path = os.path.dirname(os.path.abspath(__file__)) + "/bin"
 
@@ -49,7 +50,7 @@ class MAD(object):
     self,
     mad_path: str = None,
     py_name: str = "py",
-    debug: bool = False,
+    debug: Union[int, str, bool]  = False,
     num_temp_vars: int = 8,
     ipython_use_jedi: bool = False,
   ):
@@ -394,6 +395,21 @@ _last = {}
       A list of strings indicating the globals variables and modules within the MAD-NG environment
     """
     return dir(self.__process.recv_vars(f"{self.py_name}._env"))
+  
+  def history(self) -> str:
+    """Retrieve the history of strings that have been sent to MAD-NG
+
+    Returns:
+      A string containing the history of commands that have been sent to MAD-NG
+    """
+    # delete all lines that start py:__err and end with __err(false)\n
+    history = self.__process.history
+    history = history.split("\n")
+    history = [
+      x for x in history[2:] if not "py:__err" in x
+    ]
+    return "\n".join(history)
+
 
   # -------------------------------For use with the "with" statement-----------------------------------#
   def __enter__(self):
