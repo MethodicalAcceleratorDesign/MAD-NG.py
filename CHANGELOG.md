@@ -1,3 +1,8 @@
+0.5.0 (2024/10/30)
+
+Add `history` method to get the history of communication of strings to MAD-NG. \
+Rename a significant amount of the code to be more readable. \
+
 0.4.6 (2024/01/17)
 
 No change, releasing with MAD 0.9.8-1
