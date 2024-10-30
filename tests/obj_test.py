@@ -385,7 +385,7 @@ test = mtable{"string", "number"} + {"a", 1.1} + {"b", 2.2}
       self.assertTrue(isinstance(df, tfs.TfsDataFrame))
       self.assertEqual(df["string"].tolist(), ["a", "b"])
       self.assertEqual(df["number"].tolist(), [1.1, 2.2])
-class TestSpeed(unittest.TestCase):
+# class TestSpeed(unittest.TestCase):
 
   # def test_benchmark(self):
   #   with MAD() as mad:
