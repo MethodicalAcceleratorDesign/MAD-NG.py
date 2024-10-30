@@ -1,11 +1,10 @@
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
-import os
+from pathlib import Path
 import platform
 
-bin_path = os.path.dirname(os.path.abspath(__file__)) + "/bin"
-
+bin_path = Path(__file__).parent.resolve() / "bin"
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
 from .madp_pymad import mad_process, type_fun, is_private
@@ -71,7 +70,7 @@ class MAD(object):
     """
 
     # ------------------------- Create the process --------------------------- #
-    mad_path = mad_path or bin_path + "/mad_" + platform.system()
+    mad_path = mad_path or bin_path / ("mad_" + platform.system())
     self.__process = mad_process(mad_path, py_name, debug)
     self.__process.ipython_use_jedi = ipython_use_jedi
     self.__process.lst_cntr = last_counter(num_temp_vars)

@@ -6,6 +6,7 @@ import select
 import signal
 from typing import Union, Callable, Any
 import numpy as np
+from pathlib import Path
 
 __all__ = ["mad_process"]
 
@@ -18,8 +19,12 @@ def is_private(varname):
 
 
 class mad_process:
-  def __init__(self, mad_path: str, py_name: str = "py", debug: Union[int, str, bool] = False) -> None:
+  def __init__(self, mad_path: Union[str, Path], py_name: str = "py", debug: Union[int, str, bool] = False) -> None:
     self.py_name = py_name
+
+    mad_path = Path(mad_path)
+    if not mad_path.exists():
+      raise FileNotFoundError(f"Could not find MAD executable at {mad_path}")
 
     # Create the pipes for communication
     self.mad_output_pipe, mad_write = os.pipe()
@@ -53,7 +58,7 @@ class mad_process:
 
     # Start the process
     self.process = subprocess.Popen(
-      [mad_path, "-q", "-e", startupChunk],
+      [str(mad_path), "-q", "-e", startupChunk],
       bufsize=0,
       stdin=mad_read,  # Set the stdin of MAD to the read end of the pipe
       stdout=stdout,  # Forward stdout
