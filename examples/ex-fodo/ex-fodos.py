@@ -17,7 +17,7 @@ with MAD() as mad:
     mad.load("MADX", "seq")
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
-    cols = mad.py_strs_to_mad_strs(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
+    cols = mad.quote_strings(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
     mad.mtbl.write("'twiss_py.tfs'", cols)
     for x in mad.seq:
         print(x.name, x.kind)
@@ -30,7 +30,7 @@ with MAD() as mad:
     mad["circum", "lcell"] = 60, 20
 
     mad.load("math", "sin", "pi")
-    mad["v"] = mad.deferred(k="1/(lcell/sin(pi/4)/4)")
+    mad["v"] = mad.create_deferred_expression(k="1/(lcell/sin(pi/4)/4)")
 
     mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l=1)
     mad["qd"] = mad.quadrupole("knl:={0, -v.k}", l=1)
@@ -44,7 +44,7 @@ with MAD() as mad:
         """, refer="'entry'", l=mad.circum,)
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
-    cols = mad.py_strs_to_mad_strs(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
+    cols = mad.quote_strings(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
     mad.mtbl.write("'twiss_py.tfs'", cols)
 
     plt.plot(mad.mtbl.s, mad.mtbl["beta11"])

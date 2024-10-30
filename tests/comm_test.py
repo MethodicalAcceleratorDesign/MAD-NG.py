@@ -226,8 +226,8 @@ class TestRngs(unittest.TestCase):
       py:send(lrng:totable())
       """)
       mad.send(range(3, 10, 1))
-      mad.send_rng(3.5, 21.4, 14)
-      mad.send_lrng(1, 20, 20)
+      mad.send_range(3.5, 21.4, 14)
+      mad.send_logrange(1, 20, 20)
       self.assertEqual(mad.recv(), list(range(4, 12, 1)))
       self.assertTrue (np.allclose(mad.recv(), np.linspace(5.5, 23.4, 14)))
       self.assertTrue (np.allclose(mad.recv(), np.geomspace(1, 20, 20)))
@@ -334,7 +334,7 @@ class TestTPSA(unittest.TestCase):
       """)
       monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
       coefficients = [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]
-      mad.send_ctpsa(monos, coefficients)
+      mad.send_cpx_tpsa(monos, coefficients)
       self.assertTrue(mad.recv("tab"), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
 
   def test_send_recv_damap(self):

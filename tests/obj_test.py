@@ -186,9 +186,9 @@ class TestObjFun(unittest.TestCase):
       notLast = {mult_rtrn()}
       """)
       
-      mad["o11", "o12", "o13", "o2"] = mad._MAD__mad_ref("last_rtn")
-      mad["p11", "p12", "p13", "p2"] = mad._MAD__mad_ref("notLast")
-      mad["objCpy"] = mad._MAD__mad_ref("lastobj") #Test single object in __mklast__
+      mad["o11", "o12", "o13", "o2"] = mad._MAD__get_mad_ref("last_rtn")
+      mad["p11", "p12", "p13", "p2"] = mad._MAD__get_mad_ref("notLast")
+      mad["objCpy"] = mad._MAD__get_mad_ref("lastobj") #Test single object in __mklast__
       self.assertEqual(mad.o11.a, 1)
       self.assertEqual(mad.o11.b, 2)
       self.assertEqual(mad.o12.a, 1)

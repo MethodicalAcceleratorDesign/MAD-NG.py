@@ -75,7 +75,7 @@ else:
         # METHOD 2
         mad["circum", "lcell"] = 60, 20
         mad["deferred"] = mad.MAD.typeid.deferred
-        mad["v"] = mad.deferred(f = "lcell/math.sin(math.pi/4)/4", k = "1/v.f")
+        mad["v"] = mad.create_deferred_expression(f = "lcell/math.sin(math.pi/4)/4", k = "1/v.f")
 
         mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l = 1)
         mad["qd"] = mad.quadrupole("knl:={0,  -v.k}", l = 1)

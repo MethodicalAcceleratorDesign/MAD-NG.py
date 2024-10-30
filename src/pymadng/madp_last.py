@@ -1,4 +1,5 @@
 class last_counter:
+  """A very simple class to keep track of the special variable named '__last__' in MAD-NG"""
   def __init__(self, size: int):
     self.counter = list(range(size, 0, -1))
 

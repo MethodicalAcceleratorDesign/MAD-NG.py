@@ -21,7 +21,7 @@ with MAD() as mad:
         "'invalid number of elements %d in LHCB1 (6694 expected)'", "#lhcb1")
     
     mad.lhcb1.beam = mad.beam(particle="'proton'", energy=mad.nrj)
-    mad.MADX_env_send("""
+    mad.evaluate_in_madx_environment("""
     ktqx1_r2 = -ktqx1_l2 ! remove the link between these 2 vars
     kqsx3_l2 = -0.0015
     kqsx3_r2 = +0.0015
