@@ -35,11 +35,11 @@ jobs:
         mkdir ./src/pymadng/bin 
         curl http://madx.web.cern.ch/madx/releases/madng/madng-linux-latest -o ./src/pymadng/bin/mad_Linux
         curl http://madx.web.cern.ch/madx/releases/madng/madng-macos-latest -o ./src/pymadng/bin/mad_Darwin
-        chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install -e .[tfs]
     - name: Test with python
       run: |
+        chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
         python -m unittest tests/*
