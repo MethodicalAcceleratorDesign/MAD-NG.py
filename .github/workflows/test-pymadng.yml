@@ -32,11 +32,10 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Get MAD Binaries
       run: |
-        working-directory: ./src/pymadng
-        mkdir bin 
-        curl http://madx.web.cern.ch/madx/releases/madng/madng-linux-latest -o ./bin/mad_Linux
-        curl http://madx.web.cern.ch/madx/releases/madng/madng-macos-latest -o ./bin/mad_Darwin
-        chmod +x ./bin/mad_Linux ./bin/mad_Darwin
+        mkdir ./src/pymadng/bin 
+        curl http://madx.web.cern.ch/madx/releases/madng/madng-linux-latest -o ./src/pymadng/bin/mad_Linux
+        curl http://madx.web.cern.ch/madx/releases/madng/madng-macos-latest -o ./src/pymadng/bin/mad_Darwin
+        chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
