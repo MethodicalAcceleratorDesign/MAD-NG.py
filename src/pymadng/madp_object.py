@@ -1,24 +1,24 @@
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 from typing import Any, Iterable, Union, List  # To make stuff look nicer
 
-import os, platform
+from pathlib import Path
+import platform
 
-bin_path = os.path.dirname(os.path.abspath(__file__)) + "/bin"
-
+bin_path = Path(__file__).parent.resolve() / "bin"
 # Custom Classes:
 from .madp_classes import madhl_ref, madhl_obj, madhl_fun, madhl_reflast
 from .madp_pymad import mad_process, type_fun, is_private
-from .madp_strings import get_kwargs_string
+from .madp_strings import format_kwargs_to_string
 from .madp_last import last_counter
 
-# TODO: Make it so that MAD does the loop for variables not python (speed)
-# TODO: Review recv_and exec:
+# TODO: Make it so that MAD does the loop for variables not python (speed) (jgray 2023)
+# TODO: Review recv_and exec: 
 """
 Default arguments are evaluated once at module load time.
 This may cause problems if the argument is a mutable object such as a list or a dictionary.
 If the function modifies the object (e.g., by appending an item to a list), the default value is modified.
 Source: https://google.github.io/styleguide/pyguide.html
-"""
+""" # (jgray 2023)
 # --------------------- Overload recv_ref functions ---------------------- #
 
 # Override the type of reference created by python.
@@ -49,7 +49,7 @@ class MAD(object):
     self,
     mad_path: str = None,
     py_name: str = "py",
-    debug: bool = False,
+    debug: Union[int, str, bool]  = False,
     num_temp_vars: int = 8,
     ipython_use_jedi: bool = False,
   ):
@@ -70,15 +70,15 @@ class MAD(object):
     """
 
     # ------------------------- Create the process --------------------------- #
-    mad_path = mad_path or bin_path + "/mad_" + platform.system()
+    mad_path = mad_path or bin_path / ("mad_" + platform.system())
     self.__process = mad_process(mad_path, py_name, debug)
     self.__process.ipython_use_jedi = ipython_use_jedi
     self.__process.lst_cntr = last_counter(num_temp_vars)
     # ------------------------------------------------------------------------ #
 
     ## Store the relavent objects into a function to get reference objects
-    self.__mad_reflast = lambda: madhl_reflast(self.__process)
-    self.__mad_ref = lambda name: madhl_ref(name, self.__process)
+    self.__get_mad_reflast = lambda: madhl_reflast(self.__process)
+    self.__get_mad_ref = lambda name: madhl_ref(name, self.__process)
     
     if not ipython_use_jedi:  # Stop jedi running getattr on my classes...
       try:
@@ -105,6 +105,7 @@ class MAD(object):
     self.load("MAD", *modulesToImport)
     self.__MAD_version__ = self.MAD.env.version
 
+    # Send a function to MAD-NG to create a list in the return or a single value
     self.send(
       """
 function __mklast__ (a, b, ...)
@@ -141,19 +142,19 @@ _last = {}
     """See :meth:`recv`"""
     return self.__process.recv(varname)
 
-  def recv_and_exec(self, env: dict = {}) -> dict:
+  def recv_and_exec(self, context: dict = {}) -> dict:
     """Receive a string from MAD-NG and execute it.
 
     Note: The class numpy and the instance of this object are available during the execution as ``np`` and ``mad`` respectively
 
     Args:
-      env (dict): The environment you would like the string to be executed in.
+      context (dict): The environment context you would like the string to be executed in.
 
     Returns:
       The updated environment after executing the string.
     """
-    env["mad"] = self
-    return self.__process.recv_and_exec(env)
+    context["mad"] = self
+    return self.__process.recv_and_exec(context)
 
   # --------------------------------Sending data to subprocess------------------------------------#
   def send(self, data: Union[str, int, float, np.ndarray, bool, list]):
@@ -172,7 +173,7 @@ _last = {}
     self.__process.send(data)
     return self
 
-  def send_rng(self, start: float, stop: float, size: int):
+  def send_range(self, start: float, stop: float, size: int):
     """Send a range to MAD-NG, equivalent to np.linspace, but in MAD-NG.
 
     Args:
@@ -180,9 +181,9 @@ _last = {}
       stop (float): The end of range (inclusive)
       size (float): The length of range
     """
-    self.__process.send_rng(start, stop, size)
+    self.__process.send_range(start, stop, size)
 
-  def send_lrng(self, start: float, stop: float, size: int):
+  def send_logrange(self, start: float, stop: float, size: int):
     """Send a numpy array as a logrange to MAD-NG, equivalent to np.geomspace, but in MAD-NG.
 
     Args:
@@ -190,7 +191,7 @@ _last = {}
       stop (float): The end of range (inclusive)
       size (float): The length of range
     """
-    self.__process.send_lrng(start, stop, size)
+    self.__process.send_logrange(start, stop, size)
 
   def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
     """Send the monomials and coefficients of a TPSA to MAD
@@ -208,7 +209,7 @@ _last = {}
     """
     self.__process.send_tpsa(monos, coefficients)
 
-  def send_ctpsa(self, monos: np.ndarray, coefficients: np.ndarray):
+  def send_cpx_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
     """Send the monomials and coefficients of a complex TPSA to MAD-NG
 
     The combination of monomials and coefficients creates a table representing the complex TPSA object in MAD-NG.
@@ -219,7 +220,7 @@ _last = {}
     Raises:
       See: :meth:`send_tpsa`.
     """
-    self.__process.send_ctpsa(monos, coefficients)
+    self.__process.send_cpx_tpsa(monos, coefficients)
 
   # ---------------------------------------------------------------------------------------------------------#
 
@@ -267,7 +268,7 @@ _last = {}
     """
     script = ""
     if vars == ():
-      vars = [x.strip("()") for x in dir(self.__mad_ref(module))]
+      vars = [x.strip("()") for x in dir(self.__get_mad_ref(module))]
     for className in vars:
       script += f"""{className} = {module}.{className}\n"""
     self.__process.send(script)
@@ -330,11 +331,11 @@ _last = {}
     Returns:
       The evaluated result.
     """
-    rtrn = self.__mad_reflast()
+    rtrn = self.__get_mad_reflast()
     self.send(f"{rtrn._name} =" + input)
     return rtrn.eval()
 
-  def MADX_env_send(self, input: str):
+  def evaluate_in_madx_environment(self, input: str):
     """Open the MAD-X environment in MAD-NG and directly send code.
 
     Args:
@@ -342,8 +343,8 @@ _last = {}
     """
     return self.__process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
 
-  def py_strs_to_mad_strs(self, input: Union[str, List[str]]):
-    """Add ' to either side of a string or each string in a list of strings
+  def quote_strings(self, input: Union[str, List[str]]):
+    """Add ' to either side of a string or each string in a list of strings.
 
     Args:
       input(str/list[str]): The string(s) that you would like to add ' either side to each string.
@@ -360,7 +361,7 @@ _last = {}
 
   # ---------------------------------------------------------------------------------------------------#
 
-  def deferred(self, **kwargs):
+  def create_deferred_expression(self, **kwargs):
     """Create a deferred expression object
 
     For the deferred expression object, the kwargs are used as the deffered expressions, with ``=`` replaced
@@ -372,8 +373,8 @@ _last = {}
     Returns:
       A reference to the deffered expression object.
     """
-    rtrn = self.__mad_reflast()
-    kwargs_string, vars_to_send = get_kwargs_string(self.py_name, **kwargs)
+    rtrn = self.__get_mad_reflast()
+    kwargs_string, vars_to_send = format_kwargs_to_string(self.py_name, **kwargs)
     self.__process.send(
       f"{rtrn._name} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"
     )
@@ -394,6 +395,21 @@ _last = {}
       A list of strings indicating the globals variables and modules within the MAD-NG environment
     """
     return dir(self.__process.recv_vars(f"{self.py_name}._env"))
+  
+  def history(self) -> str:
+    """Retrieve the history of strings that have been sent to MAD-NG
+
+    Returns:
+      A string containing the history of commands that have been sent to MAD-NG
+    """
+    # delete all lines that start py:__err and end with __err(false)\n
+    history = self.__process.history
+    history = history.split("\n")
+    history = [
+      x for x in history[2:] if not "py:__err" in x
+    ]
+    return "\n".join(history)
+
 
   # -------------------------------For use with the "with" statement-----------------------------------#
   def __enter__(self):

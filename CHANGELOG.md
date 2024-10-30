@@ -1,3 +1,11 @@
+0.5.0 (2024/10/30)
+
+Add `history` method to get the history of communication of strings to MAD-NG. \
+Rename a significant amount of the code to be more readable. \
+Allow debug mode to be set to a string, which will be the file that the debug information is written to. \
+Remove support for Python EOL, now only supporting Python 3.9 and above. \
+Change how ctrl-c is handled, now it will raise a KeyboardInterrupt error and delete the MAD process. \
+
 0.4.6 (2024/01/17)
 
 No change, releasing with MAD 0.9.8-1

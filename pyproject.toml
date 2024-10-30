@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 name = "pymadng"
 dynamic = ["version"]
 authors = [
-  { name="Joshua Gray", email="joshua.mark.gray@cern.ch" },
+  { name="Joshua Gray" },
 ]
 description = "A python interface to MAD-NG running as subprocess"
 readme = "README.md"
