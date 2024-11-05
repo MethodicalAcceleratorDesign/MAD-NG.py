@@ -161,6 +161,7 @@ class high_level_mad_object(high_level_mad_ref):
             raise StopIteration
     
     def to_df(self, columns: list = None): # For backwards compatibility (jgray 2024)
+        """See `convert_to_dataframe`"""
         return self.convert_to_dataframe(columns)
 
     def convert_to_dataframe(self, columns: list = None):
@@ -169,10 +170,10 @@ class high_level_mad_object(high_level_mad_ref):
         This function imports pandas and tfs-pandas, if tfs-pandas is not installed, it will only return a pandas dataframe.
 
         Args:
-                columns (list, optional): List of columns to include in the dataframe. Defaults to None.
+            columns (list, optional): List of columns to include in the dataframe. Defaults to None.
 
         Returns:
-                pandas.DataFrame or tfs.TfsDataFrame: The dataframe containing the object's data.
+            pandas.DataFrame or tfs.TfsDataFrame: The dataframe containing the object's data.
         """
         if not self._mad.protected_variable_retrieval(f"MAD.typeid.is_mtable({self._name})"):
             raise TypeError("Object is not a table, cannot convert to dataframe")
