@@ -206,7 +206,8 @@ class mad_process:
             self.send(f"{self.py_name}:__fin()")  # Tell the mad side to finish
             open_pipe = select.select([self.mad_read_stream], [], [], 10)
             if open_pipe[0]:
-                close_msg = self.recv()  # Wait for the mad side to finish
+                # Wait for the mad side to finish (variable name in case of errors that need to be caught elsewhere)
+                close_msg = self.recv("closing")
                 if close_msg != "<closing pipe>":
                     Warning(
                         f"Unexpected message received: {close_msg}, MAD-NG may not have completed properly"
