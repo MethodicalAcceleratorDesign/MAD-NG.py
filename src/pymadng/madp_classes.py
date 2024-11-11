@@ -33,7 +33,7 @@ class high_level_mad_ref(mad_ref):
             # If the attribute is private, set it as a normal attribute
             return super(high_level_mad_ref, self).__setattr__(item, value)
         # Otherwise, set the item as a variable in the MAD-NG process
-        self[item] = (value)
+        self[item] = value
 
     def __setitem__(
         self,
@@ -48,7 +48,7 @@ class high_level_mad_ref(mad_ref):
             raise TypeError(
                 "Cannot index type of ", type(item), "expected string or int"
             )
-        self._mad.send_vars(**{f"{self._name}[{item+1}]": value})
+        self._mad.send_vars(**{f"{self._name}[{item}]": value})
 
     def __add__(self, rhs):
         return self.__generate_operation__(rhs, "+")
@@ -159,8 +159,8 @@ class high_level_mad_object(high_level_mad_ref):
             return self[self._iterindex]
         except IndexError:
             raise StopIteration
-    
-    def to_df(self, columns: list = None): # For backwards compatibility (jgray 2024)
+
+    def to_df(self, columns: list = None):  # For backwards compatibility (jgray 2024)
         """See `convert_to_dataframe`"""
         return self.convert_to_dataframe(columns)
 
@@ -175,7 +175,9 @@ class high_level_mad_object(high_level_mad_ref):
         Returns:
             pandas.DataFrame or tfs.TfsDataFrame: The dataframe containing the object's data.
         """
-        if not self._mad.protected_variable_retrieval(f"MAD.typeid.is_mtable({self._name})"):
+        if not self._mad.protected_variable_retrieval(
+            f"MAD.typeid.is_mtable({self._name})"
+        ):
             raise TypeError("Object is not a table, cannot convert to dataframe")
 
         import pandas as pd
