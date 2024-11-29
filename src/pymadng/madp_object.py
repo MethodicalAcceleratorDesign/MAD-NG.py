@@ -64,7 +64,7 @@ class MAD(object):
         self,
         mad_path: str | Path = None,
         py_name: str = "py",
-        debug: int | str | bool = False,
+        debug: int | str | Path | bool = False,
         num_temp_vars: int = 8,
         ipython_use_jedi: bool = False,
     ):
@@ -76,7 +76,7 @@ class MAD(object):
         Args:
           mad_path (str): The path to the mad executable, for the default value of None, the one that comes with pymadng package will be used
           py_name (str): The name used to interact with the python process from MAD
-          debug (bool): Sets debug mode on or off
+          debug (int| str | Path | bool): Sets debug mode on or off. If an int is given, it is expected to be a file descriptor. If a string or Path is given, it is expected to be a file path, and will open this file to write to. If true, it will write to the stdout, and if false no debug information will be written.
           num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>`
           ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
 
@@ -222,6 +222,7 @@ _last = {}
           AssertionError: The number of monomials and coefficients must be identical.
           AssertionError: The monomials must be of type 8-bit unsigned integer
         """
+        print("Sending TPSA")
         self.__process.send_tpsa(monos, coefficients)
 
     def send_cpx_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
@@ -306,7 +307,8 @@ _last = {}
         else:
             # The parent/stem is necessary, otherwise the file will not be found
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)
-            script = f"local __req = require('{path.parent/path.stem}')"
+            script = f"package.path = '{path.parent}/?.mad;' .. package.path\n"
+            script += f"local __req = require('{path.stem}')"
             for var in vars:
                 script += f"{var} = __req.{var}\n"
             self.__process.send(script)

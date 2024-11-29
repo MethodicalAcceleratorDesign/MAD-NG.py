@@ -29,7 +29,7 @@ class mad_process:
         self,
         mad_path: str | Path,
         py_name: str = "py",
-        debug: int | str | bool = False,
+        debug: int | str | Path | bool = False,
     ) -> None:
         self.py_name = py_name
 
@@ -44,9 +44,10 @@ class mad_process:
         # Open the pipes for communication to MAD (the stdin of MAD)
         self.mad_input_stream = os.fdopen(self.mad_input_pipe, "wb", buffering=0)
 
-        if isinstance(debug, str):
-            debug_file = open(debug, "w")
-            stdout = debug_file.fileno()
+        if isinstance(debug, str) or isinstance(debug, Path):
+            debug = Path(debug)
+            self.debug_file = open(debug, "w")
+            stdout = self.debug_file.fileno()
         elif isinstance(debug, bool):
             stdout = sys.stdout.fileno()
         elif isinstance(debug, int):
@@ -213,6 +214,12 @@ class mad_process:
                         f"Unexpected message received: {close_msg}, MAD-NG may not have completed properly"
                     )
             self.process.terminate()  # Terminate the process on the python side
+        
+        # Close the debug file if it exists
+        try:
+            self.debug_file.close()
+        except AttributeError:
+            pass
 
         # Close the pipes
         if not self.mad_read_stream.closed:

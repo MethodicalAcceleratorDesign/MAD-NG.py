@@ -59,7 +59,7 @@ class TestLoad(unittest.TestCase):
 	  return {res1 = a * c, res2 = a * c:conj()}
 	  """)
 		with MAD() as mad:
-			mad.loadfile("test", "res1", "res2")
+			mad.loadfile("test.mad", "res1", "res2")
 			self.assertTrue(np.all(mad.res1 == np.matmul(self.a, self.c)))
 			self.assertTrue(np.all(mad.res2 == np.matmul(self.a, self.c.conj())))
 		os.remove("test.mad")
