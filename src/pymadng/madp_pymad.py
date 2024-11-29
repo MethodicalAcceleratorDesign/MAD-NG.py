@@ -487,6 +487,7 @@ type_fun = {
     "tpsa": {"recv": recv_dbl_tpsa},
     "ctpa": {"recv": recv_cpx_tpsa},
     "err_": {"recv": recv_err},
+    ""    : {"recv": BrokenPipeError},
 }
 
 
