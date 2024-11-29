@@ -62,7 +62,7 @@ class MAD(object):
 
     def __init__(
         self,
-        mad_path: str = None,
+        mad_path: str | Path = None,
         py_name: str = "py",
         debug: int | str | bool = False,
         num_temp_vars: int = 8,
@@ -288,23 +288,25 @@ _last = {}
             script += f"""{className} = {module}.{className}\n"""
         self.__process.send(script)
 
-    def loadfile(self, path: str, *vars: str):
+    def loadfile(self, path: str | Path, *vars: str):
         """Load a .mad file into the MAD-NG environment.
 
         If ``vars`` is not provided, this is equivalent to ``assert(loadfile(path))`` in MAD-NG.
         If ``vars`` is provided, for each ``var`` in ``vars``, this is equivalent to ``var = require(path).var`` in MAD-NG.
-        Due to Lua querks, do not include the .mad extension in the path if you provide ``vars``, as this implies you would like to load a module.
 
         Args:
-          path (str): The path to the file to import.
+          path (str | Path): The path to the file to import.
           *vars (str): Variable length argument list of the variable(s) to import from the file.
         """
+        path: Path = Path(path).resolve()
         if vars == ():
             self.__process.send(
                 f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
             )
         else:
-            script = f"local __req = require('{path}')"
+            # The parent/stem is necessary, otherwise the file will not be found
+            # This is thanks to the way the require function works in MAD-NG (how it searches for files)
+            script = f"local __req = require('{path.parent/path.stem}')"
             for var in vars:
                 script += f"{var} = __req.{var}\n"
             self.__process.send(script)
