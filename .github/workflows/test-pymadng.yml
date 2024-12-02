@@ -42,4 +42,4 @@ jobs:
     - name: Test with python
       run: |
         chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
-        python -m unittest tests/*
+        python -m unittest tests/*.py
