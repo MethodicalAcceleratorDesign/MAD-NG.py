@@ -6,7 +6,7 @@ import numpy as np
 
 from pymadng import MAD
 
-test_folder = Path(__file__).parent
+inputs_folder = Path(__file__).parent / "inputs"
 
 class TestExecution(unittest.TestCase):
 
@@ -375,9 +375,9 @@ class TestOutput(unittest.TestCase):
 
 class TestDebug(unittest.TestCase):
     def test_logfile(self):
-        example_log = test_folder/"example.log"
-        test_log1 = test_folder/"test.log"
-        test_log2 = test_folder/"test2.log"
+        example_log = inputs_folder/"example.log"
+        test_log1 = inputs_folder/"test.log"
+        test_log2 = inputs_folder/"test2.log"
 
         with MAD(debug=test_log1) as mad: 
             pass
