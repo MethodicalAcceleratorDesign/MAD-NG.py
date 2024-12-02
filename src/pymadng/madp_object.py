@@ -222,7 +222,6 @@ _last = {}
           AssertionError: The number of monomials and coefficients must be identical.
           AssertionError: The monomials must be of type 8-bit unsigned integer
         """
-        print("Sending TPSA")
         self.__process.send_tpsa(monos, coefficients)
 
     def send_cpx_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
