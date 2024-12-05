@@ -12,5 +12,5 @@ PyMAD-NG Module contents
 Useful functions for MAD References
 -----------------------------------
 
-.. autofunction:: pymadng.madp_classes.madhl_obj.convert_to_dataframe
-.. autofunction:: pymadng.madp_classes.madhl_obj.to_df
+.. autofunction:: pymadng.madp_classes.high_level_mad_object.convert_to_dataframe
+.. autofunction:: pymadng.madp_classes.high_level_mad_object.to_df
