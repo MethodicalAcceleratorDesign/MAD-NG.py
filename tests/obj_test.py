@@ -9,6 +9,19 @@ import tfs
 from pymadng import MAD
 from pymadng.madp_classes import high_level_mad_ref
 
+# TODO: Test the following functions:
+# - evaluate_in_madx_environment
+# - send_vars
+# - recv_vars
+# - quote_strings
+# - create_deferred_expression
+# - dir (on mad object or last)
+# - globals
+# - history
+# - % (mod)
+# - __str__ on mad references (low priority)
+
+# TODO: Test iterate through an object
 
 class TestLoad(unittest.TestCase):
 	a = np.arange(1, 21).reshape(4, 5)
@@ -43,7 +56,7 @@ class TestLoad(unittest.TestCase):
 	  a = matrix(4, 5):seq()
 	  b = cmatrix(2, 3):seq()
 	  """)
-		with MAD() as mad:
+		with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
 			mad.loadfile("test.mad")
 			self.assertIsNone(mad.matrix)
 			self.assertTrue(np.all(mad.a == self.a))
@@ -67,13 +80,12 @@ class TestLoad(unittest.TestCase):
 
 class TestGetSet(unittest.TestCase):
 	def test_get(self):
-		with MAD() as mad:
+		with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
 			mad.load("element", "quadrupole")
 			self.assertEqual(mad.asdfg, None)
-			mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1} py:send(qd) """)
-			mad.send("""qf = quadrupole {qd = qd} py:send(qf) """)
-			qd = mad.recv("qd")
-			qf = mad.recv("qf")
+			mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1}""")
+			mad.send("""qf = quadrupole {qd = qd}""")
+			qd, qf = mad["qd", "qf"]
 			self.assertEqual(qd._name, "qd")
 			self.assertEqual(qd._parent, None)
 			self.assertEqual(qd._mad, mad._MAD__process)
@@ -165,7 +177,7 @@ class TestObjFun(unittest.TestCase):
 			self.assertEqual(mad.func_test(1)(2)(3), 7)
 
 	def test_call_fail(self):
-		with MAD() as mad:
+		with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
 			mad.send("func_test = \\a-> \\b-> \\c-> 'a'+b")
 			mad.func_test(1)(2)(3)
 			self.assertRaises(RuntimeError, lambda: mad.recv())

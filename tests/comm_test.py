@@ -7,6 +7,9 @@ import numpy as np
 from pymadng import MAD
 
 inputs_folder = Path(__file__).parent / "inputs"
+# TODO: Test the following functions:
+# - eval
+# - error on stdout = something strange
 
 class TestExecution(unittest.TestCase):
 
@@ -19,8 +22,8 @@ class TestExecution(unittest.TestCase):
             self.assertEqual(a, 50)
 
     def test_err(self):
-        with MAD() as mad:
-            mad.send("py:__err(true)")
+        with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
+            mad.send("py:__err(true)")  
             mad.send("1+1") #Load error
             self.assertRaises(RuntimeError, mad.recv)
             mad.send("py:__err(true)")
@@ -36,7 +39,7 @@ class TestStrings(unittest.TestCase):
 
 Like So.]])""")
             self.assertEqual(mad.recv(), 'hi')
-            self.assertEqual(mad.recv(), 'Multiline string should work\n\nLike So.')
+            self.assertEqual(mad.receive(), 'Multiline string should work\n\nLike So.')
 
     def test_send(self):
         with MAD() as mad:
@@ -50,6 +53,20 @@ Like So.]])""")
 Like So.]])"""
             mad.send(initString)
             self.assertEqual(mad.recv(), initString * 2)
+
+    def test_protected_send(self):
+        with MAD(stdout="/dev/null", redirect_sterr=True, raise_on_madng_error=False) as mad:
+            mad.send("py:send('hello world'); a = nil/2")
+            self.assertEqual(mad.recv(), "hello world") # python should not crash
+            mad.send("py:send(1)")
+            self.assertEqual(mad.recv(), 1) # Check that the error did not affect the pipe
+            
+            mad.protected_send("a = nil/2")
+            self.assertRaises(RuntimeError, mad.recv)   # python should receive an error
+            
+            mad.psend("a = nil/2")
+            self.assertRaises(RuntimeError, mad.recv)
+           
 
 class TestNil(unittest.TestCase):
 
@@ -374,19 +391,19 @@ class TestOutput(unittest.TestCase):
             self.assertEqual(mad.recv(), "hello world") # Check printing does not affect pipe
 
 class TestDebug(unittest.TestCase):
+    test_log1 = inputs_folder/"test.log"
     def test_logfile(self):
         example_log = inputs_folder/"example.log"
-        test_log1 = inputs_folder/"test.log"
         test_log2 = inputs_folder/"test2.log"
 
-        with MAD(debug=test_log1) as mad: 
+        with MAD(stdout=self.test_log1, debug=True, raise_on_madng_error=False) as mad: 
             pass
         time.sleep(0.1) #Wait for file to be written
-        with open(test_log1, "r") as f:
+        with open(self.test_log1, "r") as f:
             with open(example_log, "r") as f2:
                 self.assertEqual(f.read(), f2.read())
         
-        with MAD(debug=test_log2) as mad:
+        with MAD(stdout=test_log2, debug=True) as mad:
             mad.send("!This is a line that does nothing")
             mad.send("print('hello world')")
 
@@ -396,10 +413,43 @@ class TestDebug(unittest.TestCase):
             self.assertTrue("hello world\n" in text)
             self.assertTrue("[print('hello world')]" in text)
 
-        test_log1.unlink()
+        with MAD(stdout=test_log2, debug=False) as mad:
+            mad.send("!This is a line that does nothing")
+            mad.send("print('hello world')")
+        
+        with open(test_log2) as f:
+            self.assertEqual(f.read(), "hello world\n")
+
+        self.test_log1.unlink()
         test_log2.unlink()
 
-        
+    def test_err(self):
+        # Run debug without stderr redirection
+        with open(self.test_log1, "w") as f:
+            with MAD(debug=True, stdout=f, raise_on_madng_error=False) as mad:
+                mad.psend("a = nil/2")
+                # receive the error before closing the pipe
+                self.assertRaises(RuntimeError, mad.recv)
+        with open(self.test_log1) as f:
+            # Check command was sent
+            file_text = f.read()
+            self.assertTrue("[py:__err(true); a = nil/2; py:__err(false);]" in file_text)
+            # Check error was not in stdout
+            self.assertFalse("***pymad.run:" in file_text)
+
+        # Run debug with stderr redirection
+        with MAD(stdout=self.test_log1, redirect_sterr=True) as mad:
+            mad.psend("a = nil/2")
+            # receive the error before closing the pipe
+            self.assertRaises(RuntimeError, mad.recv) 
+        with open(self.test_log1) as f:
+            # Check command was sent
+            file_text = f.read()
+            # Check error was in stdout
+            self.assertEqual("***pymad.run:", file_text[:13])
+        self.test_log1.unlink()
+
+
 
 
 if __name__ == '__main__':
