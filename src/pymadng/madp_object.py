@@ -2,7 +2,7 @@ from __future__ import annotations  # For type hinting
 
 import platform
 from pathlib import Path
-from typing import Any, TYPE_CHECKING # To make stuff look nicer
+from typing import Any, TYPE_CHECKING, TextIO # To make stuff look nicer
 
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 
@@ -64,7 +64,10 @@ class MAD(object):
         self,
         mad_path: str | Path = None,
         py_name: str = "py",
-        debug: int | str | Path | bool = False,
+        raise_on_madng_error: bool = True,
+        debug: bool = False,
+        stdout: TextIO | str | Path = None,
+        redirect_sterr: bool = False,
         num_temp_vars: int = 8,
         ipython_use_jedi: bool = False,
     ):
@@ -75,10 +78,13 @@ class MAD(object):
 
         Args:
           mad_path (str): The path to the mad executable, for the default value of None, the one that comes with pymadng package will be used
-          py_name (str): The name used to interact with the python process from MAD
-          debug (int| str | Path | bool): Sets debug mode on or off. If an int is given, it is expected to be a file descriptor. If a string or Path is given, it is expected to be a file path, and will open this file to write to. If true, it will write to the stdout, and if false no debug information will be written.
-          num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>`
-          ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors
+          py_name (str): The name used to interact with the python process from MAD, default is 'py'.
+          raise_on_madng_error (bool): Will _always_ raise an error if MAD-NG errors, default is True.
+          debug (bool): Sets debug mode on or off. This will output additional information to the stdout. (default is False)
+          stdout (TextIO | str | Path): Redirect the MAD-NG stdout to a file, useful for debugging. If a TextIO is given, it will write to this file. If a string or Path is given, it is expected to be a file path, and will open this file to write to. (default is None)
+          redirect_sterr (bool): Redirect the stderr to the stdout, useful for debugging. (default is False)
+          num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>` for more information. (default is 8)
+          ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors. (default is False)
 
         Returns:
           A MAD object, allowing for communication with MAD-NG
@@ -86,7 +92,14 @@ class MAD(object):
 
         # ------------------------- Create the process --------------------------- #
         mad_path = mad_path or bin_path / ("mad_" + platform.system())
-        self.__process = mad_process(mad_path, py_name, debug)
+        self.__process = mad_process(
+            mad_path=mad_path,
+            py_name=py_name,
+            raise_on_madng_error=raise_on_madng_error,
+            debug=debug,
+            stdout=stdout,
+            redirect_sterr=redirect_sterr,
+        )
         self.__process.ipython_use_jedi = ipython_use_jedi
         self.__process.last_counter = last_counter(num_temp_vars)
         # ------------------------------------------------------------------------ #
@@ -187,6 +200,28 @@ _last = {}
         """
         self.__process.send(data)
         return self
+    
+    def protected_send(self, string: str) -> MAD:
+        """Send a string to MAD-NG, but if any of the command errors, python will be notified. 
+        Then, once python receives the fact that the command errored, it will raise an error.
+
+        For example, if you send ``mad.send("a = 1/'a'")``, MAD-NG will error, and python will just continue. 
+        But if you send ``mad.protected_send("a = 1/'a'").recv()``, python will raise an error. 
+        Note, if the ``recv`` is not called, the error will not be raised.
+        
+        Args:
+          string (str): The string to send to MAD-NG. This must be a string to be evaluated in MAD-NG. Not a string to be sent to MAD-NG.
+
+        Returns:
+          self (the instance of the mad object)       
+        """
+        assert isinstance(string, str), "The input to protected_send must be a string"
+        self.__process.protected_send(string)
+        return self
+    
+    def psend(self, string: str) -> MAD:
+        """See :meth:`protected_send`"""
+        return self.protected_send(string)
 
     def send_range(self, start: float, stop: float, size: int):
         """Send a range to MAD-NG, equivalent to np.linspace, but in MAD-NG.

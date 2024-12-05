@@ -1,3 +1,10 @@
+0.6.0 (2024/12/05)
+Remove `debug` input variable functionality, now it is only a boolean, and dictates whether the debug information is printed to the console. \
+Add `stdout` input to the `MAD` object, this allows the user to redirect the output of the MAD-NG process to a file. \
+Add `redirect_stderr` input to the `MAD` object, this allows the user to redirect the error output to the stdout file. \
+Add `raise_on_madng_error` input to the `MAD` object, which is on by default. This significantly changes current behaviour, now by default whenever MAD-NG raises an error, this will be received in the pipe to Python. Set to false to revert to the old behaviour. \
+Expose `protected_send` method to the user, this allows the user to send a protected string to MAD-NG. Only has different behaviour to `send` if `raise_on_madng_error` is set to false. \
+
 0.5.0 (2024/10/30)
 
 Add `history` method to get the history of communication of strings to MAD-NG. \
@@ -6,7 +13,7 @@ Format the code using ruff. \
 Convert to using `annotations` instead of `typing`. \
 Allow debug mode to be set to a string, which will be the file that the debug information is written to. \
 Remove support for Python EOL, now only supporting Python 3.9 and above. \
-Change how ctrl-c is handled, now it will raise a KeyboardInterrupt error and delete the MAD process. \
+Change how ctrl-c is handled, now it will raise a KeyboardInterrupt error and delete the MAD process.
 
 0.4.6 (2024/01/17)
 
