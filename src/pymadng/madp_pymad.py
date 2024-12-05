@@ -7,7 +7,7 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, TextIO
 
 import numpy as np
 
@@ -29,9 +29,13 @@ class mad_process:
         self,
         mad_path: str | Path,
         py_name: str = "py",
-        debug: int | str | Path | bool = False,
+        raise_on_madng_error: bool = True,
+        debug: bool = False,
+        stdout: str | Path | TextIO = None,
+        redirect_sterr: bool = False,
     ) -> None:
         self.py_name = py_name
+        self.raise_on_madng_error = False # Set the error handler to be off during initialization
 
         mad_path = Path(mad_path)
         if not mad_path.exists():
@@ -44,16 +48,24 @@ class mad_process:
         # Open the pipes for communication to MAD (the stdin of MAD)
         self.mad_input_stream = os.fdopen(self.mad_input_pipe, "wb", buffering=0)
 
-        if isinstance(debug, str) or isinstance(debug, Path):
-            debug = Path(debug)
-            self.debug_file = open(debug, "w")
-            stdout = self.debug_file.fileno()
-        elif isinstance(debug, bool):
-            stdout = sys.stdout.fileno()
-        elif isinstance(debug, int):
-            stdout = debug
+        # Convert stdout to a TextIO object
+        if stdout is None:
+            stdout = sys.stdout
+        elif isinstance(stdout, str) or isinstance(stdout, Path):
+            self.stdout_file = open(Path(stdout), "w")
+            stdout = self.stdout_file
+        
+        # Convert stdout to a file descriptor
+        try:
+            stdout = stdout.fileno()
+        except AttributeError as e:
+            raise TypeError("Stdout must be a file name, file descriptor, or an object with the fileno method") from e
+        
+        # Redirect stderr to stdout, if specified
+        if redirect_sterr:
+            stderr = stdout
         else:
-            raise TypeError("Debug must be a file name, file descriptor or a boolean")
+            stderr = sys.stderr.fileno()
 
         # Create a chunk of code to start the process
         startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {str(bool(debug)).lower()}}} :__ini({mad_write})"
@@ -74,6 +86,7 @@ class mad_process:
             bufsize=0,
             stdin=mad_read,  # Set the stdin of MAD to the read end of the pipe
             stdout=stdout,  # Forward stdout
+            stderr=stderr,  # Forward stderr
             pass_fds=[
                 mad_write,
                 stdout,
@@ -106,6 +119,11 @@ class mad_process:
         if not startup_status_checker[0] or self.recv() != 1:  # Need to check number?
             self.close()
             raise OSError(f"Unsuccessful starting of {mad_path} process")
+        
+        # Set the error handler to be on by default
+        if raise_on_madng_error:
+            self.set_error_handler(True)
+            self.raise_on_madng_error = True
 
     def send_range(self, start: float, stop: float, size: int) -> None:
         """Send a numpy array as a range to MAD"""
@@ -141,6 +159,9 @@ class mad_process:
 
     def protected_send(self, string: str) -> mad_process:
         """Perform a protected send to MAD, by first enabling error handling, so that if an error occurs, an error is returned"""
+        if self.raise_on_madng_error: 
+            # If the user has specified that they want to raise an error always, skip the error handling on and off 
+            return self.send(string)
         return self.send(
             f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);"
         )
@@ -154,6 +175,8 @@ class mad_process:
         Returns:
             Any: The value of the variable retrieved from MAD
         """
+        if self.raise_on_madng_error: 
+            return self.send(f"py:send({name})").recv(name)
         self.send(
             f"{self.py_name}:__err(true):send({name}):__err(false)"
         )  # Enable error handling, ask for the variable, and disable error handling
@@ -161,6 +184,8 @@ class mad_process:
 
     def set_error_handler(self, on_off: bool) -> mad_process:
         """Enable or disable error handling"""
+        if self.raise_on_madng_error: 
+            return # If the user has specified that they want to raise an error always, skip the error handling on and off
         self.send(f"{self.py_name}:__err({str(on_off).lower()})")
 
     def recv(self, varname: str = None) -> Any:
@@ -217,7 +242,7 @@ class mad_process:
         
         # Close the debug file if it exists
         try:
-            self.debug_file.close()
+            self.stdout_file.close()
         except AttributeError:
             pass
 
