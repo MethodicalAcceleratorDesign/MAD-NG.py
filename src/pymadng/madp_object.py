@@ -2,7 +2,7 @@ from __future__ import annotations  # For type hinting
 
 import platform
 from pathlib import Path
-from typing import Any, TYPE_CHECKING, TextIO # To make stuff look nicer
+from typing import Any, TYPE_CHECKING, TextIO  # To make stuff look nicer
 
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 
@@ -31,8 +31,9 @@ Source: https://google.github.io/styleguide/pyguide.html
 
 bin_path = Path(__file__).parent.resolve() / "bin"
 
+
 # --------------------- Overload recv_ref functions ---------------------- #
-# Override the type of reference created by python 
+# Override the type of reference created by python
 # (so madp_pymad can be run independently, these objects create pythonic objects)
 def recv_ref(self: mad_process) -> high_level_mad_ref:
     return high_level_mad_ref(self.varname, self)
@@ -200,25 +201,25 @@ _last = {}
         """
         self.__process.send(data)
         return self
-    
+
     def protected_send(self, string: str) -> MAD:
-        """Send a string to MAD-NG, but if any of the command errors, python will be notified. 
+        """Send a string to MAD-NG, but if any of the command errors, python will be notified.
         Then, once python receives the fact that the command errored, it will raise an error.
 
-        For example, if you send ``mad.send("a = 1/'a'")``, MAD-NG will error, and python will just continue. 
-        But if you send ``mad.protected_send("a = 1/'a'").recv()``, python will raise an error. 
+        For example, if you send ``mad.send("a = 1/'a'")``, MAD-NG will error, and python will just continue.
+        But if you send ``mad.protected_send("a = 1/'a'").recv()``, python will raise an error.
         Note, if the ``recv`` is not called, the error will not be raised.
-        
+
         Args:
           string (str): The string to send to MAD-NG. This must be a string to be evaluated in MAD-NG. Not a string to be sent to MAD-NG.
 
         Returns:
-          self (the instance of the mad object)       
+          self (the instance of the mad object)
         """
         assert isinstance(string, str), "The input to protected_send must be a string"
         self.__process.protected_send(string)
         return self
-    
+
     def psend(self, string: str) -> MAD:
         """See :meth:`protected_send`"""
         return self.protected_send(string)
@@ -441,7 +442,7 @@ _last = {}
         pyObjs.extend(dir(self.recv_vars("_G")))
         return pyObjs
 
-    def globals(self) ->  list[str]:
+    def globals(self) -> list[str]:
         """Retreive the list of names of variables in the environment of MAD
 
         Returns:
@@ -466,7 +467,6 @@ _last = {}
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        # Close the process, as the with statement is finished
         self.__process.close()
 
     # ---------------------------------------------------------------------------------------------------#

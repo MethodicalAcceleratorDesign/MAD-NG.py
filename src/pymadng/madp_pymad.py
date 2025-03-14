@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any, TYPE_CHECKING, TextIO
+from contextlib import suppress
 
 import numpy as np
 
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
 __all__ = ["mad_process"]
 
+# TODO: look at cpymad for the suppression of the error messages at exit - copy? (jgray 2024)
 
 def is_private(varname):
     assert isinstance(varname, str), "Variable name to receive must be a string"
@@ -68,7 +70,8 @@ class mad_process:
             stderr = sys.stderr.fileno()
 
         # Create a chunk of code to start the process
-        startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {str(bool(debug)).lower()}}} :__ini({mad_write})"
+        lua_debug_flag = "true" if debug else "false"
+        startupChunk = f"MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}} :__ini({mad_write})"
         original_sigint_handler = signal.getsignal(signal.SIGINT)
 
         def delete_process(sig, frame):
@@ -110,15 +113,19 @@ class mad_process:
         self.send("io.stdout:setvbuf('line')")
 
         # Check if MAD started successfully
-        self.send(f"{self.py_name}:send(1)")
+        self.send(f"{self.py_name}:send('started')")
         startup_status_checker = select.select(
             [self.mad_read_stream], [], [], 10
         )  # May not work on windows
 
         # Check if MAD started successfully using select
-        if not startup_status_checker[0] or self.recv() != 1:  # Need to check number?
+        mad_rtrn = self.recv()
+        if not startup_status_checker[0] or mad_rtrn != 'started':
             self.close()
-            raise OSError(f"Unsuccessful starting of {mad_path} process")
+            if mad_rtrn == 'started':
+                raise OSError(f"Could not establish communication with {mad_path} process")
+            else:
+                raise OSError(f"Could not start {mad_path} process, received: {mad_rtrn}")
         
         # Set the error handler to be on by default
         if raise_on_madng_error:
@@ -230,7 +237,7 @@ class mad_process:
         """Close the pipes and wait for the process to finish"""
         if self.process.poll() is None:  # If process is still running
             self.send(f"{self.py_name}:__fin()")  # Tell the mad side to finish
-            open_pipe = select.select([self.mad_read_stream], [], [], 10)
+            open_pipe = select.select([self.mad_read_stream], [], [])
             if open_pipe[0]:
                 # Wait for the mad side to finish (variable name in case of errors that need to be caught elsewhere)
                 close_msg = self.recv("closing")
@@ -241,10 +248,8 @@ class mad_process:
             self.process.terminate()  # Terminate the process on the python side
         
         # Close the debug file if it exists
-        try:
+        with suppress(AttributeError):
             self.stdout_file.close()
-        except AttributeError:
-            pass
 
         # Close the pipes
         if not self.mad_read_stream.closed:
