@@ -223,7 +223,7 @@ class TestRngs(unittest.TestCase):
     def test_recv(self):
         with MAD() as mad:
             mad.send("""
-            irng = 3..11..2
+            irng = MAD.range(3, 11, 2)
             rng = MAD.nrange(3.5, 21.4, 12)
             lrng = MAD.nlogrange(1, 20, 20)
             py:send(irng)
@@ -389,6 +389,15 @@ class TestOutput(unittest.TestCase):
         with MAD() as mad:
             mad.send("py:send('hello world')")
             self.assertEqual(mad.recv(), "hello world") # Check printing does not affect pipe
+
+    def test_closing(self):
+        with MAD() as mad:
+            mad.send('for i = 1, 1e10 do a = 1 + 4 end') # This will catch times when the mad process is closed early 
+            mad.send('io.open("test.txt", "w"):close()')
+            mad.send('py:recv()')
+        created_file = Path("test.txt")
+        self.assertTrue(created_file.exists())
+        created_file.unlink()
 
 class TestDebug(unittest.TestCase):
     test_log1 = inputs_folder/"test.log"
