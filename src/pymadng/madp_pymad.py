@@ -237,7 +237,7 @@ class mad_process:
         """Close the pipes and wait for the process to finish"""
         if self.process.poll() is None:  # If process is still running
             self.send(f"{self.py_name}:__fin()")  # Tell the mad side to finish
-            open_pipe = select.select([self.mad_read_stream], [], [], 10)
+            open_pipe = select.select([self.mad_read_stream], [], [])
             if open_pipe[0]:
                 # Wait for the mad side to finish (variable name in case of errors that need to be caught elsewhere)
                 close_msg = self.recv("closing")

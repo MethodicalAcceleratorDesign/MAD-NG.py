@@ -467,10 +467,6 @@ _last = {}
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        # Close the process, as the with statement is finished
-        # assert self.__process.send("py:send('closing')").recv("close") == "closing", (
-        #     "Error in waiting for the process to close"
-        # ) # If you can test this does anything, please implement it. I have a feeling it does (jgray 2025)
         self.__process.close()
 
     # ---------------------------------------------------------------------------------------------------#

@@ -1,9 +1,10 @@
 ***pymad.recv: binary data 4 bytes
 ***pymad.recv: [io.stdout:setvbuf('line')] 25 bytes
 ***pymad.recv: binary data 4 bytes
-***pymad.recv: [py:send(1)] 10 bytes
-***pymad.send: [int_] 4 bytes
+***pymad.recv: [py:send('started')] 18 bytes
+***pymad.send: [str_] 4 bytes
 ***pymad.send: binary data 4 bytes
+***pymad.send: [started] 7 bytes
 ***pymad.recv: binary data 4 bytes
 ***pymad.recv: [element = MAD.element
 sequence = MAD.sequence
@@ -36,11 +37,6 @@ function __mklast__ (a, b, ...)
 end
 _last = {}
   ] 138 bytes
-***pymad.recv: binary data 4 bytes
-***pymad.recv: [py:send('closing')] 18 bytes
-***pymad.send: [str_] 4 bytes
-***pymad.send: binary data 4 bytes
-***pymad.send: [closing] 7 bytes
 ***pymad.recv: binary data 4 bytes
 ***pymad.recv: [py:__fin()] 10 bytes
 ***pymad.send: [str_] 4 bytes
