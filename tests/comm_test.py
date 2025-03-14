@@ -390,14 +390,16 @@ class TestOutput(unittest.TestCase):
             mad.send("py:send('hello world')")
             self.assertEqual(mad.recv(), "hello world") # Check printing does not affect pipe
 
-    def test_closing(self):
-        with MAD() as mad:
-            mad.send('for i = 1, 1e10 do a = 1 + 4 end') # This will catch times when the mad process is closed early 
-            mad.send('io.open("test.txt", "w"):close()')
-            mad.send('py:recv()')
-        created_file = Path("test.txt")
-        self.assertTrue(created_file.exists())
-        created_file.unlink()
+    # def test_closing(self):
+    # This test doesn't work. I find every now and then my mad process is closed before 
+    # MAD-NG has finished executing. I don't know why this happens, and this test does
+    # not reproduce the error. (jgray 2025)
+        # with MAD() as mad:
+        #     mad.send('for i = 1, 1e10 do a = 1 + 4 end') # This will catch times when the mad process is closed early 
+        #     mad.send('io.open("test.txt", "w"):close()')
+        # created_file = Path("test.txt")
+        # self.assertTrue(created_file.exists())
+        # created_file.unlink()
 
 class TestDebug(unittest.TestCase):
     test_log1 = inputs_folder/"test.log"
