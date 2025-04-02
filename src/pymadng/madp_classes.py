@@ -19,6 +19,13 @@ MADX_methods = ["load", "open_env", "close_env"]
 
 # MAD High Level reference
 class high_level_mad_ref(mad_ref):
+    """
+    A high-level MAD reference.
+
+    Wraps a MAD-NG reference so that attribute and item access are transparent.
+    Automatically handles indexing differences between Python and MAD-NG.
+    """
+
     def __init__(self, name: str, mad_proc: mad_process):
         super(high_level_mad_ref, self).__init__(name, mad_proc)
         self._parent = (
@@ -122,6 +129,13 @@ class high_level_mad_ref(mad_ref):
 
 
 class high_level_mad_object(high_level_mad_ref):
+    """
+    A high-level MAD object for complex data and table handling.
+
+    Inherits from high_level_mad_ref and extends functionality for retrieving object keys,
+    iteration, and conversion to Pandas dataframes.
+    """
+
     def __dir__(self) -> Iterable[str]:
         if not self._mad.ipython_use_jedi:
             self._mad.protected_send(
@@ -261,6 +275,13 @@ end
 
 
 class high_level_mad_func(high_level_mad_ref):
+    """
+    A high-level MAD function reference.
+
+    Enables calling MAD-NG functions with support for method and function invocation.
+    Automatically passes instance or object context as needed.
+    """
+
     # ----------------------------------Calling/Creating functions--------------------------------------#
     def __call_func(self, funcName: str, *args):
         """Call the function funcName and store the result in ``_last``."""
@@ -303,6 +324,12 @@ class high_level_mad_func(high_level_mad_ref):
 
 # Separate class for _last objects for simplicity and fewer if statements
 class mad_last:  # The init and del for a _last object
+    """
+    Manage a temporary '_last' variable in MAD-NG.
+
+    This class assigns a unique temporary name for storing return values from MAD-NG functions.
+    """
+
     def __init__(self, mad_proc: mad_process):
         self._mad = mad_proc
         self._last_counter = mad_proc.last_counter
@@ -315,6 +342,12 @@ class mad_last:  # The init and del for a _last object
 
 
 class mad_high_level_last_ref(mad_last, high_level_mad_ref):
+    """
+    A combined reference for '_last' objects.
+
+    Inherits from both mad_last and high_level_mad_ref to provide callable behavior on the last result.
+    """
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         obj = self.eval()
         if isinstance(obj, (high_level_mad_object, high_level_mad_func)):
@@ -327,6 +360,12 @@ class mad_high_level_last_ref(mad_last, high_level_mad_ref):
 
 
 class high_level_last_object(mad_last, high_level_mad_object):
+    """
+    A high-level representation for '_last' objects that are of object type.
+
+    Provides seamless integration of temporary MAD-NG objects with Python functionality.
+    """
+
     pass
 
 

@@ -4,61 +4,13 @@ import os
 orginal_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
+# The typical way to communicate with MAD-NG is to use the send and recv methods.
 with MAD() as mad:
-    mad.MADX.load(f"'fodo.seq'", f"'fodo.mad'")
-    mad["seq"] = mad.MADX.seq
-    mad.seq.beam = mad.beam()
-    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
-    plt.plot(mad.mtbl.s, mad.mtbl.beta11)
-    plt.show()
-
-with MAD() as mad:
-    mad.MADX.load(f"'fodo.seq'", f"'fodo.mad'")
-    mad.load("MADX", "seq")
-    mad.seq.beam = mad.beam()
-    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
-    cols = mad.quote_strings(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
-    mad.mtbl.write("'twiss_py.tfs'", cols)
-    for x in mad.seq:
-        print(x.name, x.kind)
-    plt.plot(mad.mtbl.s, mad.mtbl.beta11)
-    plt.show()
-
-
-with MAD() as mad:
-    mad.load("element", "quadrupole")
-    mad["circum", "lcell"] = 60, 20
-
-    mad.load("math", "sin", "pi")
-    mad["v"] = mad.create_deferred_expression(k="1/(lcell/sin(pi/4)/4)")
-
-    mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l=1)
-    mad["qd"] = mad.quadrupole("knl:={0, -v.k}", l=1)
-    mad["seq"] = mad.sequence("""
-        qf { at = 0 },
-        qd { at = 0.5 * lcell },
-        qf { at = 1.0 * lcell },
-        qd { at = 1.5 * lcell },
-        qf { at = 2.0 * lcell },
-        qd { at = 2.5 * lcell },
-        """, refer="'entry'", l=mad.circum,)
-    mad.seq.beam = mad.beam()
-    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
-    cols = mad.quote_strings(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
-    mad.mtbl.write("'twiss_py.tfs'", cols)
-
-    plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
-    plt.title("FODO Cell")
-    plt.xlabel("s")
-    plt.ylabel("beta11")
-    plt.show()
-
-with MAD() as mad:
-    mad.send(f"""
+    mad.send("""
     MADX:load("fodo.seq", "fodo.mad")
     local seq in MADX
     seq.beam = beam -- use default beam
-    mtbl, mflw = twiss {{sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}}
+    mtbl, mflw = twiss {sequence=seq, method=4, implicit=true, nslice=10, save="atbody"}
     py:send(mtbl)
     """)
     mtbl = mad.recv("mtbl")
@@ -70,6 +22,21 @@ with MAD() as mad:
     plt.plot(mad.mtbl.s, mad.mtbl.beta11, "b:", label="Method 3")
     
     plt.legend()
+    plt.show()
+
+# If you prefer to use pythonic syntax, the following code is equivalent to the above (- some plotting)(+ writing to a file)
+with MAD() as mad:
+    mad.MADX.load("'fodo.seq'", "'fodo.mad'")
+    mad.load("MADX", "seq")
+    mad.seq.beam = mad.beam()
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, implicit=True, nslice=10, save="'atbody'")
+    cols = mad.quote_strings(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
+    mad.mtbl.write("'twiss_py.tfs'", cols)
+    
+    for x in mad.seq: # If an object is iterable, it is possible to loop over it
+        print(x.name, x.kind)
+    
+    plt.plot(mad.mtbl.s, mad.mtbl.beta11)
     plt.show()
 
 os.chdir(orginal_dir)

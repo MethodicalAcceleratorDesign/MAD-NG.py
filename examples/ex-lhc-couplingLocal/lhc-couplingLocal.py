@@ -1,9 +1,16 @@
-from pymadng import MAD
-import time
+"""
+This script demonstrates the usage of the MAD class to perform a local coupling correction in the LHC.
+
+The aim of this script is demonstrate a combination of pythonic and MAD-NG syntax. 
+Also, it demonstrates how you can retrieve data from MAD-NG and plot it in real-time, as it is being calculated, preventing the need to store it in memory. 
+"""
 import os
+import time
 
 import matplotlib.pyplot as plt
-import numpy as np
+
+from pymadng import MAD
+
 orginal_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -13,13 +20,18 @@ with MAD() as mad:
 
     mad.MADX.load("'lhc_as-built.seq'", "'lhc_as-built.mad'")
     mad.MADX.load("'opticsfile.21'", "'opticsfile.21.mad'")
-    mad.MADX.load("'lhc_unset_vars.mad'") # Load a list of unset variables to prevent warnings
+    mad.MADX.load(
+        "'lhc_unset_vars.mad'"
+    )  # Load a list of unset variables to prevent warnings
 
     mad.load("MADX", "lhcb1", "nrj")
 
-    mad.assertf("#lhcb1 == 6694",
-        "'invalid number of elements %d in LHCB1 (6694 expected)'", "#lhcb1")
-    
+    mad.assertf(
+        "#lhcb1 == 6694",
+        "'invalid number of elements %d in LHCB1 (6694 expected)'",
+        "#lhcb1",
+    )
+
     mad.lhcb1.beam = mad.beam(particle="'proton'", energy=mad.nrj)
     mad.evaluate_in_madx_environment("""
     ktqx1_r2 = -ktqx1_l2 ! remove the link between these 2 vars
@@ -47,25 +59,27 @@ with MAD() as mad:
     """)
     match_rtrn = mad.match(
         command=mad.twiss_and_send,
-        variables = [
-            {"var":"'MADX.dqx_b1'", "name":"'dQx.b1'", "'rtol'":1e-6},
-            {"var":"'MADX.dqy_b1'", "name":"'dQy.b1'", "'rtol'":1e-6},
+        variables=[
+            {"var": "'MADX.dqx_b1'", "name": "'dQx.b1'", "'rtol'": 1e-6},
+            {"var": "'MADX.dqy_b1'", "name": "'dQy.b1'", "'rtol'": 1e-6},
         ],
-        equalities = [
-            {"expr": mad.expr1, "name": "'q1'", "tol":1e-3},
-            {"expr": mad.expr2, "name": "'q2'", "tol":1e-3},
+        equalities=[
+            {"expr": mad.expr1, "name": "'q1'", "tol": 1e-3},
+            {"expr": mad.expr2, "name": "'q2'", "tol": 1e-3},
         ],
-        objective={"fmin": 1e-3}, maxcall=100, info=2,
+        objective={"fmin": 1e-3},
+        maxcall=100,
+        info=2,
     )
     mad.send("py:send(nil)")
-    tws_result = mad.recv ()
+    tws_result = mad.recv()
     x = tws_result[0]
     y = tws_result[1]
 
     plt.ion()
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    line1, = ax.plot(x, y, 'b-')
+    (line1,) = ax.plot(x, y, "b-")
     while tws_result:
         line1.set_xdata(tws_result[0])
         line1.set_ydata(tws_result[1])

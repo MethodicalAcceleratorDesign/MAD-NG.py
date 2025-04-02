@@ -4,7 +4,7 @@ __title__ = "pymadng"
 __version__ = "0.6.0"
 
 __summary__ = "Python interface to MAD-NG running as subprocess"
-__uri__ = "https://github.com/MethodicalAcceleratorDesign/MADpy"
+__uri__ = "https://github.com/MethodicalAcceleratorDesign/MAD-NG.py"
 
 __credits__ = """
 Creator: Joshua Gray <joshua.mark.gray at cern.ch>

@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath("../../src/pymadng/"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'PyMAD-NG'
-copyright = '2023, Joshua Gray, Laurent Deniau'
+copyright = '2025, Joshua Gray, Laurent Deniau'
 author = 'Joshua Gray, Laurent Deniau'
 import pymadng
 release = pymadng.__version__
@@ -20,7 +20,8 @@ release = pymadng.__version__
 # Add napoleon to the extensions list
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.napoleon',
+    'myst_parser'
     ]
 
 templates_path = ['_templates']

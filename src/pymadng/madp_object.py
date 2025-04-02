@@ -2,7 +2,7 @@ from __future__ import annotations  # For type hinting
 
 import platform
 from pathlib import Path
-from typing import Any, TYPE_CHECKING, TextIO # To make stuff look nicer
+from typing import Any, TYPE_CHECKING, TextIO  # To make stuff look nicer
 
 import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
 
@@ -31,8 +31,9 @@ Source: https://google.github.io/styleguide/pyguide.html
 
 bin_path = Path(__file__).parent.resolve() / "bin"
 
+
 # --------------------- Overload recv_ref functions ---------------------- #
-# Override the type of reference created by python 
+# Override the type of reference created by python
 # (so madp_pymad can be run independently, these objects create pythonic objects)
 def recv_ref(self: mad_process) -> high_level_mad_ref:
     return high_level_mad_ref(self.varname, self)
@@ -71,25 +72,22 @@ class MAD(object):
         num_temp_vars: int = 8,
         ipython_use_jedi: bool = False,
     ):
-        """Create a MAD Object to interface with MAD-NG.
+        """
+        Initialise a MAD object for communication with MAD-NG.
 
-        The modules MADX, elements, sequence, mtable, twiss, beta0, beam, survey, object, track, match are imported into
-        the MAD-NG environment by default.
+        This constructor starts the MAD subprocess, establishes communication pipes,
+        and imports necessary MAD modules. The mad_path defaults to a bundled executable if not provided.
 
         Args:
-          mad_path (str): The path to the mad executable, for the default value of None, the one that comes with pymadng package will be used
-          py_name (str): The name used to interact with the python process from MAD, default is 'py'.
-          raise_on_madng_error (bool): Will _always_ raise an error if MAD-NG errors, default is True.
-          debug (bool): Sets debug mode on or off. This will output additional information to the stdout. (default is False)
-          stdout (TextIO | str | Path): Redirect the MAD-NG stdout to a file, useful for debugging. If a TextIO is given, it will write to this file. If a string or Path is given, it is expected to be a file path, and will open this file to write to. (default is None)
-          redirect_sterr (bool): Redirect the stderr to the stdout, useful for debugging. (default is False)
-          num_temp_vars (int): The number of unique temporary variables you intend to use, see :doc:`Managing References <ex-managing-refs>` for more information. (default is 8)
-          ipython_use_jedi (bool): Allow ipython to use jedi in tab completion, will be slower and may result in MAD-NG throwing errors. (default is False)
-
-        Returns:
-          A MAD object, allowing for communication with MAD-NG
+            mad_path (str | Path, optional): Path to the MAD executable.
+            py_name (str, optional): Name used for MAD-to-Python communication.
+            raise_on_madng_error (bool, optional): If True, raises errors from MAD-NG immediately.
+            debug (bool, optional): If True, enables detailed debugging output.
+            stdout (TextIO | str | Path, optional): Destination for MAD-NG's standard output.
+            redirect_sterr (bool, optional): If True, redirects stderr to stdout.
+            num_temp_vars (int, optional): Maximum number of temporary variables to track.
+            ipython_use_jedi (bool, optional): If True, allows IPython to use jedi for autocompletion.
         """
-
         # ------------------------- Create the process --------------------------- #
         mad_path = mad_path or bin_path / ("mad_" + platform.system())
         self.__process = mad_process(
@@ -151,124 +149,131 @@ _last = {}
     def recv(
         self, varname: str = None
     ) -> str | int | float | np.ndarray | bool | list | high_level_mad_ref:
-        """Return received data from MAD-NG.
+        """
+        Retrieve data from the MAD-NG process.
+
+        Reads a data type identifier and then receives the corresponding value from MAD-NG.
 
         Args:
-          varname(str): The name of the variable you are receiving (Only useful when receiving references)
+            varname (str, optional): Variable name used for clarity when receiving references.
 
         Returns:
-          Data from MAD-NG with type str/int/float/ndarray/bool/list/ref, depending what was asked from MAD-NG.
-
-        Raises:
-          TypeError: If you forget to give a name when receiving a reference,
+            The value received from MAD-NG.
         """
         return self.__process.recv(varname)
 
     def receive(
         self, varname: str = None
     ) -> str | int | float | np.ndarray | bool | list | high_level_mad_ref:
-        """See :meth:`recv`"""
+        """
+        Alias for the recv method.
+
+        Args:
+            varname (str, optional): Name of the variable to receive.
+
+        Returns:
+            The received data.
+        """
         return self.__process.recv(varname)
 
     def recv_and_exec(self, context: dict = {}) -> dict:
-        """Receive a string from MAD-NG and execute it.
+        """
+        Receive a string from MAD-NG and execute it.
 
-        Note: The class numpy and the instance of this object are available during the execution as ``np`` and ``mad`` respectively
+        The provided execution context is updated with numpy (np) and the current MAD object.
 
         Args:
-          context (dict): The environment context you would like the string to be executed in.
+            context (dict, optional): The environment for executing the received code.
 
         Returns:
-          The updated environment after executing the string.
+            dict: The updated execution environment.
         """
         context["mad"] = self
         return self.__process.recv_and_exec(context)
 
     # --------------------------------Sending data to subprocess------------------------------------#
     def send(self, data: str | int | float | np.ndarray | bool | list) -> MAD:
-        """Send data to MAD-NG.
+        """
+        Send data to MAD-NG.
+
+        Accepts various types of data and serialises them for transfer to MAD-NG.
 
         Args:
-          data (str/int/float/ndarray/bool/list): The data to send to MAD-NG.
+            data (str/int/float/np.ndarray/bool/list): The information to send.
 
         Returns:
-          self (the instance of the mad object)
-
-        Raises:
-          TypeError: An unsupported type was attempted to be sent to MAD-NG.
-          AssertionError: If data is a np.ndarray, the matrix must be of two dimensions.
+            MAD: Returns self to facilitate method chaining.
         """
         self.__process.send(data)
         return self
-    
-    def protected_send(self, string: str) -> MAD:
-        """Send a string to MAD-NG, but if any of the command errors, python will be notified. 
-        Then, once python receives the fact that the command errored, it will raise an error.
 
-        For example, if you send ``mad.send("a = 1/'a'")``, MAD-NG will error, and python will just continue. 
-        But if you send ``mad.protected_send("a = 1/'a'").recv()``, python will raise an error. 
-        Note, if the ``recv`` is not called, the error will not be raised.
-        
+    def protected_send(self, string: str) -> MAD:
+        """
+        Send a command to MAD-NG with error protection.
+
+        Temporarily enables error handling so that any command errors in MAD-NG are caught and raised in Python.
+
         Args:
-          string (str): The string to send to MAD-NG. This must be a string to be evaluated in MAD-NG. Not a string to be sent to MAD-NG.
+            string (str): The MAD-NG command code to send.
 
         Returns:
-          self (the instance of the mad object)       
+            MAD: Self for method chaining.
         """
         assert isinstance(string, str), "The input to protected_send must be a string"
         self.__process.protected_send(string)
         return self
-    
+
     def psend(self, string: str) -> MAD:
-        """See :meth:`protected_send`"""
+        """Alias for protected_send"""
         return self.protected_send(string)
 
     def send_range(self, start: float, stop: float, size: int):
-        """Send a range to MAD-NG, equivalent to np.linspace, but in MAD-NG.
+        """
+        Send a linear range to MAD-NG.
+
+        Builds a range analogous to numpy.linspace and sends it based on the specified boundaries and size.
 
         Args:
-          start (float): The start of range
-          stop (float): The end of range (inclusive)
-          size (float): The length of range
+            start (float): The starting value of the range.
+            stop (float): The ending value of the range (inclusive).
+            size (int): The total number of elements in the range.
         """
         self.__process.send_range(start, stop, size)
 
     def send_logrange(self, start: float, stop: float, size: int):
-        """Send a numpy array as a logrange to MAD-NG, equivalent to np.geomspace, but in MAD-NG.
+        """
+        Send a logarithmic range to MAD-NG.
+
+        Generates and sends a logarithmic range equivalent to numpy.geomspace.
 
         Args:
-          start (float): The start of range
-          stop (float): The end of range (inclusive)
-          size (float): The length of range
+            start (float): The start value.
+            stop (float): The stop value.
+            size (int): The number of points in the range.
         """
         self.__process.send_logrange(start, stop, size)
 
     def send_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
-        """Send the monomials and coefficients of a TPSA to MAD
+        """
+        Transmit TPSA data for processing in MAD-NG.
 
-        The combination of monomials and coefficients creates a table representing the TPSA object in MAD-NG.
+        Sends a two-dimensional array of monomials and the associated coefficient array.
 
         Args:
-          monos (ndarray): A list of monomials in the TPSA.
-          coefficients (ndarray): A list of coefficients in the TPSA.
-
-        Raises:
-          AssertionError: The list of monomials must be a 2-D array (each monomial is 1-D).
-          AssertionError: The number of monomials and coefficients must be identical.
-          AssertionError: The monomials must be of type 8-bit unsigned integer
+            monos (np.ndarray): 2D array containing the monomials.
+            coefficients (np.ndarray): Array of TPSA coefficients.
         """
         self.__process.send_tpsa(monos, coefficients)
 
     def send_cpx_tpsa(self, monos: np.ndarray, coefficients: np.ndarray):
-        """Send the monomials and coefficients of a complex TPSA to MAD-NG
+        """
+        Transmit complex TPSA data to MAD-NG.
 
-        The combination of monomials and coefficients creates a table representing the complex TPSA object in MAD-NG.
+        Sends complex-valued monomials and coefficients for TPSA table construction.
 
         Args:
-          See: :meth:`send_tpsa`.
-
-        Raises:
-          See: :meth:`send_tpsa`.
+            monos (np.ndarray): 2D array of monomials (unsigned bytes).
+            coefficients (np.ndarray): Array of complex TPSA coefficients.
         """
         self.__process.send_cpx_tpsa(monos, coefficients)
 
@@ -276,45 +281,39 @@ _last = {}
 
     # -------------------------------- Dealing with communication of variables --------------------------------#
     def send_vars(self, **vars: str | int | float | np.ndarray | bool | list):
-        """Send variables to the MAD-NG process.
+        """
+        Send multiple named variables to the MAD-NG process.
 
-        Send the variables in vars with the names in names to MAD-NG.
+        Each keyword pair becomes a variable in the MAD-NG environment.
 
         Args:
-          **vars (str/int/float/ndarray/bool/list): The variables to send with the assigned name in MAD-NG by the keyword argument.
-
-        Raises:
-          See: :meth:`send`.
+            **vars: Key-value pairs representing variable names and their values.
         """
         self.__process.send_vars(**vars)
 
     def recv_vars(self, *names: str) -> Any:
-        """Receive variables from the MAD-NG process
-
-        Given a list of variable names, receive the variables from the MAD-NG process.
+        """
+        Retrieve one or more variables from MAD-NG.
 
         Args:
-          *names (str): The name(s) of variables that you would like to receive from MAD-NG.
+            *names (str): The names of the variables to be fetched from MAD-NG.
 
         Returns:
-          See :meth:`recv`.
+            The retrieved variable value or a tuple of values if multiple names are provided.
         """
         return self.__process.recv_vars(*names)
 
     # -------------------------------------------------------------------------------------------------------------#
 
     def load(self, module: str, *vars: str):
-        """Import modules into the MAD-NG environment
+        """
+        Import classes or functions from a specific MAD-NG module.
 
-        Retrieve the classes in MAD-NG from the module ``module``, while only importing the classes in the variable length list ``vars``.
-        If no string is provided, it is assumed that you would like to import every class from the module.
-
-        For example, ``mad.load("MAD.gmath")`` imports all variables from the module ``MAD.gmath``.
-        But ``mad.load("MAD", "matrix", "cmatrix")```` only imports the modules ``matrix`` and ``cmatrix`` from the module ``MAD.gmath``.
+        If no specific names are provided, imports all available members from the module.
 
         Args:
-          module (str): The name of the module to import from.
-          *vars (str): Variable length argument list of the variable(s) to import from module.
+            module (str): The module name in MAD-NG.
+            *vars (str): Optional list of members to import.
         """
         script = ""
         if vars == ():
@@ -324,14 +323,14 @@ _last = {}
         self.__process.send(script)
 
     def loadfile(self, path: str | Path, *vars: str):
-        """Load a .mad file into the MAD-NG environment.
+        """
+        Load and execute a .mad file in the MAD-NG environment.
 
-        If ``vars`` is not provided, this is equivalent to ``assert(loadfile(path))`` in MAD-NG.
-        If ``vars`` is provided, for each ``var`` in ``vars``, this is equivalent to ``var = require(path).var`` in MAD-NG.
+        If additional variable names are provided, assign each to the corresponding member of the loaded file.
 
         Args:
-          path (str | Path): The path to the file to import.
-          *vars (str): Variable length argument list of the variable(s) to import from the file.
+            path (str | Path): File path for the .mad file.
+            *vars (str): Optional names to bind to specific elements from the file.
         """
         path: Path = Path(path).resolve()
         if vars == ():
@@ -349,11 +348,30 @@ _last = {}
 
     # ----------------------- Make the class work with dict and dot access ------------------------#
     def __getattr__(self, item):
+        """
+        Retrieve a MAD-NG variable using attribute access.
+
+        Args:
+            item (str): The name of the variable to retrieve.
+
+        Returns:
+            The value of the MAD-NG variable.
+        """
         if is_private(item):
             raise AttributeError(item)
         return self.__process.recv_vars(item)
 
     def __setitem__(self, var_name: str, var: Any) -> None:
+        """
+        Set one or more variables in the MAD-NG process via item assignment.
+
+        Args:
+            var_name (str): The name(s) of the variable(s).
+            var (Any): The value(s) to assign.
+
+        Raises:
+            ValueError: If the number of names does not match the number of values.
+        """
         if not isinstance(var_name, tuple):
             var_name = (var_name,)
             var = (var,)
@@ -368,6 +386,15 @@ _last = {}
         self.__process.send_vars(**dict(zip(var_name, var)))
 
     def __getitem__(self, var_name: str) -> Any:
+        """
+        Retrieve one or more variables from MAD-NG using item access.
+
+        Args:
+            var_name (str): The name or tuple of names of variables.
+
+        Returns:
+            The corresponding variable value(s) from MAD-NG.
+        """
         if isinstance(var_name, tuple):
             return self.__process.recv_vars(*var_name)
         else:
@@ -376,34 +403,41 @@ _last = {}
     # ----------------------------------------------------------------------------------------------#
 
     def eval(self, input: str) -> Any:
-        """Evaluate an expression in MAD and return the result.
+        """
+        Evaluate an expression in the MAD-NG environment.
+
+        Assigns the result to a temporary variable and returns its value.
 
         Args:
-          input (str): An expression that would like to be evaluated in MAD-NG.
+            input (str): The expression to evaluate.
 
         Returns:
-          The evaluated result.
+            The evaluated result.
         """
         rtrn = self.__get_mad_reflast()
         self.send(f"{rtrn._name} =" + input)
         return rtrn.eval()
 
     def evaluate_in_madx_environment(self, input: str) -> None:
-        """Open the MAD-X environment in MAD-NG and directly send code.
+        """
+        Execute code in the native MAD-X environment.
+
+        Opens a MAD-X environment, sends the code, and then closes the environment.
 
         Args:
-          input (str): The code that would like to be evaluated in the MAD-X environment in MAD-NG.
+            input (str): The MAD-X code to execute.
         """
         self.__process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
 
     def quote_strings(self, input: str | list[str]) -> str | list[str]:
-        """Add ' to either side of a string or each string in a list of strings.
+        """
+        Surround the provided string or list of strings with single quotes.
 
         Args:
-          input(str/list[str]): The string(s) that you would like to add ' either side to each string.
+            input (str or list[str]): The input string(s) to quote.
 
         Returns:
-          A string or list of strings with ' placed at the beginning and the end of each string.
+            The quoted string or list of quoted strings.
         """
         if isinstance(input, list):
             return ["'" + x + "'" for x in input]
@@ -415,16 +449,17 @@ _last = {}
     # ---------------------------------------------------------------------------------------------------#
 
     def create_deferred_expression(self, **kwargs) -> mad_high_level_last_ref:
-        """Create a deferred expression object
+        """
+        Create a deferred expression object in MAD-NG.
 
-        For the deferred expression object, the kwargs are used as the deffered expressions, with ``=`` replaced
-        with ``:=``. To assign the returned object a name, then use ``mad['name'] = mad.deffered(kwargs)``.
+        The keyword arguments represent deferred expressions using ':=' syntax.
+        Intended for assigning a temporary variable that holds a lazy-evaluated result.
 
         Args:
-          **kwargs: A variable list of keyword arguments, keyword as the name of the deffered expression within the object and the value as a string that is sent directly to the MAD-NG environment.
+            **kwargs: Expression name-value pairs.
 
         Returns:
-          A reference to the deffered expression object.
+            mad_high_level_last_ref: A reference to the deferred expression.
         """
         rtrn = self.__get_mad_reflast()
         kwargs_string, vars_to_send = format_kwargs_to_string(self.py_name, **kwargs)
@@ -441,19 +476,23 @@ _last = {}
         pyObjs.extend(dir(self.recv_vars("_G")))
         return pyObjs
 
-    def globals(self) ->  list[str]:
-        """Retreive the list of names of variables in the environment of MAD
+    def globals(self) -> list[str]:
+        """
+        Retrieve a list of all global variable names in the MAD-NG environment.
 
         Returns:
-          A list of strings indicating the globals variables and modules within the MAD-NG environment
+            list[str]: A list containing the names of global variables.
         """
         return dir(self.__process.recv_vars(f"{self.py_name}._env"))
 
     def history(self) -> str:
-        """Retrieve the history of strings that have been sent to MAD-NG
+        """
+        Retrieve the command history sent to MAD-NG.
+
+        Filters out internal error-handling commands.
 
         Returns:
-          A string containing the history of commands that have been sent to MAD-NG
+            str: A newline-separated string of historical commands.
         """
         # delete all lines that start py:__err and end with __err(false)\n
         history = self.__process.history
@@ -466,7 +505,6 @@ _last = {}
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        # Close the process, as the with statement is finished
         self.__process.close()
 
     # ---------------------------------------------------------------------------------------------------#

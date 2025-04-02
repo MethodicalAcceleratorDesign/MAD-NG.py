@@ -223,7 +223,7 @@ class TestRngs(unittest.TestCase):
     def test_recv(self):
         with MAD() as mad:
             mad.send("""
-            irng = 3..11..2
+            irng = MAD.range(3, 11, 2)
             rng = MAD.nrange(3.5, 21.4, 12)
             lrng = MAD.nlogrange(1, 20, 20)
             py:send(irng)

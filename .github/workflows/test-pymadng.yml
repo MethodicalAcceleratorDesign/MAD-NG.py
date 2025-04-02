@@ -33,13 +33,13 @@ jobs:
     - name: Get MAD Binaries
       run: |
         mkdir ./src/pymadng/bin 
-        curl https://madx.web.cern.ch/releases/madng/1.0/mad-linux-1.0.0 -o ./src/pymadng/bin/mad_Linux
-        curl https://madx.web.cern.ch/releases/madng/1.0/mad-macos-1.0.0 -o ./src/pymadng/bin/mad_Darwin
+        curl https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.1 -o ./src/pymadng/bin/mad_Linux
+        curl https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.1 -o ./src/pymadng/bin/mad_Darwin
+        chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install -e .[tfs]
     - name: Test with python
       run: |
-        chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
         python -m unittest tests/*.py
