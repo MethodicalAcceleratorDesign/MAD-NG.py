@@ -101,8 +101,7 @@ PyMAD-NG supports a wide range of Python-native and NumPy types, which are autom
 | `numpy.ndarray`       | matrix, cmatrix | binary            |
 | `range`, `np.geomspace`     | range types     | encoded structure |
 
-Conversion is handled by {func}`MAD.send` and `{func}`MAD.recv`, both methods on the {class}`MAD` 1class.
-
+Conversion is handled by {func}`MAD.send` and `{func}`MAD.recv`, both methods on the {class}`MAD` class.
 ---
 
 ## Dynamic Attributes & Autocompletion
