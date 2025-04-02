@@ -34,7 +34,7 @@ mad = MAD(debug=True, stdout="mad_debug.log")
 If you need to redirect standard error as well:
 
 ```python
-mad = MAD(debug=True, stdout="mad_debug.log", redirect_sterr=True)
+mad = MAD(debug=True, stdout="mad_debug.log", redirect_stderr=True)
 ```
 
 This helps keep logs organized, especially when running long scripts.
