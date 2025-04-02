@@ -402,20 +402,18 @@ _last = {}
 
     # ----------------------------------------------------------------------------------------------#
 
-    def eval(self, input: str) -> Any:
+    def eval(self, expression: str) -> Any:
         """
         Evaluate an expression in the MAD-NG environment.
 
-        Assigns the result to a temporary variable and returns its value.
-
         Args:
-            input (str): The expression to evaluate.
+            expression (str): The expression to evaluate.
 
         Returns:
-            The evaluated result.
+            Any: The result of the evaluated expression.
         """
         rtrn = self.__get_mad_reflast()
-        self.send(f"{rtrn._name} =" + input)
+        self.send(f"{rtrn._name} = {expression}")
         return rtrn.eval()
 
     def evaluate_in_madx_environment(self, input: str) -> None:
