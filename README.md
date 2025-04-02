@@ -4,7 +4,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/pymadng.svg)](https://pypi.org/project/pymadng/)
 [![Documentation Status](https://readthedocs.org/projects/pymadng/badge/?version=latest)](https://pymadng.readthedocs.io/en/latest/)
-[![License](https://img.shields.io/github/license/MethodicalAcceleratorDesign/MADpy)](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/MethodicalAcceleratorDesign/MAD-NG.py)](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/LICENSE)
 
 ---
 
@@ -30,12 +30,12 @@ Before diving into PyMAD-NG, we recommend you:
 - **[Low-Level Example Explained](https://pymadng.readthedocs.io/en/latest/)** – Learn the fundamentals line-by-line.
 - **[FODO Example Breakdown](https://pymadng.readthedocs.io/en/latest/ex-fodo.html)** – Annotated walkthrough of a FODO cell simulation.
 - **[LHC Matching Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html)** – Real-world optics matching with intermediate feedback.
-- **[PS Twiss Example](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-ps-twiss/ps-twiss.py)** – Minimal example applying `twiss()` to the Proton Synchrotron.
+- **[PS Twiss Example](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/examples/ex-ps-twiss/ps-twiss.py)** – Minimal example applying `twiss()` to the Proton Synchrotron.
 
 If anything seems unclear:
 - Refer to the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng)
 - Check the [MAD-NG Docs](https://madx.web.cern.ch/releases/madng/html/)
-- Or open an [issue](https://github.com/MethodicalAcceleratorDesign/MADpy/issues)
+- Or open an [issue](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/issues)
 
 ---
 
@@ -47,8 +47,8 @@ Full documentation and example breakdowns are hosted at:
 To build locally:
 
 ```bash
-git clone https://github.com/MethodicalAcceleratorDesign/MADpy.git
-cd MADpy/docs
+git clone https://github.com/MethodicalAcceleratorDesign/MAD-NG.py.git
+cd MAD-NG.py/docs
 make html
 ```
 
@@ -91,7 +91,7 @@ Bug reports, feature requests, and pull requests are encouraged.
 
 ## 📜 License
 
-PyMAD-NG is licensed under the [MIT License](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/LICENSE).
+PyMAD-NG is licensed under the [MIT License](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/LICENSE).
 
 ---
 
