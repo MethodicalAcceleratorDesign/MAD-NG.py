@@ -1,30 +1,100 @@
-# pymadng
-Python interface to MAD-NG running as subprocess
+# PyMAD-NG
 
-Install using below, see [The Python Package Index (PyPi)](https://pypi.org/project/pymadng/);
+**Python interface to MAD-NG running as a subprocess**
 
-`pip install pymadng`
+[![PyPI version](https://img.shields.io/pypi/v/pymadng.svg)](https://pypi.org/project/pymadng/)
+[![Documentation Status](https://readthedocs.org/projects/pymadng/badge/?version=latest)](https://pymadng.readthedocs.io/en/latest/)
+[![License](https://img.shields.io/github/license/MethodicalAcceleratorDesign/MADpy)](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/LICENSE)
 
-Familiarising yourself with pymadng
-===================================
+---
 
-First, we recommend familiarising yourself with MAD-NG, documentation can be found [here](https://madx.web.cern.ch/releases/madng/html/). 
+## 🚀 Installation
 
-Then reading through the Low-Level Example Explained on the [pymadng documentation](https://pymadng.readthedocs.io/en/latest/) should be sufficient (alongside knowledge of MAD-NG), assuming you are not planning to use any "syntactic sugar". If you plan to use the available pythonic looking code, there are plenty of examples to look at. 
+Install via pip from [PyPI](https://pypi.org/project/pymadng/):
 
-In the documentation, [FODO Examples Explained](https://pymadng.readthedocs.io/en/latest/ex-fodo.html), is a chapter that goes into detail on what is happening on each line of the [FODO example](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-fodo/ex-fodos.py), while [LHC Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html) gives an example of loading the LHC and how to grab intermediate results from a match. 
+```bash
+pip install pymadng
+```
 
-The only other example that may be of use is the [ps-twiss](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-ps-twiss/ps-twiss.py) example. This is an extremely simple example, extending the FODO example to perform a twiss on the PS sequence.
-If anything does not seem fully explained, initially check the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng) and/or the [MAD-NG Documentation](https://mad.web.cern.ch/mad/releases/madng/html/), then feel free to open an [issue](https://github.com/MethodicalAcceleratorDesign/MADpy/issues) so improvements can be made.
+---
 
-Documentation
-=============
+## 🧠 Getting Started
 
-Documentation, including explanation of a couple of examples and the limitations of the API can be found [here](https://pymadng.readthedocs.io/en/latest/). 
+Before diving into PyMAD-NG, we recommend you:
 
-The API reference is also included in [this documentation](https://pymadng.readthedocs.io/en/latest/). You can also compile to documentation yourself by cloning the repository and running ``make html`` in the docs folder.
+1. Familiarise yourself with [MAD-NG](https://madx.web.cern.ch/releases/madng/html/) — understanding MAD-NG is essential.
+2. Read the [Quick Start Guide](https://pymadng.readthedocs.io/en/latest/) to see how to control MAD-NG from Python.
 
-Getting the examples working
-============================
+### Explore Key Examples
 
-You can run the example with `python3 EXAMPLE_NAME.py`
+- **[Low-Level Example Explained](https://pymadng.readthedocs.io/en/latest/)** – Learn the fundamentals line-by-line.
+- **[FODO Example Breakdown](https://pymadng.readthedocs.io/en/latest/ex-fodo.html)** – Annotated walkthrough of a FODO cell simulation.
+- **[LHC Matching Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html)** – Real-world optics matching with intermediate feedback.
+- **[PS Twiss Example](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/examples/ex-ps-twiss/ps-twiss.py)** – Minimal example applying `twiss()` to the Proton Synchrotron.
+
+If anything seems unclear:
+- Refer to the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng)
+- Check the [MAD-NG Docs](https://madx.web.cern.ch/releases/madng/html/)
+- Or open an [issue](https://github.com/MethodicalAcceleratorDesign/MADpy/issues)
+
+---
+
+## 📚 Documentation
+
+Full documentation and example breakdowns are hosted at:
+[https://pymadng.readthedocs.io/en/latest/](https://pymadng.readthedocs.io/en/latest/)
+
+To build locally:
+
+```bash
+git clone https://github.com/MethodicalAcceleratorDesign/MADpy.git
+cd MADpy/docs
+make html
+```
+
+---
+
+## 🧪 Running Examples
+
+Examples are stored in the `examples/` folder.
+Run any script with:
+
+```bash
+python3 examples/ex-fodos.py
+```
+
+You can also batch-run everything using:
+
+```bash
+python3 runall.py
+```
+
+---
+
+## 💡 Features
+
+- High-level Python interface to MAD-NG
+- Access to MAD-NG functions, sequences, optics, and tracking
+- Dynamic `send()` and `recv()` communication
+- Python-native handling of MAD tables and expressions
+- Optional integration with `pandas` and `tfs-pandas`
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! See [`CONTRIBUTING.md`](docs/source/contributing.md) or the [Contributing Guide](https://pymadng.readthedocs.io/en/latest/contributing.html) in the docs.
+
+Bug reports, feature requests, and pull requests are encouraged.
+
+---
+
+## 📜 License
+
+PyMAD-NG is licensed under the [MIT License](https://github.com/MethodicalAcceleratorDesign/MADpy/blob/main/LICENSE).
+
+---
+
+## 🙌 Acknowledgements
+
+Built on top of MAD-NG, developed at CERN. This interface aims to bring MAD's power to the Python ecosystem with minimal friction.

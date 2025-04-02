@@ -1,6 +1,10 @@
 LHC Example
 ===========
 
+.. contents::
+   :local:
+   :depth: 2
+
 The file :ref:`ex-lhc-couplingLocal/lhc-couplingLocal.py <ex-lhc>` contains an example of loading the required files to use and run the LHC, while including a method to receive and plot intermediate results of a match.
 
 Loading the LHC 
@@ -25,7 +29,7 @@ From lines 10 - 21, we run a match, with a **reference** to the match result ret
 
 The plotting occurs between lines 27 - 36, wtih the while loop continuing until twiss result is ``None``, which occurs when the match is done, as requested on line 22.
 
-Finally, on lines 38 and 39, we retrieve the results of the match from the variable ``match_rtrn``. Since ``match_rtrn`` is a *temporary variable*, there is a limit to how many of these that can be stored (see :doc:`ex-managing-refs` for more information on these), we delete the reference in python to clear the temporary variable so that is is available for future use.
+Finally, on lines 38 and 39, we retrieve the results of the match from the variable ``match_rtrn``. Since ``match_rtrn`` is a *temporary variable*, there is a limit to how many of these that can be stored (see :doc:`/advanced_features` for more information on these), we delete the reference in python to clear the temporary variable so that is is available for future use.
 
 .. important::
     As MAD-NG is running in the background, the variable ``match_rtrn`` contains *no* information and instead must be queried for the results. During the query, python will then have to wait for MAD-NG to finish the match, and then return the results. On the other hand, if we do not query for the results, the match will continue to run in the background, we can do other things in python, and then query for the results later.

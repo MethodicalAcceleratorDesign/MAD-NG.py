@@ -1,3 +1,10 @@
+0.7.0 (2024/12/05)
+
+Rewrite documentation
+Update to MAD-NG 1.1.1
+Handle opening and closing of MAD-NG process more robustly
+
+
 0.6.0 (2024/12/05)
 Remove `debug` input variable functionality, now it is only a boolean, and dictates whether the debug information is printed to the console. \
 Add `stdout` input to the `MAD` object, this allows the user to redirect the output of the MAD-NG process to a file. \
@@ -53,7 +60,7 @@ Set pymadng to now be in beta.
 Fix MADX issue
 Move binaries to the bin folder \
 Update MAD-NG binaries \
-Rename files to start with madp_... \
+Rename files to start with madp\_... \
 Completely refactor underlying process and remove reliance on mad objects, mad strings and `__last__`, now the process is completely self contained and can be separated into MAD-NG itself.
 
 List of changes to PyMAD-NG
@@ -70,4 +77,4 @@ Update MAD-NG binaries
 
 Update MAD-NG binaries \
 Fix bug with negative integer values \
-Initialise CHANGELOG 
+Initialise CHANGELOG
