@@ -3,22 +3,48 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the documentation for PyMAD-NG!
-==========================================
+.. PyMAD-NG documentation master file
+
+Welcome to the PyMAD-NG documentation!
+======================================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Getting Started
 
-   gettingstarted
-   ex-lowlevel
-   highlevel
-   ex-managing-refs
-   ex-fodo
+   intro
+   installation
+   quickstartguide
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Core Concepts
+
+   communication
+   function_reference
+   architecture
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Advanced Topics
+
+   advanced_features
+   debugging
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Examples
+
    ex-lhc-couplingLocal
-   dataframes
-   modules
    examples
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
+
+   reference
+   developer
+   contributing
 
 
 Indices and tables

@@ -1,21 +1,9 @@
 List of Examples
 ================
 
-Sending and Receiving Multiple Types
-------------------------------------
-
-.. _ex-send-multypes:
-
-.. literalinclude:: ../../examples/ex-LowLevel/ex-send-multypes.py
-   :linenos:
-
-Sending and Receiving Large Datasets
-------------------------------------
-
-.. _ex-send-recv:
-
-.. literalinclude:: ../../examples/ex-LowLevel/ex-send-recv.py
-   :linenos:
+.. contents::
+   :local:
+   :depth: 2
 
 FODO Cell Example
 -----------------
