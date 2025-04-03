@@ -91,7 +91,7 @@ Bug reports, feature requests, and pull requests are encouraged.
 
 ## 📜 License
 
-PyMAD-NG is licensed under the [MIT License](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/LICENSE).
+PyMAD-NG is licensed under the [GNU General Public License v3.0](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/LICENSE).
 
 ---
 
