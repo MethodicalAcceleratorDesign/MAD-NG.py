@@ -148,27 +148,57 @@ class TestTPSA(unittest.TestCase):
             self.assertTrue(np.all(monomials[5] == [1, 1, 0]))
             self.assertTrue(np.all(coefficients == [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]))
     
+    # Might be worth checking if the tab can be converted into a tpsa from Monomials. (jgray 2025)
     def test_send_tpsa(self):
         with MAD() as mad:
             mad.send("""
             tab = py:recv()
+            index_part = {}
+            for i = 1, #tab do
+                index_part[i] = tab[i]
+            end
             py:send(tab)
+            py:send(index_part)
             """)
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [11, 6, 4, 2, 1, 1]
+            expected_index = ["000", "100", "010", "001", "200", "110"]
+
             mad.send_tpsa(monos, coefficients)
-            self.assertTrue(mad.recv("tab"), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
+            
+            whole_tab = mad.recv("tab")
+            index_part = mad.recv("index_part")
+            self.assertEqual(index_part, expected_index)
+            for i in range(len(whole_tab)):
+                self.assertTrue(whole_tab[i] == expected_index[i])
+            
+            for i, key in enumerate(expected_index):
+                self.assertTrue(whole_tab[key] == coefficients[i])
     
     def test_send_ctpsa(self):
         with MAD() as mad:
             mad.send("""
             tab = py:recv()
+            index_part = {}
+            for i = 1, #tab do
+                index_part[i] = tab[i]
+            end
             py:send(tab)
+            py:send(index_part)
             """)
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]
+            expected_index = ["000", "100", "010", "001", "200", "110"]
+            
             mad.send_cpx_tpsa(monos, coefficients)
-            self.assertTrue(mad.recv("tab"), ["000", "100", "010", "001", "200", "110"].extend(coefficients)) #intentional?
+            
+            whole_tab = mad.recv("tab")
+            index_part = mad.recv("index_part")
+            self.assertEqual(index_part, expected_index)
+            for i in range(len(whole_tab)):
+                self.assertTrue(whole_tab[i] == expected_index[i])
+            for i, key in enumerate(expected_index):
+                self.assertTrue(whole_tab[key] == coefficients[i])
 
     def test_send_recv_damap(self):
         with MAD() as mad:
