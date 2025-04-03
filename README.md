@@ -23,14 +23,13 @@ pip install pymadng
 Before diving into PyMAD-NG, we recommend you:
 
 1. Familiarise yourself with [MAD-NG](https://madx.web.cern.ch/releases/madng/html/) — understanding MAD-NG is essential.
-2. Read the [Quick Start Guide](https://pymadng.readthedocs.io/en/latest/) to see how to control MAD-NG from Python.
+2. Read the [Quick Start Guide](https://pymadng.readthedocs.io/en/latest/quickstartguide.html) to see how to control MAD-NG from Python.
 
 ### Explore Key Examples
 
-- **[Low-Level Example Explained](https://pymadng.readthedocs.io/en/latest/)** – Learn the fundamentals line-by-line.
-- **[FODO Example Breakdown](https://pymadng.readthedocs.io/en/latest/ex-fodo.html)** – Annotated walkthrough of a FODO cell simulation.
 - **[LHC Matching Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html)** – Real-world optics matching with intermediate feedback.
-- **[PS Twiss Example](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/examples/ex-ps-twiss/ps-twiss.py)** – Minimal example applying `twiss()` to the Proton Synchrotron.
+- **[Examples Page](https://pymadng.readthedocs.io/en/latest/examples.html) - List of examples in an easy to read format. 
+- **[GitHub Examples Directory](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/examples/)** – List of avaliable examples on the repository
 
 If anything seems unclear:
 - Refer to the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng)
