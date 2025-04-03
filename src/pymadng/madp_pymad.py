@@ -6,6 +6,7 @@ import signal
 import struct
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any, TYPE_CHECKING, TextIO
 from contextlib import suppress
@@ -85,16 +86,9 @@ class mad_process:
         startupChunk = (
             f"MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}} :__ini({mad_write})"
         )
-        original_sigint_handler = signal.getsignal(signal.SIGINT)
 
-        def delete_process(sig, frame):
-            self.close()
-            signal.signal(signal.SIGINT, original_sigint_handler)
-            raise KeyboardInterrupt("MAD process was interrupted, and has been deleted")
-
-        signal.signal(
-            signal.SIGINT, delete_process
-        )  # Delete the process if interrupted
+        if threading.current_thread() is threading.main_thread():
+            self._setup_signal_handler()
 
         # Start the process
         self.process = subprocess.Popen(
@@ -149,6 +143,16 @@ class mad_process:
         if raise_on_madng_error:
             self.set_error_handler(True)
             self.raise_on_madng_error = True
+
+    def _setup_signal_handler(self):
+        original_sigint_handler = signal.getsignal(signal.SIGINT)
+
+        def delete_process(sig, frame):
+            self.close()
+            signal.signal(signal.SIGINT, original_sigint_handler)
+            raise KeyboardInterrupt("MAD process was interrupted, and has been deleted")
+
+        signal.signal(signal.SIGINT, delete_process)
 
     def send_range(self, start: float, stop: float, size: int) -> None:
         """Send a linear range (numpy array) to MAD-NG.

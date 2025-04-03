@@ -12,7 +12,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 # TODO: Are you able to store the actual parent? (jgray 2023)
-# TODO: Allow __setitem__ to work with multiple indices (Should be a simple recursive loop) (jgray 2023)
+# TODO: Allow __setitem__ to work with multiple indices (jgray 2023)
+# TODO: Change __iter__ to use the MAD-NG iterator, ipairs and pairs also (jgray 2025)
 
 MADX_methods = ["load", "open_env", "close_env"]
 
@@ -72,10 +73,7 @@ class high_level_mad_ref(mad_ref):
     def __truediv__(self, rhs):
         return self.__generate_operation__(rhs, "/")
 
-    def __mod__(self, rhs):
-        return self.__generate_operation__(rhs, "%")
-
-    def __eq__(self, rhs):
+    def __eq__(self, rhs) -> bool:
         if isinstance(rhs, type(self)) and self._name == rhs._name:
             return True
         else:
@@ -88,21 +86,48 @@ class high_level_mad_ref(mad_ref):
         ).send(rhs)
         return rtrn
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._mad.protected_variable_retrieval(f"#{self._name}")
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Convert the MAD-NG reference to a string.
+        This method retrieves the value of the reference and converts it to a string.
+        If the value is a high-level MAD reference, it returns its string representation.
+        Otherwise, it returns the string representation of the value.
+        
+        Returns:
+            str: The string representation of the MAD-NG reference.
+        """
         val = self._mad.recv_vars(self._name)
         if isinstance(val, high_level_mad_ref):
             return repr(val)
         else:
             return str(val)
 
-    def eval(self):
+    def eval(self) -> Any:
+        """
+        Evaluate the reference and return the value.
+
+        Returns:
+            Any: The evaluated value of the reference in MAD-NG.
+        """
         return self._mad.recv_vars(self._name)
 
-    def __repr__(self):  # TODO: This should be better (jgray 2024)
-        return f"MAD-NG Object(Name: {self._name}, Parent: {self._parent}, Process: {repr(self._mad)})"
+    def __repr__(self):
+        """
+        Provide a detailed string representation of the MAD-NG object.
+
+        Returns:
+            str: A string containing the object's name, parent, process, and type.
+        """
+        return (
+            f"<{self.__class__.__name__}("
+            f"Name: {self._name}, "
+            f"Parent: {self._parent}, "
+            f"Process: {repr(self._mad)}, "
+            f"Type: {type(self).__name__})>"
+        )
 
     def __dir__(self) -> Iterable[str]:
         name = self._name
@@ -164,6 +189,9 @@ class high_level_mad_object(high_level_mad_ref):
         return last_obj
 
     def __iter__(self):
+        self._mad.send(f"{self._mad.py_name}:send({self._name}:is_instanceOf(sequence))")
+        is_seq = self._mad.recv()
+        assert is_seq, "Iteration is only supported for sequences for now"
         self._iterindex = -1
         return self
 
