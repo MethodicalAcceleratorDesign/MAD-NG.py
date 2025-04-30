@@ -1,7 +1,7 @@
 from .madp_object import MAD
 
 __title__ = "pymadng"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 
 __summary__ = "Python interface to MAD-NG running as subprocess"
 __uri__ = "https://github.com/MethodicalAcceleratorDesign/MAD-NG.py"
