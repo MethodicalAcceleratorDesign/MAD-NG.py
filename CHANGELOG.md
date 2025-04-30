@@ -1,8 +1,13 @@
-0.7.0 (2024/12/05)
+0.6.3 (2024/30/05)
 
-Rewrite documentation
-Update to MAD-NG 1.1.1
-Handle opening and closing of MAD-NG process more robustly
+Update to MAD-NG 1.1.2
+
+
+0.6.2 (2024/12/05)
+
+Rewrite documentation. \
+Update to MAD-NG 1.1.1. \
+Handle opening and closing of MAD-NG process more robustly. \
 
 
 0.6.0 (2024/12/05)
