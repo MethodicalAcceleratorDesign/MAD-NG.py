@@ -41,7 +41,7 @@ Example Workflow
 2. **Load a Sequence & Perform Calculations**::
 
     mad.MADX.load("'lhc_as-built.seq'", "'lhc_as-built.mad'")
-    mad["tbl", "flw"] = mad.twiss(sequence=mad.MADX.lhcb1, method=4)
+    mad["tbl", "flw"] = mad.twiss(sequence=mad.MADX.lhcb1)
 
 3. **Retrieve Data from MAD-NG**::
 
@@ -71,6 +71,8 @@ Key Features of PyMAD-NG
 | **Two-Way Communication**      | Send commands to MAD-NG and retrieve results.            |
 +--------------------------------+----------------------------------------------------------+
 | **MAD-X Compatibility**        | Import and work with MAD-X sequences.                    |
++--------------------------------+----------------------------------------------------------+
+| **MAD-8 Compatibility**        | Import and work with MAD-8 sequences.                    |
 +--------------------------------+----------------------------------------------------------+
 | **Performance Optimised**      | Supports large datasets and numerical computations.      |
 +--------------------------------+----------------------------------------------------------+
