@@ -20,7 +20,7 @@ class TestList(unittest.TestCase):
     def test_send_recv_wref(self):
         with MAD() as mad:
             mad.send("""
-            list = {MAD.object "a" {a = 2}, MAD.object "b" {b = 2}}
+            list = {MAD.object "a" {a = 2}, MAD.object "b" {b = 6}}
             list2 = {1, 2, 3, 4, 5, a = 10, b = 3, c = 4}
             py:send(list)
             py:send(list2)
@@ -28,12 +28,13 @@ class TestList(unittest.TestCase):
             list1 = mad.recv("list")
             list2 = mad.recv("list2")
             self.assertEqual(len(list1), 2)
-            self.assertEqual([x for x in list2], [1, 2, 3, 4, 5])
-            self.assertEqual(list2["a"], 10)
-            self.assertEqual(list2["b"], 3)
-            self.assertEqual(list2["c"], 4)
+            
+            python_dict = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, "a": 10, "b": 3, "c": 4}
+            self.assertEqual(list2.keys(), python_dict.keys())
+            self.assertEqual(sorted(list2.values()), sorted(python_dict.values()))
+
             self.assertEqual(list1[0].a, 2)
-            self.assertEqual(list1[1].b, 2)
+            self.assertEqual(list1[1].b, 6)
 
 class TestNums(unittest.TestCase):
     eps = 2**-52

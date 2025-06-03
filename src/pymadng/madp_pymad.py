@@ -186,10 +186,10 @@ class mad_process:
         self.mad_input_stream.write(b"ctpa")
         send_generic_tpsa(self, monos, coefficients, send_cpx)
 
-    def send(self, data: str | int | float | np.ndarray | bool | list) -> mad_process:
+    def send(self, data: str | int | float | np.ndarray | bool | list | dict) -> mad_process:
         """Send data to the MAD-NG process.
 
-        Accepts several types (str, int, float, ndarray, bool, list) and sends them using the appropriate serialization.
+        Accepts several types (str, int, float, ndarray, bool, list, dict) and sends them using the appropriate serialization.
         Returns self to allow method chaining.
         """
         try:
@@ -825,14 +825,50 @@ def recv_list(self: mad_process) -> list:
         list: The received list.
     """
     varname = self.varname  # cache
-    haskeys = recv_bool(self)
     lstLen = recv_int(self)
     vals = [self.recv(varname and varname + f"[{i + 1}]") for i in range(lstLen)]
     self.varname = varname  # reset
-    if haskeys:
-        return type_fun["ref_"]["recv"](self)
-    else:
-        return vals
+    return vals
+
+def send_dict(self: mad_process, dct: dict):
+    """Send a dictionary to the MAD-NG pipe.
+    
+    Args:
+        self (mad_process): The MAD-NG process instance.
+        dct (dict): The dictionary to send.
+    
+    Returns:
+        int: The number of bytes written to the MAD-NG input stream.
+
+    Raises:
+        ValueError: If a key in the dictionary is None, as nil keys are not allowed in Lua.
+    """
+    for key, value in dct.items():
+        if key is None:
+            self.send(None) # Stop the communication of the dictionary to MAD-NG
+            raise ValueError("nil key in a dictionary is not allowed in lua, remove the key None from the dictionary")
+        self.send(key)
+        self.send(value)
+    self.send(None)
+
+def recv_dict(self: mad_process) -> dict:
+    """Receive a dictionary from the MAD-NG pipe.
+    
+    Returns:
+        dict: The received dictionary.
+    """
+    varname = self.varname  # cache
+    dct = {}
+    while True:
+        key = self.recv()
+        if key is None:  # End of dictionary
+            break
+        if isinstance(key, np.int32):
+            key = int(key) - 1  # Convert MAD-NG's 1-based index to Python's 0-based index
+        value = self.recv(varname and f"{varname}['{key}']")
+        dct[key] = value
+    self.varname = varname  # reset
+    return dct
 
 
 # object (table with metatable are treated as pure reference) ---------------- #
@@ -877,7 +913,8 @@ type_fun = {
     "nil_": {"recv": recv_nil, "send": send_nil},
     "bool": {"recv": recv_bool, "send": send_bool},
     "str_": {"recv": recv_str, "send": send_str},
-    "tbl_": {"recv": recv_list, "send": send_list},
+    "lst_": {"recv": recv_list, "send": send_list},
+    "dct_": {"recv": recv_dict, "send": send_dict},
     "ref_": {"recv": recv_reference, "send": send_reference},
     "fun_": {"recv": recv_reference, "send": send_reference},
     "obj_": {"recv": recv_reference, "send": send_reference},
@@ -899,7 +936,7 @@ type_fun = {
 
 
 def get_typestr(
-    a: str | int | float | np.ndarray | bool | list | tuple | range | mad_ref,
+    a: str | int | float | np.ndarray | bool | list | dict | tuple | range | mad_ref,
 ) -> type:
     """Determine the type string for the given input.
     
@@ -924,8 +961,9 @@ type_str = {
     type(None): "nil_",
     bool: "bool",
     str: "str_",
-    list: "tbl_",
-    tuple: "tbl_",
+    list: "lst_",
+    dict: "dct_",
+    tuple: "lst_",
     mad_ref: "ref_",
     int: "int_",
     np.int32: "int_",

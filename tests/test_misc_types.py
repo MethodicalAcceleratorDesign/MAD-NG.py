@@ -169,11 +169,12 @@ class TestTPSA(unittest.TestCase):
             whole_tab = mad.recv("tab")
             index_part = mad.recv("index_part")
             self.assertEqual(index_part, expected_index)
-            for i in range(len(whole_tab)):
-                self.assertTrue(whole_tab[i] == expected_index[i])
-            
-            for i, key in enumerate(expected_index):
-                self.assertTrue(whole_tab[key] == coefficients[i])
+            for key, value in whole_tab.items():
+                if isinstance(key, int):
+                    self.assertTrue(value == expected_index[key])
+                else:
+                    idx = expected_index.index(key)
+                    self.assertTrue(whole_tab[key] == coefficients[idx])
     
     def test_send_ctpsa(self):
         with MAD() as mad:
@@ -195,10 +196,12 @@ class TestTPSA(unittest.TestCase):
             whole_tab = mad.recv("tab")
             index_part = mad.recv("index_part")
             self.assertEqual(index_part, expected_index)
-            for i in range(len(whole_tab)):
-                self.assertTrue(whole_tab[i] == expected_index[i])
-            for i, key in enumerate(expected_index):
-                self.assertTrue(whole_tab[key] == coefficients[i])
+            for key, value in whole_tab.items():
+                if isinstance(key, int):
+                    self.assertTrue(value == expected_index[key])
+                else:
+                    idx = expected_index.index(key)
+                    self.assertTrue(whole_tab[key] == coefficients[idx])
 
     def test_send_recv_damap(self):
         with MAD() as mad:

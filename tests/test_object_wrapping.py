@@ -265,9 +265,9 @@ class TestOps(unittest.TestCase):
             )
             self.assertTrue(np.all(list(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
             self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == pyMat))
-            self.assertEqual(np.sin(1), mad.math.sin(1).eval())
+            self.assertEqual(np.sin(1), mad.math['sin'](1).eval())
             self.assertAlmostEqual(
-                np.cos(0.5), mad.math.cos(0.5).eval(), None, None, 4e-16
+                np.cos(0.5), mad.math['cos'](0.5).eval(), None, None, 4e-16
             )
 
             # temp vars
@@ -405,8 +405,10 @@ test:write("test")
         self.assertEqual(header["boolean"], True)
         self.assertEqual(header["list"], [1, 2, 3, 4, 5])
         tbl = getattr(df, headers)["table"]
-        self.assertEqual([x for x in tbl], [1, 2])
+        self.assertEqual(tbl[0], 1)
+        self.assertEqual(tbl[1], 2)
         self.assertEqual(tbl["key"], "value")
+        self.assertTrue(isinstance(tbl, dict))
 
         self.assertEqual(df["string"].tolist(), ["a", "b", "c", "d", "e"])
         self.assertEqual(df["number"].tolist(), [1.1, 2.2, 3.3, 4.4, 5.5])
@@ -466,7 +468,7 @@ class TestEval(unittest.TestCase):
 
     def test_eval_class(self):
         with MAD() as mad:
-            result = mad.math.sqrt(2) + mad.math.log(10)
+            result = mad.math['sqrt'](2) + mad.math['log'](10)
             self.assertTrue(isinstance(result, mad_high_level_last_ref))
             self.assertEqual(result.eval(), math.sqrt(2) + math.log(10))
 
