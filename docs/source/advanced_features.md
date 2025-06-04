@@ -67,7 +67,7 @@ MAD-NG supports callbacks and iterative evaluations, which can be tied into Pyth
 In MAD:
 ```lua
 function twiss_and_send()
-  local tbl, flow = twiss {sequence=seq, method=4}
+  local tbl, flow = twiss {sequence=seq}
   py:send({tbl.s, tbl.beta11})
   return tbl, flow
 end

@@ -17,7 +17,7 @@ mad.seq.beam = mad.beam()
 
 
 # Only one thing is returned from the twiss, a reference (Nothing in python is ever received from MAD after telling MAD-NG to execute)
-twissrtrn = mad.twiss(sequence=mad.seq, method=4)
+twissrtrn = mad.twiss(sequence=mad.seq)
 
 # Any high level MAD-NG function will create a reference
 mad.MAD.gmath.reim(1.42 + 0.62j)
@@ -27,7 +27,10 @@ mad["mtbl", "mflw"] = twissrtrn
 
 # mtbl and mflow correctly stored!
 print(mad.mtbl)
-print(mad.mflw)
+print(mad.mflw[0])
+mad.send(
+    "print(mtbl, mflw[1])"
+)  # This will print the table and the particle stored in mflw[1] (lua table)
 
 myMatrix = mad.MAD.matrix(4).seq()  # Create 4x4 matrix
 

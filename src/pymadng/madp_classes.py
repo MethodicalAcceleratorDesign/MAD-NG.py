@@ -127,7 +127,6 @@ class high_level_mad_ref(mad_ref):
             f"Parent: {self._parent}, "
             f"Process: {repr(self._mad)}, "
             f"Type: {type(self).__name__})>"
-            f"Evaluated Value: {self.eval()}>"
         )
 
     def __dir__(self) -> Iterable[str]:

@@ -89,8 +89,8 @@ If the object is not an `mtable`, a `TypeError` will be raised.
 ```
 
 See:
-```{literalinclude} ../../examples/ex-ps-twiss/ps-twiss.py
-:lines: 18, 24, 41-49
+```{literalinclude} ../../examples/ex-ps-twiss/ex-ps-twiss.py
+:lines: 19, 25, 42-53
 :linenos:
 ```
 

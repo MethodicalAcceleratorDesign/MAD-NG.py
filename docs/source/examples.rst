@@ -19,7 +19,7 @@ PS Twiss Example
 
 .. _ex-ps-twiss:
 
-.. literalinclude:: ../../examples/ex-ps-twiss/ps-twiss.py
+.. literalinclude:: ../../examples/ex-ps-twiss/ex-ps-twiss.py
    :linenos:
 
 
@@ -28,7 +28,7 @@ LHC Example
 
 .. _ex-lhc:
 
-.. literalinclude:: ../../examples/ex-lhc-couplingLocal/lhc-couplingLocal.py
+.. literalinclude:: ../../examples/ex-lhc-couplingLocal/ex-lhc-couplingLocal.py
    :linenos:
 
 Managing References Example

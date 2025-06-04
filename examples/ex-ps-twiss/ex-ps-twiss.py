@@ -1,4 +1,5 @@
-import os, time, pandas
+import os
+
 from pymadng import MAD
 
 orginal_dir = os.getcwd()
@@ -8,10 +9,10 @@ with MAD(debug=False) as mad:
     mad["psbeam"] = mad.beam(particle="'proton'", pc=2.794987)
     mad.MADX.BEAM = mad.psbeam
     mad.MADX.BRHO = mad.psbeam.brho
-    mad.MADX.load(f"'ps_unset_vars.mad'")
-    mad.MADX.load(f"'ps_mu.seq'")
-    mad.MADX.load(f"'ps_ss.seq'")
-    mad.MADX.load(f"'ps_fb_lhc.str'")
+    mad.MADX.load("'ps_unset_vars.mad'")
+    mad.MADX.load("'ps_mu.seq'")
+    mad.MADX.load("'ps_ss.seq'")
+    mad.MADX.load("'ps_fb_lhc.str'")
 
     mad.load("MADX", "ps")
     mad.ps.beam = mad.psbeam
@@ -21,7 +22,7 @@ with MAD(debug=False) as mad:
         mad.quote_strings(["name", "kind", "s", "l", "angle", "x", "y", "z", "theta"]),
         )
 
-    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.ps, method=6, nslice=3, chrom=True)
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.ps, method=6, nslice=3)
 
     mad.load("MAD.gphys", "melmcol")
     #Add element properties as columns
@@ -39,13 +40,16 @@ with MAD(debug=False) as mad:
         )
     
     df = mad.mtbl.to_df()
-    print(df)
     try:
         import tfs
+        assert type(df) is tfs.TfsDataFrame
+        print("tfs-pandas installed, so the header is stored in headers")
+        print(df.headers)
     except ImportError:
         print("tfs-pandas not installed, so the header is stored in attrs instead of headers")
         print(df.attrs)
 
+    print(df)
     print(mad.srv.to_df())
 
 os.chdir(orginal_dir)

@@ -1,13 +1,17 @@
-from pymadng import MAD
-import numpy as np
-import os, sys, time
+import os
+import sys
+import time
+
 import matplotlib.pyplot as plt
+import numpy as np
+
+from pymadng import MAD
 
 orginal_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 pid = os.fork()
-#Test 1
+# Test 1
 if pid > 0:
     with MAD() as mad:  # open mad process, if you just use mad = MAD(), then be sure to close it afterwords; for multiprocessing, os.fork() can work with the with statement
         arr0 = np.zeros((10000, 1000)) + 1j  # 2*10000*1000*8 -> 160 MB
@@ -43,7 +47,7 @@ if pid > 0:
         mad.send(f"myvector = MAD.vector({numVars})")
         start_time = time.time()
         for i in range(numVars):
-            mad.send(f"myvector[{i+1}] = py:recv()")
+            mad.send(f"myvector[{i + 1}] = py:recv()")
             mad.send(12345.0)
         print(f"send {numVars} vals", time.time() - start_time)
 
@@ -53,7 +57,7 @@ if pid > 0:
 
         start_time = time.time()
         for i in range(numVars):
-            mad.send(f"py:send(myvector[{i+1}])")
+            mad.send(f"py:send(myvector[{i + 1}])")
             mad.recv()
         print(f"receive {numVars} vals", time.time() - start_time)
 
@@ -65,20 +69,22 @@ else:
     with MAD() as mad:
         mad.load("element", "quadrupole")
         # METHOD 1
-        mad.MADX.load(f"'fodo.seq'",f"'fodo.mad'")
+        mad.MADX.load("'fodo.seq'", "'fodo.mad'")
         mad["seq"] = mad.MADX.seq
         mad.seq.beam = mad.beam()
-        mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, method=4, chrom=True)
+        mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq)
         plt.plot(mad.mtbl.s, mad.mtbl["beta11"])
         # plt.show()
 
         # METHOD 2
         mad["circum", "lcell"] = 60, 20
         mad["deferred"] = mad.MAD.typeid.deferred
-        mad["v"] = mad.create_deferred_expression(f = "lcell/math.sin(math.pi/4)/4", k = "1/v.f")
+        mad["v"] = mad.create_deferred_expression(
+            f="lcell/math.sin(math.pi/4)/4", k="1/v.f"
+        )
 
-        mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l = 1)
-        mad["qd"] = mad.quadrupole("knl:={0,  -v.k}", l = 1)
+        mad["qf"] = mad.quadrupole("knl:={0,  v.k}", l=1)
+        mad["qd"] = mad.quadrupole("knl:={0,  -v.k}", l=1)
 
         mad.send("""
         seq2 = sequence 'seq2' { refer='entry', l=circum, -- assign to seq in scope!
@@ -90,10 +96,12 @@ else:
         qd { at = 2.5 * lcell },
         }""")
         mad.seq2.beam = mad.beam()
-        mad["mtbl2", "mflw2"] = mad.twiss(sequence=mad.seq2, method=4, nslice=10, implicit=True, save="'atbody'")
+        mad["mtbl2", "mflw2"] = mad.twiss(
+            sequence=mad.seq2, nslice=10, implicit=True, save="'atbody'"
+        )
         plt.plot(mad.mtbl2.s, mad.mtbl2["beta11"])
         plt.show()
         print(mad.mtbl2.header)
-    sys.exit() # exit the child process
+    sys.exit()  # exit the child process
 
 os.chdir(orginal_dir)

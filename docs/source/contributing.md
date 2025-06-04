@@ -64,8 +64,7 @@ python -m unittest tests/*.py
 ## Best Practices
 
 ### Code Style
-- Follow PEP8 (enforced via linters)
-- Use descriptive names for MAD objects (e.g. `tw`, `flow`, `seq`)
+- Use descriptive names for everything
 - Keep high-level user APIs separate from internal helpers
 - Use Ruff for code and import formatting.
 
