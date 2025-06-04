@@ -224,7 +224,7 @@ class mad_process:
         Returns:
             The value of the variable.
         """
-        shallow_copy = "true" if shallow_copy else "false"
+        shallow_copy = str(shallow_copy).lower()
         if self.raise_on_madng_error:
             return self.send(f"py:send({name}, {shallow_copy})").recv(name)
         self.send(
