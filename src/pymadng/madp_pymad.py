@@ -214,19 +214,21 @@ class mad_process:
             f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);"
         )
 
-    def protected_variable_retrieval(self, name: str) -> Any:
+    def protected_variable_retrieval(self, name: str, shallow_copy: bool = False) -> Any:
         """Safely retrieve a variable from MAD-NG.
 
         Enables temporary error handling while retrieving a variable.
         Args:
             name (str): The MAD-NG variable name to retrieve.
+            shallow_copy (bool): If True, retrieves a shallow copy of the variable. This has no effect for most types, but tables in MAD-NG are sent as references by default, so if you want to retrieve a copy of the table, set this to True.
         Returns:
             The value of the variable.
         """
+        shallow_copy = "true" if shallow_copy else "false"
         if self.raise_on_madng_error:
-            return self.send(f"py:send({name})").recv(name)
+            return self.send(f"py:send({name}, {shallow_copy})").recv(name)
         self.send(
-            f"{self.py_name}:__err(true):send({name}):__err(false)"
+            f"{self.py_name}:__err(true):send({name}, {shallow_copy}):__err(false)"
         )  # Enable error handling, ask for the variable, and disable error handling
         return self.recv(name)
 
@@ -234,6 +236,10 @@ class mad_process:
         """Toggle error handling in the MAD-NG process.
 
         This determines whether errors are raised immediately.
+        Args:
+            on_off (bool): If True, errors will be raised immediately; if False, errors will not be raised.
+        Returns:
+            mad_process: Returns self to allow method chaining.
         """
         if self.raise_on_madng_error:
             return  # If the user has specified that they want to raise an error always, skip the error handling on and off
@@ -244,6 +250,10 @@ class mad_process:
 
         Reads 4 bytes to detect the data type and then extracts the corresponding value.
         Optional varname is used for reference purposes.
+        Args:
+            varname (str): The variable name to use for reference in MAD-NG.
+        Returns:
+            Any: The value received from MAD-NG, which can be of various types (str, int, float, ndarray, bool, list, dict).
         """
         typ = self.mad_read_stream.read(4).decode("utf-8")
         self.varname = varname  # For mad reference
@@ -254,6 +264,10 @@ class mad_process:
 
         The execution context includes numpy as np and the mad process instance.
         Returns the updated execution environment.
+        Args:
+            env (dict): The environment dictionary to execute the received command in.
+        Returns:
+            dict: The updated environment dictionary after executing the received command.
         """
         # Check if user has already defined mad (madp_object will have mad defined), otherwise define it
         try:
@@ -269,6 +283,11 @@ class mad_process:
         """Send multiple variables to MAD-NG.
 
         Each keyword argument becomes a variable in the MAD-NG environment.
+        If a variable is a mad_ref, it is sent as its name; otherwise, the value is sent directly.
+        Args:
+            **vars: Keyword arguments representing variable names and their values.
+        Returns:
+            mad_process: Returns self to allow method chaining.
         """
         for name, var in vars.items():
             if isinstance(var, mad_ref):
@@ -276,18 +295,23 @@ class mad_process:
             else:
                 self.send(f"{name} = {self.py_name}:recv()").send(var)
 
-    def recv_vars(self, *names) -> Any:
+    def recv_vars(self, *names, shallow_copy: bool = False) -> Any:
         """Receive one or multiple variables from MAD-NG.
 
         For a single variable (excluding internal names) a direct value is returned.
         For multiple variables, a tuple of values is returned.
+        Args:
+            *names: Variable names to retrieve from MAD-NG.
+            shallow_copy (bool): If True, retrieves a shallow copy of the variable. This has no effect for most types, but tables in MAD-NG are sent as references by default, so if you want to retrieve a copy of the table, set this to True.
+        Returns:
+            Any: The value of the variable if a single name is provided, or a tuple of values if multiple names are provided.
         """
         if len(names) == 1:
             if not is_private(names[0]):
-                return self.protected_variable_retrieval(names[0])
+                return self.protected_variable_retrieval(names[0], shallow_copy)
         else:
             return tuple(
-                self.protected_variable_retrieval(name)
+                self.protected_variable_retrieval(name, shallow_copy)
                 for name in names
                 if not is_private(name)
             )
@@ -390,7 +414,7 @@ class mad_ref(object):
 
     def eval(self) -> Any:
         """Evaluate the reference and return the value."""
-        return self._mad.recv_vars(self._name)
+        return self._mad.recv_vars(self._name, shallow_copy=True)
 
 
 # data transfer -------------------------------------------------------------- #

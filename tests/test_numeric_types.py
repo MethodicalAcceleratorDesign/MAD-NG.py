@@ -7,7 +7,7 @@ class TestList(unittest.TestCase):
         with MAD() as mad:
             myList = [[1, 2, 3, 4, 5, 6, 7, 8, 9]] * 2
             mad.send("""
-            local list = py:recv()
+            list = py:recv()
             list[1][1] = 10
             list[2][1] = 10
             py:send(list)
@@ -15,7 +15,10 @@ class TestList(unittest.TestCase):
             mad.send(myList)
             myList[0][0] = 10
             myList[1][0] = 10
-            self.assertEqual(mad.recv(), myList)
+            mad_list = mad.recv("list")
+            for i, inner_list in enumerate(mad_list):
+                for j, val in enumerate(inner_list):
+                    self.assertEqual(val, myList[i][j], f"Mismatch at index [{i}][{j}]: {val} != {myList[i][j]}")
 
     def test_send_recv_wref(self):
         with MAD() as mad:
@@ -30,8 +33,8 @@ class TestList(unittest.TestCase):
             self.assertEqual(len(list1), 2)
             
             python_dict = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, "a": 10, "b": 3, "c": 4}
-            self.assertEqual(list2.keys(), python_dict.keys())
-            self.assertEqual(sorted(list2.values()), sorted(python_dict.values()))
+            self.assertEqual(list2.eval().keys(), python_dict.keys())
+            self.assertEqual(sorted(list2.eval().values()), sorted(python_dict.values()))
 
             self.assertEqual(list1[0].a, 2)
             self.assertEqual(list1[1].b, 6)

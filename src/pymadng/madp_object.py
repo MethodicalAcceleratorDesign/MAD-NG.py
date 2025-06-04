@@ -291,17 +291,18 @@ _last = {}
         """
         self.__process.send_vars(**vars)
 
-    def recv_vars(self, *names: str) -> Any:
+    def recv_vars(self, *names: str, shallow_copy: bool = False) -> Any:
         """
         Retrieve one or more variables from MAD-NG.
 
         Args:
             *names (str): The names of the variables to be fetched from MAD-NG.
+            shallow_copy (bool, optional): If True, returns a shallow copy of the variables.
 
         Returns:
             The retrieved variable value or a tuple of values if multiple names are provided.
         """
-        return self.__process.recv_vars(*names)
+        return self.__process.recv_vars(*names, shallow_copy=shallow_copy)
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -471,7 +472,7 @@ _last = {}
     def __dir__(self) -> Iterable[str]:
         pyObjs = [x for x in super(MAD, self).__dir__() if x[0] != "_"]
         pyObjs.extend(self.globals())
-        pyObjs.extend(dir(self.recv_vars("_G")))
+        pyObjs.extend(dir(self.recv_vars("_G", shallow_copy=True)))
         return pyObjs
 
     def globals(self) -> list[str]:
@@ -481,7 +482,7 @@ _last = {}
         Returns:
             list[str]: A list containing the names of global variables.
         """
-        return dir(self.__process.recv_vars(f"{self.py_name}._env"))
+        return dir(self.__process.recv_vars(f"{self.py_name}._env", shallow_copy=True))
 
     def history(self) -> str:
         """
