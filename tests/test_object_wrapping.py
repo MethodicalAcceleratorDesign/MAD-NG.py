@@ -15,7 +15,7 @@ from pymadng.madp_classes import high_level_mad_ref, mad_high_level_last_ref
 
 class TestGetSet(unittest.TestCase):
     def test_get(self):
-        with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
             mad.load("element", "quadrupole")
             self.assertEqual(mad.asdfg, None)
             mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1}""")
@@ -149,7 +149,7 @@ class TestObjFun(unittest.TestCase):
             self.assertEqual(mad.func_test(1)(2)(3), 7)
 
     def test_call_fail(self):
-        with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
             mad.send("func_test = \\a-> \\b-> \\c-> 'a'+b")
             mad.func_test(1)(2)(3)
             self.assertRaises(RuntimeError, lambda: mad.recv())

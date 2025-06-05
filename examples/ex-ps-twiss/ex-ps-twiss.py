@@ -2,7 +2,7 @@ import os
 
 from pymadng import MAD
 
-orginal_dir = os.getcwd()
+original_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 with MAD(debug=False) as mad:
@@ -52,4 +52,4 @@ with MAD(debug=False) as mad:
     print(df)
     print(mad.srv.to_df())
 
-os.chdir(orginal_dir)
+os.chdir(original_dir)

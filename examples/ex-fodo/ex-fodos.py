@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from pymadng import MAD
 
-orginal_dir = os.getcwd()
+original_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # The typical way to communicate with MAD-NG is to use the send and recv methods.
@@ -51,4 +51,4 @@ with MAD() as mad:
     plt.plot(mad.mtbl.s, mad.mtbl.beta11)
     plt.show()
 
-os.chdir(orginal_dir)
+os.chdir(original_dir)

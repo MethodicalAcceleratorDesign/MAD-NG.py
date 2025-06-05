@@ -7,7 +7,7 @@ import numpy as np
 
 from pymadng import MAD
 
-orginal_dir = os.getcwd()
+original_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 pid = os.fork()
@@ -104,4 +104,4 @@ else:
         print(mad.mtbl2.header)
     sys.exit()  # exit the child process
 
-os.chdir(orginal_dir)
+os.chdir(original_dir)

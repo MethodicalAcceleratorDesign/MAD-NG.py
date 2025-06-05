@@ -5,7 +5,7 @@ import numpy as np
 
 from pymadng import MAD
 
-orginal_dir = os.getcwd()
+original_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 mad = MAD()  # Not being in context manager makes not difference.
@@ -42,4 +42,4 @@ myMatrix = myMatrix.eval()  # Store the matrix permanantly
 mad["myMatrix"] = mad.MAD.matrix(4).seq()
 print(mad.myMatrix, np.all(myMatrix == mad.myMatrix))
 
-os.chdir(orginal_dir)
+os.chdir(original_dir)

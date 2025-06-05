@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from pymadng import MAD
 
-orginal_dir = os.getcwd()
+original_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
@@ -98,4 +98,4 @@ with MAD() as mad:
     t1 = time.time()
     print("Matching time: " + str(t1 - t0) + "s")
 
-os.chdir(orginal_dir)
+os.chdir(original_dir)

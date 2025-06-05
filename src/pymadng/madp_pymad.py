@@ -42,7 +42,7 @@ class mad_process:
         raise_on_madng_error: bool = True,
         debug: bool = False,
         stdout: str | Path | TextIO = None,
-        redirect_sterr: bool = False,
+        redirect_stderr: bool = False,
     ) -> None:
         self.py_name = py_name
 
@@ -76,7 +76,7 @@ class mad_process:
             ) from e
 
         # Redirect stderr to stdout, if specified
-        if redirect_sterr:
+        if redirect_stderr:
             stderr = stdout
         else:
             stderr = sys.stderr.fileno()

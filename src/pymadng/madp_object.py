@@ -68,7 +68,7 @@ class MAD(object):
         raise_on_madng_error: bool = True,
         debug: bool = False,
         stdout: TextIO | str | Path = None,
-        redirect_sterr: bool = False,
+        redirect_stderr: bool = False,
         num_temp_vars: int = 8,
         ipython_use_jedi: bool = False,
     ):
@@ -84,7 +84,7 @@ class MAD(object):
             raise_on_madng_error (bool, optional): If True, raises errors from MAD-NG immediately.
             debug (bool, optional): If True, enables detailed debugging output.
             stdout (TextIO | str | Path, optional): Destination for MAD-NG's standard output.
-            redirect_sterr (bool, optional): If True, redirects stderr to stdout.
+            redirect_stderr (bool, optional): If True, redirects stderr to stdout.
             num_temp_vars (int, optional): Maximum number of temporary variables to track.
             ipython_use_jedi (bool, optional): If True, allows IPython to use jedi for autocompletion.
         """
@@ -96,7 +96,7 @@ class MAD(object):
             raise_on_madng_error=raise_on_madng_error,
             debug=debug,
             stdout=stdout,
-            redirect_sterr=redirect_sterr,
+            redirect_stderr=redirect_stderr,
         )
         self.__process.ipython_use_jedi = ipython_use_jedi
         self.__process.last_counter = last_counter(num_temp_vars)
