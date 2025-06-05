@@ -1,4 +1,13 @@
-0.6.3 (2024/30/05)
+0.7.0 (2025/06/05)
+Update to MAD-NG 1.1.3 \
+Breaking change: tables in lua are always returned as references, so you must use `eval` to get the value of the table. Or use the optional second argument in `py:send` such as `py:send(data, true)` to return the value of the table. \
+Dictionaries in python can now be sent to MAD-NG, and will be converted to a lua table. \
+Add an optional parameter to to_df and convert_to_dataframe methods to allow the user to specify to always return a pandas dataframe, instead of a tfs dataframe, when tfs is installed. \
+Update the documentation and examples to work again. \
+Remove iter restriction on MAD-NG objects that are not sequences, now all objects can be iterated over. \
+
+
+0.6.3 (2025/04/30)
 
 Update to MAD-NG 1.1.2
 
