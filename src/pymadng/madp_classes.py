@@ -199,17 +199,16 @@ class high_level_mad_object(high_level_mad_ref):
         except IndexError:
             raise StopIteration
 
-    def to_df(self, columns: list = None):  # For backwards compatibility (jgray 2024)
+    def to_df(self, columns: list = None, force_pandas: bool = False):  # For backwards compatibility (jgray 2024)
         """See `convert_to_dataframe`"""
-        return self.convert_to_dataframe(columns)
+        return self.convert_to_dataframe(columns, force_pandas)
 
-    def convert_to_dataframe(self, columns: list = None):
+    def convert_to_dataframe(self, columns: list = None, force_pandas: bool = False):
         """Converts the object to a pandas dataframe.
-
-        This function imports pandas and tfs-pandas, if tfs-pandas is not installed, it will only return a pandas dataframe.
 
         Args:
             columns (list, optional): List of columns to include in the dataframe. Defaults to None.
+            force_pandas (bool, optional): If True, always use pandas.DataFrame. Defaults to False.
 
         Returns:
             pandas.DataFrame or tfs.TfsDataFrame: The dataframe containing the object's data.
@@ -227,7 +226,10 @@ class high_level_mad_object(high_level_mad_ref):
             # If tfs is available, use the headers attribute
             DataFrame, hdr_attr = tfs.TfsDataFrame, "headers"
         except ImportError:
-            # Otherwise, use the pandas dataframe and attrs attribute
+            force_pandas = True
+
+        if force_pandas:
+            # If pandas is the only option, use pandas DataFrame, with the attrs attribute
             DataFrame, hdr_attr = pd.DataFrame, "attrs"
 
         py_name, obj_name = self._mad.py_name, self._name

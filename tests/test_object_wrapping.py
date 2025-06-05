@@ -4,7 +4,7 @@ import sys
 import unittest
 
 import numpy as np
-import pandas
+import pandas as pd
 import tfs
 
 from pymadng import MAD
@@ -369,7 +369,7 @@ class TestDir(unittest.TestCase):
 
 
 class TestDataFrame(unittest.TestCase):
-    def generalDataFrame(self, headers, DataFrame):
+    def generalDataFrame(self, headers, DataFrame, force_pandas=False):
         mad = MAD()
         mad.send("""
 test = mtable{
@@ -394,7 +394,7 @@ test = mtable{
 test:addcol("generator", \\ri, m -> m:getcol("number")[ri] + 1i * m:getcol("number")[ri])
 test:write("test")
              """)
-        df = mad.test.to_df()
+        df = mad.test.to_df(force_pandas=force_pandas)
         self.assertTrue(isinstance(df, DataFrame))
         header = getattr(df, headers)
         self.assertEqual(header["name"], "test")
@@ -434,8 +434,11 @@ test:write("test")
 
     def test_pandasDataFrame(self):
         sys.modules["tfs"] = None  # Remove tfs-pandas
-        self.generalDataFrame("attrs", pandas.DataFrame)
+        self.generalDataFrame("attrs", pd.DataFrame)
         del sys.modules["tfs"]
+
+    def test_tfsDataFrame_force_pandas(self):
+        self.generalDataFrame("attrs", pd.DataFrame, force_pandas=True)
 
     def test_failure(self):
         with MAD() as mad:
