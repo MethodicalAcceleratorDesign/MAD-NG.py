@@ -888,7 +888,7 @@ def recv_dict(self: mad_process) -> dict:
         if key is None:  # End of dictionary
             break
         if isinstance(key, np.int32):
-            key = int(key) - 1  # Convert MAD-NG's 1-based index to Python's 0-based index
+            key = int(key)
         value = self.recv(varname and f"{varname}['{key}']")
         dct[key] = value
     self.varname = varname  # reset

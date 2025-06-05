@@ -22,17 +22,17 @@ class TestList(unittest.TestCase):
 
     def test_send_recv_wref(self):
         with MAD() as mad:
+            python_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, "a": 10, "b": 3, "c": 4}
             mad.send("""
             list = {MAD.object "a" {a = 2}, MAD.object "b" {b = 6}}
-            list2 = {1, 2, 3, 4, 5, a = 10, b = 3, c = 4}
+            list2 = py:recv()
             py:send(list)
             py:send(list2)
-            """)
+            """).send(python_dict)
             list1 = mad.recv("list")
             list2 = mad.recv("list2")
             self.assertEqual(len(list1), 2)
             
-            python_dict = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, "a": 10, "b": 3, "c": 4}
             self.assertEqual(list2.eval().keys(), python_dict.keys())
             self.assertEqual(sorted(list2.eval().values()), sorted(python_dict.values()))
 
