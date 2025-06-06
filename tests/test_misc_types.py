@@ -172,7 +172,7 @@ class TestTPSA(unittest.TestCase):
             self.assertEqual(index_part, expected_index)
             for key, value in whole_tab.items():
                 if isinstance(key, int):
-                    self.assertTrue(value == expected_index[key])
+                    self.assertTrue(value == expected_index[key-1])
                 else:
                     idx = expected_index.index(key)
                     self.assertTrue(whole_tab[key] == coefficients[idx])
@@ -199,7 +199,7 @@ class TestTPSA(unittest.TestCase):
             self.assertEqual(index_part, expected_index)
             for key, value in whole_tab.items():
                 if isinstance(key, int):
-                    self.assertTrue(value == expected_index[key])
+                    self.assertTrue(value == expected_index[key-1])
                 else:
                     idx = expected_index.index(key)
                     self.assertTrue(whole_tab[key] == coefficients[idx])

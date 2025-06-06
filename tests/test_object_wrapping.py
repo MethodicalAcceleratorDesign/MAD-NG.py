@@ -405,8 +405,8 @@ test:write("test")
         self.assertEqual(header["boolean"], True)
         self.assertEqual(header["list"], [1, 2, 3, 4, 5])
         tbl = getattr(df, headers)["table"]
-        self.assertEqual(tbl[0], 1)
-        self.assertEqual(tbl[1], 2)
+        self.assertEqual(tbl[1], 1)
+        self.assertEqual(tbl[2], 2)
         self.assertEqual(tbl["key"], "value")
         self.assertTrue(isinstance(tbl, dict))
 
