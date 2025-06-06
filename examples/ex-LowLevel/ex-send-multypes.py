@@ -1,6 +1,8 @@
-from pymadng import MAD
-import numpy as np
 import time
+
+import numpy as np
+
+from pymadng import MAD
 
 arr0 = np.zeros((10000, 1000)) + 1j  # 2*10000*1000*8 -> 160 MB
 
@@ -20,46 +22,59 @@ cmatrixString = """
     {0} = cm1 {1} {2}
     py:send({0})"""
 
-mad.send(cmatrixString.format("cm4", "*", 1)) ## Set cm4 to cm1 * 1 and send it to Python
-mad.send(cmatrixString.format("cm1", "*", 2)) ## Set cm1 to cm1 * 2 and send it to Python
-mad.send(cmatrixString.format("cm2", "*", 2)) ## Set cm2 to cm1 * 2 and send it to Python
-mad.send(cmatrixString.format("cm3", "/", 3)) ## Set cm3 to cm1 / 3 and send it to Python
+mad.send(
+    cmatrixString.format("cm4", "*", 1)
+)  ## Set cm4 to cm1 * 1 and send it to Python
+mad.send(
+    cmatrixString.format("cm1", "*", 2)
+)  ## Set cm1 to cm1 * 2 and send it to Python
+mad.send(
+    cmatrixString.format("cm2", "*", 2)
+)  ## Set cm2 to cm1 * 2 and send it to Python
+mad.send(
+    cmatrixString.format("cm3", "/", 3)
+)  ## Set cm3 to cm1 / 3 and send it to Python
 
 ## Create a vector in MAD and send it to Python
 mad.send("""
     local v1 = (MAD.vector(45):seq()*2 + 1)/3
     py:send(v1)
     """)
-start_time = time.time() # Start timer
+start_time = time.time()  # Start timer
 
 # Receive the matrices and vectors
-m1 = mad.recv() 
+m1 = mad.recv()
 cm4 = mad.recv()
 cm1 = mad.recv()
 cm2 = mad.recv()
 cm3 = mad.recv()
 v1 = mad.recv()
 
-print(time.time() - start_time) # Print time
+print(time.time() - start_time)  # Print time
 
 # Check if the matrices have been correctly sent
-print(np.all(cm1 == arr0*2)) 
-print(np.all(cm2 == arr0*2*2))
-print(np.all(cm3 == arr0*2/3))
+print(np.all(cm1 == arr0 * 2))
+print(np.all(cm2 == arr0 * 2 * 2))
+print(np.all(cm3 == arr0 * 2 / 3))
 print(np.all(cm4 == arr0))
 
 # Send a list to MAD and receive a changed version back
-myList = [[1, 2, 3, 4, 5, 6, 7, 8, 9]] * 2
+my_list = [[1, 2, 3, 4, 5, 6, 7, 8, 9]] * 2
 mad.send("""
-local list = py:recv()
+list = py:recv() -- Note: no local, so it can be accessed outside this block
 list[1][1] = 10
 list[2][1] = 10
 py:send(list)
 """)
-mad.send(myList)
-myList[0][0] = 10
-myList[1][0] = 10
-print("receiving lists", mad.recv() == myList)
+mad.send(my_list)
+my_list[0][0] = 10
+my_list[1][0] = 10
+mad_list = mad.recv("list")
+for i, inner_list in enumerate(mad_list):
+    for j, val in enumerate(inner_list):
+        print(
+            f"List value at [{i}][{j}]: {val} == {my_list[i][j]}", val == my_list[i][j]
+        )
 
 # Send an integer to MAD and receive a changed version back
 myInt = 4
@@ -94,7 +109,7 @@ local myNil = py:recv()
 py:send(myNil)
 """)
 mad.send(None)
-print("Nil/None", mad.recv() == None)
+print("Nil/None", mad.recv() is None)
 
 # Receive ranges from MAD
 mad.send("""
@@ -102,6 +117,6 @@ py:send(3..11..2)
 py:send(MAD.nrange(3.5, 21.4, 12))
 py:send(MAD.nlogrange(1, 20, 20))
 """)
-print("irng", mad.recv() == range(3  , 12  , 2)) #Py not inclusive, mad is
+print("irng", mad.recv() == range(3, 12, 2))  # Py not inclusive, mad is
 print("rng", mad.recv() == np.linspace(3.5, 21.4, 12))
 print("lrng", np.allclose(mad.recv(), np.geomspace(1, 20, 20)))

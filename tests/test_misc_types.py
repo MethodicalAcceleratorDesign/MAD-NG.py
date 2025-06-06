@@ -37,10 +37,11 @@ class TestRngs(unittest.TestCase):
             py:send(irng)
             py:send(rng)
             py:send(lrng)
-            py:send(irng:totable())
-            py:send(rng:totable())
-            py:send(lrng:totable())
+            py:send(irng:totable(), true)
+            py:send(rng:totable(), true)
+            py:send(lrng:totable(), true)
             """)
+
             self.assertEqual(mad.recv(), range(3  , 12  , 2)) #MAD is inclusive, python is exclusive (on stop)
             self.assertTrue (np.allclose(mad.recv(), np.linspace(3.5, 21.4, 12)))
             self.assertTrue (np.allclose(mad.recv(), np.geomspace(1, 20, 20)))
@@ -54,9 +55,9 @@ class TestRngs(unittest.TestCase):
             irng = py:recv() + 1 
             rng  = py:recv() + 2
             lrng = py:recv()
-            py:send(irng:totable())
-            py:send(rng:totable())
-            py:send(lrng:totable())
+            py:send(irng:totable(), true)
+            py:send(rng:totable(), true)
+            py:send(lrng:totable(), true)
             """)
             mad.send(range(3, 10, 1))
             mad.send_range(3.5, 21.4, 14)
@@ -157,8 +158,8 @@ class TestTPSA(unittest.TestCase):
             for i = 1, #tab do
                 index_part[i] = tab[i]
             end
-            py:send(tab)
-            py:send(index_part)
+            py:send(tab, true)
+            py:send(index_part, true)
             """)
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [11, 6, 4, 2, 1, 1]
@@ -169,11 +170,12 @@ class TestTPSA(unittest.TestCase):
             whole_tab = mad.recv("tab")
             index_part = mad.recv("index_part")
             self.assertEqual(index_part, expected_index)
-            for i in range(len(whole_tab)):
-                self.assertTrue(whole_tab[i] == expected_index[i])
-            
-            for i, key in enumerate(expected_index):
-                self.assertTrue(whole_tab[key] == coefficients[i])
+            for key, value in whole_tab.items():
+                if isinstance(key, int):
+                    self.assertTrue(value == expected_index[key-1])
+                else:
+                    idx = expected_index.index(key)
+                    self.assertTrue(whole_tab[key] == coefficients[idx])
     
     def test_send_ctpsa(self):
         with MAD() as mad:
@@ -183,8 +185,8 @@ class TestTPSA(unittest.TestCase):
             for i = 1, #tab do
                 index_part[i] = tab[i]
             end
-            py:send(tab)
-            py:send(index_part)
+            py:send(tab, true)
+            py:send(index_part, true)
             """)
             monos = np.asarray([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [2, 0, 0], [1, 1, 0]], dtype=np.uint8)
             coefficients = [10+6j, 2+14j, 2+9j, 2+4j, -3+4j, -3+4j]
@@ -195,10 +197,12 @@ class TestTPSA(unittest.TestCase):
             whole_tab = mad.recv("tab")
             index_part = mad.recv("index_part")
             self.assertEqual(index_part, expected_index)
-            for i in range(len(whole_tab)):
-                self.assertTrue(whole_tab[i] == expected_index[i])
-            for i, key in enumerate(expected_index):
-                self.assertTrue(whole_tab[key] == coefficients[i])
+            for key, value in whole_tab.items():
+                if isinstance(key, int):
+                    self.assertTrue(value == expected_index[key-1])
+                else:
+                    idx = expected_index.index(key)
+                    self.assertTrue(whole_tab[key] == coefficients[idx])
 
     def test_send_recv_damap(self):
         with MAD() as mad:

@@ -42,7 +42,7 @@ class mad_process:
         raise_on_madng_error: bool = True,
         debug: bool = False,
         stdout: str | Path | TextIO = None,
-        redirect_sterr: bool = False,
+        redirect_stderr: bool = False,
     ) -> None:
         self.py_name = py_name
 
@@ -76,7 +76,7 @@ class mad_process:
             ) from e
 
         # Redirect stderr to stdout, if specified
-        if redirect_sterr:
+        if redirect_stderr:
             stderr = stdout
         else:
             stderr = sys.stderr.fileno()
@@ -186,10 +186,10 @@ class mad_process:
         self.mad_input_stream.write(b"ctpa")
         send_generic_tpsa(self, monos, coefficients, send_cpx)
 
-    def send(self, data: str | int | float | np.ndarray | bool | list) -> mad_process:
+    def send(self, data: str | int | float | np.ndarray | bool | list | dict) -> mad_process:
         """Send data to the MAD-NG process.
 
-        Accepts several types (str, int, float, ndarray, bool, list) and sends them using the appropriate serialization.
+        Accepts several types (str, int, float, ndarray, bool, list, dict) and sends them using the appropriate serialization.
         Returns self to allow method chaining.
         """
         try:
@@ -214,19 +214,21 @@ class mad_process:
             f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);"
         )
 
-    def protected_variable_retrieval(self, name: str) -> Any:
+    def protected_variable_retrieval(self, name: str, shallow_copy: bool = False) -> Any:
         """Safely retrieve a variable from MAD-NG.
 
         Enables temporary error handling while retrieving a variable.
         Args:
             name (str): The MAD-NG variable name to retrieve.
+            shallow_copy (bool): If True, retrieves a shallow copy of the variable. This has no effect for most types, but tables in MAD-NG are sent as references by default, so if you want to retrieve a copy of the table, set this to True.
         Returns:
             The value of the variable.
         """
+        shallow_copy = str(shallow_copy).lower()
         if self.raise_on_madng_error:
-            return self.send(f"py:send({name})").recv(name)
+            return self.send(f"py:send({name}, {shallow_copy})").recv(name)
         self.send(
-            f"{self.py_name}:__err(true):send({name}):__err(false)"
+            f"{self.py_name}:__err(true):send({name}, {shallow_copy}):__err(false)"
         )  # Enable error handling, ask for the variable, and disable error handling
         return self.recv(name)
 
@@ -234,6 +236,10 @@ class mad_process:
         """Toggle error handling in the MAD-NG process.
 
         This determines whether errors are raised immediately.
+        Args:
+            on_off (bool): If True, errors will be raised immediately; if False, errors will not be raised.
+        Returns:
+            mad_process: Returns self to allow method chaining.
         """
         if self.raise_on_madng_error:
             return  # If the user has specified that they want to raise an error always, skip the error handling on and off
@@ -244,6 +250,10 @@ class mad_process:
 
         Reads 4 bytes to detect the data type and then extracts the corresponding value.
         Optional varname is used for reference purposes.
+        Args:
+            varname (str): The variable name to use for reference in MAD-NG.
+        Returns:
+            Any: The value received from MAD-NG, which can be of various types (str, int, float, ndarray, bool, list, dict).
         """
         typ = self.mad_read_stream.read(4).decode("utf-8")
         self.varname = varname  # For mad reference
@@ -254,6 +264,10 @@ class mad_process:
 
         The execution context includes numpy as np and the mad process instance.
         Returns the updated execution environment.
+        Args:
+            env (dict): The environment dictionary to execute the received command in.
+        Returns:
+            dict: The updated environment dictionary after executing the received command.
         """
         # Check if user has already defined mad (madp_object will have mad defined), otherwise define it
         try:
@@ -269,6 +283,11 @@ class mad_process:
         """Send multiple variables to MAD-NG.
 
         Each keyword argument becomes a variable in the MAD-NG environment.
+        If a variable is a mad_ref, it is sent as its name; otherwise, the value is sent directly.
+        Args:
+            **vars: Keyword arguments representing variable names and their values.
+        Returns:
+            mad_process: Returns self to allow method chaining.
         """
         for name, var in vars.items():
             if isinstance(var, mad_ref):
@@ -276,18 +295,23 @@ class mad_process:
             else:
                 self.send(f"{name} = {self.py_name}:recv()").send(var)
 
-    def recv_vars(self, *names) -> Any:
+    def recv_vars(self, *names, shallow_copy: bool = False) -> Any:
         """Receive one or multiple variables from MAD-NG.
 
         For a single variable (excluding internal names) a direct value is returned.
         For multiple variables, a tuple of values is returned.
+        Args:
+            *names: Variable names to retrieve from MAD-NG.
+            shallow_copy (bool): If True, retrieves a shallow copy of the variable. This has no effect for most types, but tables in MAD-NG are sent as references by default, so if you want to retrieve a copy of the table, set this to True.
+        Returns:
+            Any: The value of the variable if a single name is provided, or a tuple of values if multiple names are provided.
         """
         if len(names) == 1:
             if not is_private(names[0]):
-                return self.protected_variable_retrieval(names[0])
+                return self.protected_variable_retrieval(names[0], shallow_copy)
         else:
             return tuple(
-                self.protected_variable_retrieval(name)
+                self.protected_variable_retrieval(name, shallow_copy)
                 for name in names
                 if not is_private(name)
             )
@@ -390,7 +414,7 @@ class mad_ref(object):
 
     def eval(self) -> Any:
         """Evaluate the reference and return the value."""
-        return self._mad.recv_vars(self._name)
+        return self._mad.recv_vars(self._name, shallow_copy=True)
 
 
 # data transfer -------------------------------------------------------------- #
@@ -825,14 +849,50 @@ def recv_list(self: mad_process) -> list:
         list: The received list.
     """
     varname = self.varname  # cache
-    haskeys = recv_bool(self)
     lstLen = recv_int(self)
     vals = [self.recv(varname and varname + f"[{i + 1}]") for i in range(lstLen)]
     self.varname = varname  # reset
-    if haskeys:
-        return type_fun["ref_"]["recv"](self)
-    else:
-        return vals
+    return vals
+
+def send_dict(self: mad_process, dct: dict):
+    """Send a dictionary to the MAD-NG pipe.
+    
+    Args:
+        self (mad_process): The MAD-NG process instance.
+        dct (dict): The dictionary to send.
+    
+    Returns:
+        int: The number of bytes written to the MAD-NG input stream.
+
+    Raises:
+        ValueError: If a key in the dictionary is None, as nil keys are not allowed in Lua.
+    """
+    for key, value in dct.items():
+        if key is None:
+            self.send(None) # Stop the communication of the dictionary to MAD-NG
+            raise ValueError("nil key in a dictionary is not allowed in lua, remove the key None from the dictionary")
+        self.send(key)
+        self.send(value)
+    self.send(None)
+
+def recv_dict(self: mad_process) -> dict:
+    """Receive a dictionary from the MAD-NG pipe.
+    
+    Returns:
+        dict: The received dictionary.
+    """
+    varname = self.varname  # cache
+    dct = {}
+    while True:
+        key = self.recv()
+        if key is None:  # End of dictionary
+            break
+        if isinstance(key, np.int32):
+            key = int(key)
+        value = self.recv(varname and f"{varname}['{key}']")
+        dct[key] = value
+    self.varname = varname  # reset
+    return dct
 
 
 # object (table with metatable are treated as pure reference) ---------------- #
@@ -877,7 +937,8 @@ type_fun = {
     "nil_": {"recv": recv_nil, "send": send_nil},
     "bool": {"recv": recv_bool, "send": send_bool},
     "str_": {"recv": recv_str, "send": send_str},
-    "tbl_": {"recv": recv_list, "send": send_list},
+    "lst_": {"recv": recv_list, "send": send_list},
+    "dct_": {"recv": recv_dict, "send": send_dict},
     "ref_": {"recv": recv_reference, "send": send_reference},
     "fun_": {"recv": recv_reference, "send": send_reference},
     "obj_": {"recv": recv_reference, "send": send_reference},
@@ -899,7 +960,7 @@ type_fun = {
 
 
 def get_typestr(
-    a: str | int | float | np.ndarray | bool | list | tuple | range | mad_ref,
+    a: str | int | float | np.ndarray | bool | list | dict | tuple | range | mad_ref,
 ) -> type:
     """Determine the type string for the given input.
     
@@ -924,8 +985,9 @@ type_str = {
     type(None): "nil_",
     bool: "bool",
     str: "str_",
-    list: "tbl_",
-    tuple: "tbl_",
+    list: "lst_",
+    dict: "dct_",
+    tuple: "lst_",
     mad_ref: "ref_",
     int: "int_",
     np.int32: "int_",

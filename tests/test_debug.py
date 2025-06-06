@@ -54,7 +54,7 @@ class TestDebug(unittest.TestCase):
             self.assertFalse("***pymad.run:" in file_text)
 
         # Run debug with stderr redirection
-        with MAD(stdout=self.test_log1, redirect_sterr=True) as mad:
+        with MAD(stdout=self.test_log1, redirect_stderr=True) as mad:
             mad.psend("a = nil/2")
             # receive the error before closing the pipe
             self.assertRaises(RuntimeError, mad.recv) 

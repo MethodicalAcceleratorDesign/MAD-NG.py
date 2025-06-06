@@ -68,7 +68,7 @@ class MAD(object):
         raise_on_madng_error: bool = True,
         debug: bool = False,
         stdout: TextIO | str | Path = None,
-        redirect_sterr: bool = False,
+        redirect_stderr: bool = False,
         num_temp_vars: int = 8,
         ipython_use_jedi: bool = False,
     ):
@@ -84,7 +84,7 @@ class MAD(object):
             raise_on_madng_error (bool, optional): If True, raises errors from MAD-NG immediately.
             debug (bool, optional): If True, enables detailed debugging output.
             stdout (TextIO | str | Path, optional): Destination for MAD-NG's standard output.
-            redirect_sterr (bool, optional): If True, redirects stderr to stdout.
+            redirect_stderr (bool, optional): If True, redirects stderr to stdout.
             num_temp_vars (int, optional): Maximum number of temporary variables to track.
             ipython_use_jedi (bool, optional): If True, allows IPython to use jedi for autocompletion.
         """
@@ -96,7 +96,7 @@ class MAD(object):
             raise_on_madng_error=raise_on_madng_error,
             debug=debug,
             stdout=stdout,
-            redirect_sterr=redirect_sterr,
+            redirect_stderr=redirect_stderr,
         )
         self.__process.ipython_use_jedi = ipython_use_jedi
         self.__process.last_counter = last_counter(num_temp_vars)
@@ -291,17 +291,18 @@ _last = {}
         """
         self.__process.send_vars(**vars)
 
-    def recv_vars(self, *names: str) -> Any:
+    def recv_vars(self, *names: str, shallow_copy: bool = False) -> Any:
         """
         Retrieve one or more variables from MAD-NG.
 
         Args:
             *names (str): The names of the variables to be fetched from MAD-NG.
+            shallow_copy (bool, optional): If True, returns a shallow copy of the variables.
 
         Returns:
             The retrieved variable value or a tuple of values if multiple names are provided.
         """
-        return self.__process.recv_vars(*names)
+        return self.__process.recv_vars(*names, shallow_copy=shallow_copy)
 
     # -------------------------------------------------------------------------------------------------------------#
 
@@ -471,7 +472,7 @@ _last = {}
     def __dir__(self) -> Iterable[str]:
         pyObjs = [x for x in super(MAD, self).__dir__() if x[0] != "_"]
         pyObjs.extend(self.globals())
-        pyObjs.extend(dir(self.recv_vars("_G")))
+        pyObjs.extend(dir(self.recv_vars("_G", shallow_copy=True)))
         return pyObjs
 
     def globals(self) -> list[str]:
@@ -481,7 +482,7 @@ _last = {}
         Returns:
             list[str]: A list containing the names of global variables.
         """
-        return dir(self.__process.recv_vars(f"{self.py_name}._env"))
+        return dir(self.__process.recv_vars(f"{self.py_name}._env", shallow_copy=True))
 
     def history(self) -> str:
         """

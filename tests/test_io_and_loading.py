@@ -36,7 +36,7 @@ class TestLoad(unittest.TestCase):
             a = matrix(4, 5):seq()
             b = cmatrix(2, 3):seq()
             """)
-        with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
             mad.loadfile("test.mad")
             self.assertIsNone(mad.matrix)
             self.assertTrue(np.all(mad.a == self.a))

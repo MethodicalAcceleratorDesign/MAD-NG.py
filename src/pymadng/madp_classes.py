@@ -99,7 +99,7 @@ class high_level_mad_ref(mad_ref):
         Returns:
             str: The string representation of the MAD-NG reference.
         """
-        val = self._mad.recv_vars(self._name)
+        val = self._mad.recv_vars(self._name, shallow_copy=True)
         if isinstance(val, high_level_mad_ref):
             return repr(val)
         else:
@@ -112,7 +112,7 @@ class high_level_mad_ref(mad_ref):
         Returns:
             Any: The evaluated value of the reference in MAD-NG.
         """
-        return self._mad.recv_vars(self._name)
+        return self._mad.recv_vars(self._name, shallow_copy=True)
 
     def __repr__(self):
         """
@@ -136,7 +136,7 @@ class high_level_mad_ref(mad_ref):
         self._mad.protected_send(f"""
     local modList={{}}; local i = 1;
     for modname, mod in pairs({name}) do modList[i] = modname; i = i + 1; end
-    {self._mad.py_name}:send(modList)
+    {self._mad.py_name}:send(modList, true)
     """)
         return [x for x in self._mad.recv() if isinstance(x, str) and x[0] != "_"]
 
@@ -164,10 +164,10 @@ class high_level_mad_object(high_level_mad_ref):
     def __dir__(self) -> Iterable[str]:
         if not self._mad.ipython_use_jedi:
             self._mad.protected_send(
-                f"{self._mad.py_name}:send({self._name}:get_varkeys(MAD.object))"
+                f"{self._mad.py_name}:send({self._name}:get_varkeys(MAD.object), true)"
             )
         varnames = self._mad.protected_variable_retrieval(
-            f"{self._name}:get_varkeys(MAD.object, false)"
+            f"{self._name}:get_varkeys(MAD.object, false)", shallow_copy=True
         )
 
         if not self._mad.ipython_use_jedi:
@@ -189,9 +189,6 @@ class high_level_mad_object(high_level_mad_ref):
         return last_obj
 
     def __iter__(self):
-        self._mad.send(f"{self._mad.py_name}:send({self._name}:is_instanceOf(sequence))")
-        is_seq = self._mad.recv()
-        assert is_seq, "Iteration is only supported for sequences for now"
         self._iterindex = -1
         return self
 
@@ -240,7 +237,7 @@ class high_level_mad_object(high_level_mad_ref):
             f"""
 local is_vector, is_number, is_string in MAD.typeid
 local colnames = {py_name}:recv() or {obj_name}:colnames() -- Get the column names 
-{py_name}:send(colnames)               -- Send the column names
+{py_name}:send(colnames, true)               -- Send the column names
 
 -- Loop through all the column names and send them with their data
 for i, colname in ipairs(colnames) do
@@ -265,14 +262,14 @@ for i, colname in ipairs(colnames) do
     col = tbl
   end
 
-  {py_name}:send(col) -- Send the column data
+  {py_name}:send(col, true) -- Send the column data
 end
 
 local header = {obj_name}.header -- Get the header names
-{py_name}:send(header)           -- Send the header names
+{py_name}:send(header, true)           -- Send the header names
 
 for i, attr in ipairs(header) do 
-  {py_name}:send({obj_name}[attr]) -- Send the header data
+  {py_name}:send({obj_name}[attr], true) -- Send the header data
 end
 """
         )

@@ -15,7 +15,7 @@ from pymadng.madp_classes import high_level_mad_ref, mad_high_level_last_ref
 
 class TestGetSet(unittest.TestCase):
     def test_get(self):
-        with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
             mad.load("element", "quadrupole")
             self.assertEqual(mad.asdfg, None)
             mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1}""")
@@ -24,13 +24,13 @@ class TestGetSet(unittest.TestCase):
             self.assertEqual(qd._name, "qd")
             self.assertEqual(qd._parent, None)
             self.assertEqual(qd._mad, mad._MAD__process)
-            self.assertEqual(qd.knl, [0, 0.25])
+            self.assertEqual(qd.knl.eval(), [0, 0.25])
             self.assertEqual(qd.l, 1)
             self.assertRaises(AttributeError, lambda: qd.asdfg)
             self.assertRaises(KeyError, lambda: qd["asdfg"])
             self.assertRaises(IndexError, lambda: qd[1])
             self.assertTrue(isinstance(qf.qd, high_level_mad_ref))
-            self.assertEqual(qf.qd.knl, [0, 0.25])
+            self.assertEqual(qf.qd.knl.eval(), [0, 0.25])
             self.assertEqual(qf.qd.l, 1)
             self.assertEqual(qf.qd, qd)
 
@@ -40,12 +40,12 @@ class TestGetSet(unittest.TestCase):
                 if i % 2 != 0:
                     self.assertTrue(isinstance(objList[i].qd, high_level_mad_ref))
                     self.assertEqual(objList[i].qd._parent, f"objList[{i + 1}]")
-                    self.assertEqual(objList[i].qd.knl, [0, 0.25])
+                    self.assertEqual(objList[i].qd.knl.eval(), [0, 0.25])
                     self.assertEqual(objList[i].qd.l, 1)
                     self.assertEqual(objList[i].qd, qd)
 
                 else:
-                    self.assertEqual(objList[i].knl, [0, 0.25])
+                    self.assertEqual(objList[i].knl.eval(), [0, 0.25])
                     self.assertEqual(objList[i].l, 1)
                     self.assertEqual(objList[i], qd)
                 self.assertEqual(objList[i]._parent, "objList")
@@ -58,7 +58,7 @@ class TestGetSet(unittest.TestCase):
             self.assertEqual(mad.qd2._name, "qd2")
             self.assertEqual(mad.qd2._parent, None)
             self.assertEqual(mad.qd2._mad, mad._MAD__process)
-            self.assertEqual(mad.qd2.knl, [0, 0.25])
+            self.assertEqual(mad.qd2.knl.eval(), [0, 0.25])
             self.assertEqual(mad.qd2.l, 1)
             self.assertEqual(mad.qd2, mad.qd)
             mad["a", "b"] = mad.MAD.gmath.reim(9.75 + 1.5j)
@@ -79,7 +79,7 @@ class TestGetSet(unittest.TestCase):
             self.assertEqual(mad.a, 1)
             self.assertEqual(mad.b, 2.5)
             self.assertEqual(mad.c, "test")
-            self.assertEqual(mad.d, [1, 2, 3])
+            self.assertEqual(mad.d.eval(), [1, 2, 3])
 
     def test_recv_vars(self):
         with MAD() as mad:
@@ -88,7 +88,7 @@ class TestGetSet(unittest.TestCase):
             self.assertEqual(a, 1)
             self.assertEqual(b, 2.5)
             self.assertEqual(c, "test")
-            self.assertEqual(d, [1, 2, 3])
+            self.assertEqual(d.eval(), [1, 2, 3])
 
     def test_quote_strings(self):
         with MAD() as mad:
@@ -122,7 +122,7 @@ class TestObjFun(unittest.TestCase):
             self.assertEqual(mad.qd._name, "qd")
             self.assertEqual(mad.qd._parent, None)
             self.assertEqual(mad.qd._mad, mad._MAD__process)
-            self.assertEqual(mad.qd.knl, [0, 0.25])
+            self.assertEqual(mad.qd.knl.eval(), [0, 0.25])
             self.assertEqual(mad.qd.l, 1)
 
             sdc = sd
@@ -131,14 +131,14 @@ class TestObjFun(unittest.TestCase):
             self.assertEqual(mad.sd._name, "sd")
             self.assertEqual(mad.sd._parent, None)
             self.assertEqual(mad.sd._mad, mad._MAD__process)
-            self.assertEqual(mad.sd.knl, [0, 0.25, 0.5])
+            self.assertEqual(mad.sd.knl.eval(), [0, 0.25, 0.5])
             self.assertEqual(mad.sd.l, 1)
 
             # Reference counting
             qd = mad.quadrupole(knl=[0, 0.3], l=1)
             self.assertEqual(sdc._name, "_last[2]")
             self.assertEqual(qd._name, "_last[3]")
-            self.assertEqual(qd.knl, [0, 0.3])
+            self.assertEqual(qd.knl.eval(), [0, 0.3])
             qd = mad.quadrupole(knl=[0, 0.25], l=1)
             self.assertEqual(qd._name, "_last[1]")
 
@@ -149,7 +149,7 @@ class TestObjFun(unittest.TestCase):
             self.assertEqual(mad.func_test(1)(2)(3), 7)
 
     def test_call_fail(self):
-        with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
             mad.send("func_test = \\a-> \\b-> \\c-> 'a'+b")
             mad.func_test(1)(2)(3)
             self.assertRaises(RuntimeError, lambda: mad.recv())
@@ -225,7 +225,7 @@ class TestObjFun(unittest.TestCase):
       """)
         mad.MADX.load("'test.seq'")
         self.assertEqual(mad.MADX.qd.l, 1)
-        self.assertEqual(mad.MADX.qd.knl, [0, 0.25])
+        self.assertEqual(mad.MADX.qd.knl.eval(), [0, 0.25])
         os.remove("test.seq")
 
     def test_evaluate_in_madx_environment(self):
@@ -235,7 +235,7 @@ class TestObjFun(unittest.TestCase):
             """
             mad.evaluate_in_madx_environment(madx_code)
             self.assertEqual(mad.MADX.qd.l, 1)
-            self.assertEqual(mad.MADX.qd.knl, [0, 0.25])
+            self.assertEqual(mad.MADX.qd.knl.eval(), [0, 0.25])
 
 
 class TestOps(unittest.TestCase):
@@ -265,9 +265,9 @@ class TestOps(unittest.TestCase):
             )
             self.assertTrue(np.all(list(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
             self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == pyMat))
-            self.assertEqual(np.sin(1), mad.math.sin(1).eval())
+            self.assertEqual(np.sin(1), mad.math['sin'](1).eval())
             self.assertAlmostEqual(
-                np.cos(0.5), mad.math.cos(0.5).eval(), None, None, 4e-16
+                np.cos(0.5), mad.math['cos'](0.5).eval(), None, None, 4e-16
             )
 
             # temp vars
@@ -310,9 +310,9 @@ class TestArgsAndKwargs(unittest.TestCase):
                 opposite=False,
                 mat=mad.m1,
             )
-            self.assertEqual(sd.knl, [0, 0.25j, 1 + 1j])
+            self.assertEqual(sd.knl.eval(), [0, 0.25j, 1 + 1j])
             self.assertEqual(sd.l, 1)
-            self.assertEqual(sd.alist, [1, 2, 3, 5])
+            self.assertEqual(sd.alist.eval(), [1, 2, 3, 5])
             self.assertEqual(sd.abool, True)
             self.assertEqual(sd.opposite, False)
             self.assertTrue(np.all(sd.mat == np.arange(9).reshape((3, 3)) + 1))
@@ -405,8 +405,10 @@ test:write("test")
         self.assertEqual(header["boolean"], True)
         self.assertEqual(header["list"], [1, 2, 3, 4, 5])
         tbl = getattr(df, headers)["table"]
-        self.assertEqual([x for x in tbl], [1, 2])
+        self.assertEqual(tbl[1], 1)
+        self.assertEqual(tbl[2], 2)
         self.assertEqual(tbl["key"], "value")
+        self.assertTrue(isinstance(tbl, dict))
 
         self.assertEqual(df["string"].tolist(), ["a", "b", "c", "d", "e"])
         self.assertEqual(df["number"].tolist(), [1.1, 2.2, 3.3, 4.4, 5.5])
@@ -415,7 +417,8 @@ test:write("test")
             df["complex"].tolist(), [1 + 2j, 2 + 3j, 3 + 4j, 4 + 5j, 5 + 6j]
         )
         self.assertEqual(df["boolean"].tolist(), [True, False, True, False, True])
-        self.assertEqual(df["list"].tolist(), [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]])
+        lists = [the_list.eval() for the_list in df["list"]]
+        self.assertEqual(lists, [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]])
         tbl = df["table"].tolist()
         for i in range(len(tbl)):
             lst = tbl[i]
@@ -469,7 +472,7 @@ class TestEval(unittest.TestCase):
 
     def test_eval_class(self):
         with MAD() as mad:
-            result = mad.math.sqrt(2) + mad.math.log(10)
+            result = mad.math['sqrt'](2) + mad.math['log'](10)
             self.assertTrue(isinstance(result, mad_high_level_last_ref))
             self.assertEqual(result.eval(), math.sqrt(2) + math.log(10))
 
@@ -484,7 +487,8 @@ class TestIteration(unittest.TestCase):
             for elem in mad.my_obj:
                 if elem.name == "qd":
                     self.assertEqual(elem.l, 1.6)
-                    self.assertEqual(elem.knl, [0, 0.25])
+                    for i in range(2):
+                        self.assertEqual(elem.knl[i], 0.25 if i == 1 else 0)
                 else:
                     self.assertEqual(elem.kind, "marker")
 

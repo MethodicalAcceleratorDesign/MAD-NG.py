@@ -1,5 +1,8 @@
+import os
+import time
+
 from pymadng import MAD
-import time, os
+
 current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 mad = MAD()
@@ -42,46 +45,51 @@ end
 """)
 
 t0 = time.time()
-mad.LHC_load ()
-mad.recv() #done
+mad.LHC_load()
+mad.recv()  # done
 t1 = time.time()
-print("Load time:", t1-t0, " sec\n")
+print("Load time:", t1 - t0, " sec\n")
 
 t0 = time.time()
 mad.reg_expr("MADX", mad.MADX)
-mad.send("py:send('done')").recv() # reg_expr is recursive
+mad.send("py:send('done')").recv()  # reg_expr is recursive
 t1 = time.time()
-print("reg_expr time:", t1-t0, " sec\n")
+print("reg_expr time:", t1 - t0, " sec\n")
 
-mad.send("for i=1,#expr do expr[i]() end") #So that warnings are performed here and do no affect timing
+mad.send(
+    "for i=1,#expr do expr[i]() end"
+)  # So that warnings are performed here and do no affect timing
 
 
-#Methods of evaluation:
+# Methods of evaluation:
 t0 = time.time()
 mad.send("py:send(#expr)")
 for i in range(mad.recv()):
-    mad.send(f"py:send(expr[{i+1}]())").recv()
+    mad.send(f"py:send(expr[{i + 1}]())").recv(f"expr[{i + 1}]()")
 t1 = time.time()
-print("eval time method 1:", t1-t0, " sec")
+print("eval time method 1:", t1 - t0, " sec")
 
 t0 = time.time()
 mad.send("len = #expr py:send(len) for i=1,len do py:send(expr[i]()) end")
 for i in range(mad.recv()):
-    mad.recv()
+    mad.recv(f"expr[{i + 1}]()")
 t1 = time.time()
-print("eval time method 2:", t1-t0, " sec")
+print("eval time method 2:", t1 - t0, " sec")
 
 t0 = time.time()
 mad.send("py:send(#expr)")
-exprList1 = [mad.send(f"py:send(expr[{i+1}]())").recv() for i in range(mad.recv())]
+exprList1 = [
+    mad.send(f"py:send(expr[{i + 1}]())").recv(f"expr[{i + 1}]()")
+    for i in range(mad.recv())
+]
 t1 = time.time()
-print("eval time method 3:", t1-t0, " sec")
+print("eval time method 3:", t1 - t0, " sec")
 
 t0 = time.time()
 mad.send("len = #expr py:send(len) for i=1,len do py:send(expr[i]()) end")
-exprList2 = [mad.recv() for i in range(mad.recv())]
+exprList2 = [mad.recv(f"expr[{i + 1}]()") for i in range(mad.recv())]
 t1 = time.time()
-print("eval time method 4:", t1-t0, " sec\n")
+print("eval time method 4:", t1 - t0, " sec\n")
 
 
 print("sanity check", exprList1 == exprList2, len(exprList1))
@@ -97,7 +105,7 @@ end
 """)
 nameList = [mad.recv() for _ in range(mad.recv())]
 t1 = time.time()
-print("time to retrieve every element name in lhcb1 sequence", t1-t0, "sec")
+print("time to retrieve every element name in lhcb1 sequence", t1 - t0, "sec")
 print(len(nameList))
 
 
@@ -110,7 +118,7 @@ for i, elm, spos, len in lhcb2:iter() do
 end
 py:send(lhcb2_tbl)
 """)
-nameList = mad.recv()
+nameList = mad.recv("lhcb2_tbl")
 t1 = time.time()
-print("time to retrieve every element name in lhcb2 sequence", t1-t0, "sec")
+print("time to retrieve every element name in lhcb2 sequence", t1 - t0, "sec")
 print(len(nameList))

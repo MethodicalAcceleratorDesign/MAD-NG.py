@@ -1,9 +1,10 @@
 """
 This script demonstrates the usage of the MAD class to perform a local coupling correction in the LHC.
 
-The aim of this script is demonstrate a combination of pythonic and MAD-NG syntax. 
-Also, it demonstrates how you can retrieve data from MAD-NG and plot it in real-time, as it is being calculated, preventing the need to store it in memory. 
+The aim of this script is demonstrate a combination of pythonic and MAD-NG syntax.
+Also, it demonstrates how you can retrieve data from MAD-NG and plot it in real-time, as it is being calculated, preventing the need to store it in memory.
 """
+
 import os
 import time
 
@@ -11,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from pymadng import MAD
 
-orginal_dir = os.getcwd()
+original_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
@@ -39,9 +40,7 @@ with MAD() as mad:
     kqsx3_r2 = +0.0015
     """)
     t0 = time.time()
-    mad["tbl", "flw"] = mad.twiss(sequence=mad.lhcb1, method=4)
-    # plt.plot(mad.tbl.s, mad.tbl.beta11)
-    # plt.show()
+    mad["tbl", "flw"] = mad.twiss(sequence=mad.lhcb1)
     mad.tbl.write("'before_tune_correction_n'")
 
     print("Values before matching")
@@ -52,8 +51,8 @@ with MAD() as mad:
     expr1 = \\t, s -> t.q1 - 62.30980
     expr2 = \\t, s -> t.q2 - 60.32154
     function twiss_and_send()
-        local mtbl, mflow = twiss {sequence=lhcb1, method=4}
-        py:send({mtbl.s, mtbl.beta11})
+        local mtbl, mflow = twiss {sequence=lhcb1}
+        py:send({mtbl.s, mtbl.beta11}, true) -- True means that the data table is sent as a shallow copy
         return mtbl, mflow
     end
     """)
@@ -94,9 +93,9 @@ with MAD() as mad:
     print("dQx.b1=", mad.MADX.dqx_b1)
     print("dQy.b1=", mad.MADX.dqy_b1)
 
-    mad.twiss("tbl", sequence=mad.lhcb1, method=4, chrom=True)
+    mad.twiss("tbl", sequence=mad.lhcb1)
     mad.tbl.write("'after_tune_correction_n'")
     t1 = time.time()
-    print("pre-tracking time: " + str(t1 - t0) + "s")
+    print("Matching time: " + str(t1 - t0) + "s")
 
-os.chdir(orginal_dir)
+os.chdir(original_dir)

@@ -53,7 +53,7 @@ mad.seq.beam = mad.beam()
 ### Low-Level:
 
 ```python
-mad.send("seq.beam = beam")
+mad.send("seq.beam = beam {}")
 ```
 
 ---
@@ -63,13 +63,13 @@ mad.send("seq.beam = beam")
 ### High-Level:
 
 ```python
-mad["tbl", "flow"] = mad.twiss(sequence=mad.seq, method=4)
+mad["tbl", "flw"] = mad.twiss(sequence=mad.seq)
 ```
 
 ### Low-Level:
 
 ```python
-mad.send("tbl, flow = twiss {sequence=seq, method=4}")
+mad.send("tbl, flw = twiss {sequence=seq}")
 mad.send("py:send(tbl)")
 tbl = mad.recv()
 ```

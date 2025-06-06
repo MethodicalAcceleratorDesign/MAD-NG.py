@@ -15,7 +15,7 @@ class TestExecution(unittest.TestCase):
             self.assertEqual(a, 50)
 
     def test_err(self):
-        with MAD(stdout="/dev/null", redirect_sterr=True) as mad:
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
             mad.send("py:__err(true)")  
             mad.send("1+1") #Load error
             self.assertRaises(RuntimeError, mad.recv)
@@ -47,7 +47,7 @@ Like So.]])"""
             self.assertEqual(mad.recv(), initString * 2)
 
     def test_protected_send(self):
-        with MAD(stdout="/dev/null", redirect_sterr=True, raise_on_madng_error=False) as mad:
+        with MAD(stdout="/dev/null", redirect_stderr=True, raise_on_madng_error=False) as mad:
             mad.send("py:send('hello world'); a = nil/2")
             self.assertEqual(mad.recv(), "hello world") # python should not crash
             mad.send("py:send(1)")
