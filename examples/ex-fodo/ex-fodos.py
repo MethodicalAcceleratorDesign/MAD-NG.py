@@ -1,11 +1,12 @@
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 
 from pymadng import MAD
 
-original_dir = os.getcwd()
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+original_dir = Path.cwd()
+os.chdir(Path(__file__).resolve().parent)
 
 # The typical way to communicate with MAD-NG is to use the send and recv methods.
 with MAD() as mad:
@@ -37,12 +38,8 @@ with MAD() as mad:
     mad.MADX.load("'fodo.seq'", "'fodo.mad'")
     mad.load("MADX", "seq")
     mad.seq.beam = mad.beam()
-    mad["mtbl", "mflw"] = mad.twiss(
-        sequence=mad.seq, implicit=True, nslice=10, save="'atbody'"
-    )
-    cols = mad.quote_strings(
-        ["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"]
-    )
+    mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, implicit=True, nslice=10, save="'atbody'")
+    cols = mad.quote_strings(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])
     mad.mtbl.write("'twiss_py.tfs'", cols)
 
     for x in mad.seq:  # If an object is iterable, it is possible to loop over it

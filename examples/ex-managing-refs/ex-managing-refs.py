@@ -1,12 +1,13 @@
 # Code that does not necessarily work as expected
 import os
+from pathlib import Path
 
 import numpy as np
 
 from pymadng import MAD
 
-original_dir = os.getcwd()
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+original_dir = Path.cwd()
+os.chdir(Path(__file__).parent)
 
 mad = MAD()  # Not being in context manager makes not difference.
 
@@ -32,14 +33,14 @@ mad.send(
     "print(mtbl, mflw[1])"
 )  # This will print the table and the particle stored in mflw[1] (lua table)
 
-myMatrix = mad.MAD.matrix(4).seq()  # Create 4x4 matrix
+a_matrix = mad.MAD.matrix(4).seq()  # Create 4x4 matrix
 
-print(type(myMatrix))  # Not a 4x4 matrix!
-print(type(myMatrix.eval()))  # A 4x4 matrix!
+print(type(a_matrix))  # Not a 4x4 matrix!
+print(type(a_matrix.eval()))  # A 4x4 matrix!
 
-myMatrix = myMatrix.eval()  # Store the matrix permanantly
+a_matrix = a_matrix.eval()  # Store the matrix permanantly
 
 mad["myMatrix"] = mad.MAD.matrix(4).seq()
-print(mad.myMatrix, np.all(myMatrix == mad.myMatrix))
+print(mad.myMatrix, np.all(a_matrix == mad.myMatrix))
 
 os.chdir(original_dir)

@@ -7,13 +7,14 @@ Also, it demonstrates how you can retrieve data from MAD-NG and plot it in real-
 
 import os
 import time
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 
 from pymadng import MAD
 
-original_dir = os.getcwd()
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+original_dir = Path.cwd()
+os.chdir(Path(__file__).parent)
 
 
 with MAD() as mad:
@@ -21,9 +22,7 @@ with MAD() as mad:
 
     mad.MADX.load("'lhc_as-built.seq'", "'lhc_as-built.mad'")
     mad.MADX.load("'opticsfile.21'", "'opticsfile.21.mad'")
-    mad.MADX.load(
-        "'lhc_unset_vars.mad'"
-    )  # Load a list of unset variables to prevent warnings
+    mad.MADX.load("'lhc_unset_vars.mad'")  # Load a list of unset variables to prevent warnings
 
     mad.load("MADX", "lhcb1", "nrj")
 
@@ -41,6 +40,9 @@ with MAD() as mad:
     """)
     t0 = time.time()
     mad["tbl", "flw"] = mad.twiss(sequence=mad.lhcb1)
+    mad["srv"] = mad.survey(sequence=mad.lhcb1)
+    print(mad.srv)
+    print(mad.srv[0].to_df())
     mad.tbl.write("'before_tune_correction_n'")
 
     print("Values before matching")

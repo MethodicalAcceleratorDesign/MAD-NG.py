@@ -1,9 +1,9 @@
-import os
 import time
+from pathlib import Path
 
 from pymadng import MAD
 
-current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+current_dir = str(Path(__file__).parent) + "/"
 
 mad = MAD()
 
@@ -78,47 +78,46 @@ print("eval time method 2:", t1 - t0, " sec")
 
 t0 = time.time()
 mad.send("py:send(#expr)")
-exprList1 = [
-    mad.send(f"py:send(expr[{i + 1}]())").recv(f"expr[{i + 1}]()")
-    for i in range(mad.recv())
+expr_lst1 = [
+    mad.send(f"py:send(expr[{i + 1}]())").recv(f"expr[{i + 1}]()") for i in range(mad.recv())
 ]
 t1 = time.time()
 print("eval time method 3:", t1 - t0, " sec")
 
 t0 = time.time()
 mad.send("len = #expr py:send(len) for i=1,len do py:send(expr[i]()) end")
-exprList2 = [mad.recv(f"expr[{i + 1}]()") for i in range(mad.recv())]
+expr_lst2 = [mad.recv(f"expr[{i + 1}]()") for i in range(mad.recv())]
 t1 = time.time()
 print("eval time method 4:", t1 - t0, " sec\n")
 
 
-print("sanity check", exprList1 == exprList2, len(exprList1))
+print("sanity check", expr_lst1 == expr_lst2, len(expr_lst1))
 
 t0 = time.time()
 mad["lhcb1"] = mad.MADX.lhcb1
 
 mad.send("""
 py:send(#lhcb1)
-for i, elm, spos, len in lhcb1:iter() do 
+for i, elm, spos, len in lhcb1:iter() do
     py:send(elm.name)
 end
 """)
-nameList = [mad.recv() for _ in range(mad.recv())]
+list_of_names = [mad.recv() for _ in range(mad.recv())]
 t1 = time.time()
 print("time to retrieve every element name in lhcb1 sequence", t1 - t0, "sec")
-print(len(nameList))
+print(len(list_of_names))
 
 
 t0 = time.time()
 mad["lhcb2"] = mad.MADX.lhcb2
 mad.send("""
 lhcb2_tbl = {}
-for i, elm, spos, len in lhcb2:iter() do 
+for i, elm, spos, len in lhcb2:iter() do
     lhcb2_tbl[i] = elm.name
 end
 py:send(lhcb2_tbl)
 """)
-nameList = mad.recv("lhcb2_tbl")
+list_of_names = mad.recv("lhcb2_tbl")
 t1 = time.time()
 print("time to retrieve every element name in lhcb2 sequence", t1 - t0, "sec")
-print(len(nameList))
+print(len(list_of_names))

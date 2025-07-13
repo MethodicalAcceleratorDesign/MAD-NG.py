@@ -7,9 +7,9 @@ import struct
 import subprocess
 import sys
 import threading
-from pathlib import Path
-from typing import Any, TYPE_CHECKING, TextIO
 from contextlib import suppress
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TextIO
 
 import numpy as np
 
@@ -21,20 +21,18 @@ if TYPE_CHECKING:
 
 def is_private(varname):
     """Check if the variable name is considered private.
-    
+
     Args:
         varname (str): The variable name to check.
-        
+
     Returns:
         bool: True if the variable name is private, False otherwise.
     """
     assert isinstance(varname, str), "Variable name to receive must be a string"
-    if varname[0] == "_" and varname[:6] != "_last[":
-        return True
-    return False
+    return bool(varname[0] == "_" and varname[:6] != "_last[")
 
 
-class mad_process:
+class MadProcess:
     def __init__(
         self,
         mad_path: str | Path,
@@ -63,8 +61,9 @@ class mad_process:
         # Convert stdout to a TextIO object
         if stdout is None:
             stdout = sys.stdout
-        elif isinstance(stdout, str) or isinstance(stdout, Path):
-            self.stdout_file = open(Path(stdout), "w")
+        elif isinstance(stdout, str | Path):
+            self.stdout_file_path = Path(stdout)
+            self.stdout_file = self.stdout_file_path.open("w")
             stdout = self.stdout_file
 
         # Convert stdout to a file descriptor
@@ -76,23 +75,18 @@ class mad_process:
             ) from e
 
         # Redirect stderr to stdout, if specified
-        if redirect_stderr:
-            stderr = stdout
-        else:
-            stderr = sys.stderr.fileno()
+        stderr = stdout if redirect_stderr else sys.stderr.fileno()
 
         # Create a chunk of code to start the process
         lua_debug_flag = "true" if debug else "false"
-        startupChunk = (
-            f"MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}} :__ini({mad_write})"
-        )
+        startup_chunk = f"MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}} :__ini({mad_write})"
 
         if threading.current_thread() is threading.main_thread():
             self._setup_signal_handler()
 
         # Start the process
         self.process = subprocess.Popen(
-            [str(mad_path), "-q", "-e", startupChunk],
+            [str(mad_path), "-q", "-e", startup_chunk],
             bufsize=0,
             stdin=mad_read,  # Set the stdin of MAD to the read end of the pipe
             stdout=stdout,  # Forward stdout
@@ -131,13 +125,8 @@ class mad_process:
         if not startup_status_checker[0] or mad_rtrn != "started":
             self.close()
             if mad_rtrn == "started":
-                raise OSError(
-                    f"Could not establish communication with {mad_path} process"
-                )
-            else:
-                raise OSError(
-                    f"Could not start {mad_path} process, received: {mad_rtrn}"
-                )
+                raise OSError(f"Could not establish communication with {mad_path} process")
+            raise OSError(f"Could not start {mad_path} process, received: {mad_rtrn}")
 
         # Set the error handler to be on by default
         if raise_on_madng_error:
@@ -186,7 +175,7 @@ class mad_process:
         self.mad_input_stream.write(b"ctpa")
         send_generic_tpsa(self, monos, coefficients, send_cpx)
 
-    def send(self, data: str | int | float | np.ndarray | bool | list | dict) -> mad_process:
+    def send(self, data: str | int | float | np.ndarray | bool | list | dict) -> MadProcess:
         """Send data to the MAD-NG process.
 
         Accepts several types (str, int, float, ndarray, bool, list, dict) and sends them using the appropriate serialization.
@@ -202,7 +191,7 @@ class mad_process:
                 f"Unsupported data type, expected a type in: \n{list(type_str.keys())}, got {type(data)}"
             ) from None
 
-    def protected_send(self, string: str) -> mad_process:
+    def protected_send(self, string: str) -> MadProcess:
         """Send a command string to MAD-NG with temporary error handling.
 
         If error handling is enabled, any errors in MAD-NG will be reported back.
@@ -210,9 +199,7 @@ class mad_process:
         if self.raise_on_madng_error:
             # If the user has specified that they want to raise an error always, skip the error handling on and off
             return self.send(string)
-        return self.send(
-            f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);"
-        )
+        return self.send(f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);")
 
     def protected_variable_retrieval(self, name: str, shallow_copy: bool = False) -> Any:
         """Safely retrieve a variable from MAD-NG.
@@ -232,7 +219,7 @@ class mad_process:
         )  # Enable error handling, ask for the variable, and disable error handling
         return self.recv(name)
 
-    def set_error_handler(self, on_off: bool) -> mad_process:
+    def set_error_handler(self, on_off: bool) -> MadProcess:
         """Toggle error handling in the MAD-NG process.
 
         This determines whether errors are raised immediately.
@@ -279,7 +266,7 @@ class mad_process:
         return env
 
     # ----------------- Dealing with communication of variables ---------------- #
-    def send_vars(self, **vars) -> mad_process:
+    def send_vars(self, **variables) -> MadProcess:
         """Send multiple variables to MAD-NG.
 
         Each keyword argument becomes a variable in the MAD-NG environment.
@@ -289,8 +276,8 @@ class mad_process:
         Returns:
             mad_process: Returns self to allow method chaining.
         """
-        for name, var in vars.items():
-            if isinstance(var, mad_ref):
+        for name, var in variables.items():
+            if isinstance(var, MadRef):
                 self.send(f"{name} = {var._name}")
             else:
                 self.send(f"{name} = {self.py_name}:recv()").send(var)
@@ -306,15 +293,11 @@ class mad_process:
         Returns:
             Any: The value of the variable if a single name is provided, or a tuple of values if multiple names are provided.
         """
+        if any(is_private(name) for name in names):
+            raise ValueError("Cannot retrieve private variables from MAD-NG")
         if len(names) == 1:
-            if not is_private(names[0]):
-                return self.protected_variable_retrieval(names[0], shallow_copy)
-        else:
-            return tuple(
-                self.protected_variable_retrieval(name, shallow_copy)
-                for name in names
-                if not is_private(name)
-            )
+            return self.protected_variable_retrieval(names[0], shallow_copy)
+        return tuple(self.protected_variable_retrieval(name, shallow_copy) for name in names)
 
     # -------------------------------------------------------------------------- #
 
@@ -353,12 +336,13 @@ class mad_process:
         self.close()
 
 
-class mad_ref(object):
+class MadRef:
     """A reference to a variable in MAD-NG.
     This class allows for the retrieval of variables from MAD-NG without
     having to send them explicitly.
     """
-    def __init__(self, name: str, mad_proc: mad_process):
+
+    def __init__(self, name: str, mad_proc: MadProcess):
         assert name is not None, (
             "Reference must have a variable to reference to."
             "Did you forget to put a name in the receive functions?"
@@ -368,13 +352,13 @@ class mad_ref(object):
 
     def __getattr__(self, item):
         """Retrieve attribute corresponding to a variable in MAD-NG.
-        
+
         Args:
             item (str): The attribute name.
-        
+
         Returns:
             Any: The value of the variable in MAD-NG.
-        
+
         Raises:
             AttributeError: If the attribute is not found.
         """
@@ -387,13 +371,13 @@ class mad_ref(object):
 
     def __getitem__(self, item: str | int):
         """Retrieve item from MAD-NG using indexing.
-        
+
         Args:
             item (str | int): The key or index.
-        
+
         Returns:
             Any: The value corresponding to the item.
-        
+
         Raises:
             IndexError: If the index is out of range.
             KeyError: If the key is not present.
@@ -421,7 +405,7 @@ class mad_ref(object):
 
 
 # Data ----------------------------------------------------------------------- #
-def write_serial_data(self: mad_process, dat_fmt: str, *dat: Any) -> int:
+def write_serial_data(self: MadProcess, dat_fmt: str, *dat: Any) -> int:
     """Write data to the MAD-NG pipe in a specific format."
 
     Args:
@@ -434,9 +418,9 @@ def write_serial_data(self: mad_process, dat_fmt: str, *dat: Any) -> int:
     return self.mad_input_stream.write(struct.pack(dat_fmt, *dat))
 
 
-def read_data_stream(self: mad_process, dat_sz: int, dat_typ: np.dtype) -> np.ndarray:
+def read_data_stream(self: MadProcess, dat_sz: int, dat_typ: np.dtype) -> np.ndarray:
     """Read data from the MAD-NG pipe in a specific format.
-    
+
     Args:
         dat_sz (int): The size of the data to read.
         dat_typ (np.dtype): The data type for numpy conversion.
@@ -448,7 +432,7 @@ def read_data_stream(self: mad_process, dat_sz: int, dat_typ: np.dtype) -> np.nd
 
 
 # None ----------------------------------------------------------------------- #
-def send_nil(self: mad_process, input):
+def send_nil(self: MadProcess, _):
     """Send a nil value to MAD-NG.
 
     This is a placeholder function as nil is not sent down the pipe, but rather
@@ -462,41 +446,41 @@ def send_nil(self: mad_process, input):
     Returns:
         None: No value is sent, but the function is included for consistency.
     """
-    return None
+    return
 
 
-def recv_nil(self: mad_process):
+def recv_nil(self: MadProcess):
     """Receive a nil value from MAD-NG.
-    
+
     This is a placeholder function as nil is not sent down the pipe, but rather
     the receiving of the type is used to tell MAD-NG that the value is nil.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
-        
+
     Returns:
         None: No value is received.
     """
-    return None
+    return
 
 
 # Boolean -------------------------------------------------------------------- #
-def send_bool(self: mad_process, input: bool) -> int:
+def send_bool(self: MadProcess, value: bool) -> int:
     """Write a boolean value to the MAD-NG pipe.
 
     Args:
         self (mad_process): The MAD-NG process instance.
-        input (bool): The boolean value to send.
+        value (bool): The boolean value to send.
 
     Returns:
         int: The number of bytes written to the MAD-NG input stream.
     """
-    return self.mad_input_stream.write(struct.pack("?", input))
+    return self.mad_input_stream.write(struct.pack("?", value))
 
 
-def recv_bool(self: mad_process) -> bool:
+def recv_bool(self: MadProcess) -> bool:
     """Read a boolean value from the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
 
@@ -507,20 +491,20 @@ def recv_bool(self: mad_process) -> bool:
 
 
 # int32 ---------------------------------------------------------------------- #
-def send_int(self: mad_process, input: int) -> int:
+def send_int(self: MadProcess, value: int) -> int:
     """Send a 32-bit integer to the MAD-NG pipe.
 
     Args:
         self (mad_process): The MAD-NG process instance.
-        input (int): The integer value to send.
+        value (int): The integer value to send.
 
     Returns:
         int: The number of bytes written to the MAD-NG input stream.
     """
-    return write_serial_data(self, "i", input)
+    return write_serial_data(self, "i", value)
 
 
-def recv_int(self: mad_process) -> int:
+def recv_int(self: MadProcess) -> int:
     """Receive a 32-bit integer from the MAD-NG pipe.
 
     Args:
@@ -533,24 +517,24 @@ def recv_int(self: mad_process) -> int:
 
 
 # String --------------------------------------------------------------------- #
-def send_str(self: mad_process, input: str) -> int:
+def send_str(self: MadProcess, value: str) -> int:
     """Send a string to the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
-        input (str): The string value to send.
+        value (str): The string value to send.
 
     Returns:
         int: The number of bytes written to the MAD-NG input stream.
     """
     # Only store history if debug mode is enabled
     if getattr(self, "debug", False):
-        self.history += input + "\n"
-    send_int(self, len(input))
-    return self.mad_input_stream.write(input.encode("utf-8"))
+        self.history += value + "\n"
+    send_int(self, len(value))
+    return self.mad_input_stream.write(value.encode("utf-8"))
 
 
-def recv_str(self: mad_process) -> str:
+def recv_str(self: MadProcess) -> str:
     """Receive a string from the MAD-NG pipe.
 
     Args:
@@ -559,30 +543,29 @@ def recv_str(self: mad_process) -> str:
     Returns:
         str: The string value received from MAD-NG.
     """
-    res = self.mad_read_stream.read(recv_int(self)).decode("utf-8")
-    return res
+    return self.mad_read_stream.read(recv_int(self)).decode("utf-8")
 
 
 # number (in lua, float64 in python) ----------------------------------------- #
-def send_num(self: mad_process, input: float) -> int:
+def send_num(self: MadProcess, value: float) -> int:
     """Send a 64-bit float to the MAD-NG pipe.
 
     Args:
         self (mad_process): The MAD-NG process instance.
-        input (float): The float value to send.
-    
+        value (float): The float value to send.
+
     Returns:
         int: The number of bytes written to the MAD-NG input stream.
     """
-    return write_serial_data(self, "d", input)
+    return write_serial_data(self, "d", value)
 
 
-def recv_num(self: mad_process) -> np.float64:
+def recv_num(self: MadProcess) -> np.float64:
     """Receive a 64-bit float from the MAD-NG pipe.
 
     Args:
         self (mad_process): The MAD-NG process instance.
-    
+
     Returns:
         np.float64: The float value received from MAD-NG.
     """
@@ -590,25 +573,25 @@ def recv_num(self: mad_process) -> np.float64:
 
 
 # Complex (complex128) ------------------------------------------------------- #
-def send_cpx(self: mad_process, input: complex) -> int:
+def send_cpx(self: MadProcess, value: complex) -> int:
     """Send a complex number to the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
-        input (complex): The complex number to send.
+        value (complex): The complex number to send.
 
     Returns:
         int: The number of bytes written to the MAD-NG input stream.
     """
-    return write_serial_data(self, "dd", input.real, input.imag)
+    return write_serial_data(self, "dd", value.real, value.imag)
 
 
-def recv_cpx(self: mad_process) -> complex:
+def recv_cpx(self: MadProcess) -> complex:
     """Receive a complex number from the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
-    
+
     Returns:
         complex: The received complex number.
     """
@@ -618,31 +601,31 @@ def recv_cpx(self: mad_process) -> complex:
 # Range ---------------------------------------------------------------------- #
 def send_generic_range(self, start: float, stop: float, size: int):
     """Send a generic range to MAD-NG.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         start (float): The starting value of the range.
         stop (float): The ending value of the range.
         size (int): The number of points in the range.
-    
+
     Returns:
         None
     """
     write_serial_data(self, "ddi", start, stop, size)
 
 
-def recv_range(self: mad_process) -> np.ndarray:
+def recv_range(self: MadProcess) -> np.ndarray:
     """Receive a linear range from the MAD-NG pipe.
-    
+
     Returns:
         np.ndarray: The range as a numpy array.
     """
     return np.linspace(*struct.unpack("ddi", self.mad_read_stream.read(20)))
 
 
-def recv_logrange(self: mad_process) -> np.ndarray:
+def recv_logrange(self: MadProcess) -> np.ndarray:
     """Receive a logarithmic range from the MAD-NG pipe.
-    
+
     Returns:
         np.ndarray: The logarithmic range as a numpy array.
     """
@@ -650,22 +633,22 @@ def recv_logrange(self: mad_process) -> np.ndarray:
 
 
 # irange --------------------------------------------------------------------- #
-def send_int_range(self: mad_process, rng: range):
+def send_int_range(self: MadProcess, rng: range):
     """Send an integer range to the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         rng (range): The range object to send.
-    
+
     Returns:
         int: The number of bytes written.
     """
     return write_serial_data(self, "iii", rng.start, rng.stop, rng.step)
 
 
-def recv_int_range(self: mad_process) -> range:
+def recv_int_range(self: MadProcess) -> range:
     """Receive an inclusive integer range from the MAD-NG pipe.
-    
+
     Returns:
         range: The received range, inclusive of both ends.
     """
@@ -674,13 +657,13 @@ def recv_int_range(self: mad_process) -> range:
 
 
 # matrix --------------------------------------------------------------------- #
-def send_generic_matrix(self: mad_process, mat: np.ndarray):
+def send_generic_matrix(self: MadProcess, mat: np.ndarray):
     """Send a 2D matrix to MAD-NG.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         mat (np.ndarray): A 2-dimensional numpy array to send.
-    
+
     Returns:
         None
     """
@@ -689,43 +672,41 @@ def send_generic_matrix(self: mad_process, mat: np.ndarray):
     self.mad_input_stream.write(mat.tobytes())
 
 
-def recv_generic_matrix(self: mad_process, dtype: np.dtype) -> str:
+def recv_generic_matrix(self: MadProcess, dtype: np.dtype) -> str:
     """Receive a generic matrix from the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         dtype (np.dtype): The numpy data type of the matrix.
-    
+
     Returns:
         str: A string representation of the matrix (reshaped numpy array).
     """
     shape = read_data_stream(self, 8, np.int32)
-    return read_data_stream(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(
-        shape
-    )
+    return read_data_stream(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(shape)
 
 
-def recv_matrix(self: mad_process) -> np.ndarray:
+def recv_matrix(self: MadProcess) -> np.ndarray:
     """Receive a matrix of 64-bit floats from the MAD-NG pipe.
-    
+
     Returns:
         np.ndarray: The received matrix.
     """
     return recv_generic_matrix(self, np.dtype("float64"))
 
 
-def recv_cpx_matrix(self: mad_process) -> np.ndarray:
+def recv_cpx_matrix(self: MadProcess) -> np.ndarray:
     """Receive a matrix of complex numbers from the MAD-NG pipe.
-    
+
     Returns:
         np.ndarray: The received complex matrix.
     """
     return recv_generic_matrix(self, np.dtype("complex128"))
 
 
-def recv_int_matrix(self: mad_process) -> np.ndarray:
+def recv_int_matrix(self: MadProcess) -> np.ndarray:
     """Receive a matrix of 32-bit integers from the MAD-NG pipe.
-    
+
     Returns:
         np.ndarray: The received integer matrix.
     """
@@ -733,13 +714,13 @@ def recv_int_matrix(self: mad_process) -> np.ndarray:
 
 
 # monomial ------------------------------------------------------------------- #
-def send_monomial(self: mad_process, mono: np.ndarray):
+def send_monomial(self: MadProcess, mono: np.ndarray):
     """Send a monomial to MAD-NG.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         mono (np.ndarray): A numpy array representing the monomial.
-    
+
     Returns:
         None
     """
@@ -747,9 +728,9 @@ def send_monomial(self: mad_process, mono: np.ndarray):
     self.mad_input_stream.write(mono.tobytes())
 
 
-def recv_monomial(self: mad_process) -> np.ndarray:
+def recv_monomial(self: MadProcess) -> np.ndarray:
     """Receive a monomial from MAD-NG.
-    
+
     Returns:
         np.ndarray: The received monomial as an array of 8-bit unsigned integers.
     """
@@ -758,19 +739,19 @@ def recv_monomial(self: mad_process) -> np.ndarray:
 
 # TPSA ----------------------------------------------------------------------- #
 def send_generic_tpsa(
-    self: mad_process,
+    self: MadProcess,
     monos: np.ndarray,
     coefficients: np.ndarray,
-    send_num: Callable[[mad_process, float | complex], None],
+    send_num: Callable[[MadProcess, float | complex], None],
 ):
     """Send a generic TPSA table to MAD-NG.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         monos (np.ndarray): 2D array of monomials (must be uint8).
         coefficients (np.ndarray): Array of coefficients corresponding to the monomials.
         send_num (Callable): The function to send a numeric (float or complex) value.
-    
+
     Returns:
         None
     """
@@ -778,9 +759,7 @@ def send_generic_tpsa(
     assert len(monos) == len(coefficients), (
         "The number of monomials must be equal to the number of coefficients"
     )
-    assert monos.dtype == np.uint8, (
-        "The monomials must be of type 8-bit unsigned integer "
-    )
+    assert monos.dtype == np.uint8, "The monomials must be of type 8-bit unsigned integer "
     write_serial_data(self, "ii", len(monos), len(monos[0]))
     for mono in monos:
         self.mad_input_stream.write(mono.tobytes())
@@ -788,13 +767,13 @@ def send_generic_tpsa(
         send_num(self, coefficient)
 
 
-def recv_generic_tpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
+def recv_generic_tpsa(self: MadProcess, dtype: np.dtype) -> np.ndarray:
     """Receive a generic TPSA table from MAD-NG.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         dtype (np.dtype): The numeric data type for coefficients.
-    
+
     Returns:
         np.ndarray: A tuple (monomial list, coefficients array).
     """
@@ -807,18 +786,18 @@ def recv_generic_tpsa(self: mad_process, dtype: np.dtype) -> np.ndarray:
     return mono_list, coefficients
 
 
-def recv_cpx_tpsa(self: mad_process):
+def recv_cpx_tpsa(self: MadProcess):
     """Receive a complex TPSA table from the MAD-NG pipe.
-    
+
     Returns:
         tuple: A tuple containing the monomial list and coefficients.
     """
     return recv_generic_tpsa(self, np.dtype("complex128"))
 
 
-def recv_dbl_tpsa(self: mad_process):
+def recv_dbl_tpsa(self: MadProcess):
     """Receive a double TPSA table from the MAD-NG pipe.
-    
+
     Returns:
         tuple: A tuple containing the monomial list and coefficients.
     """
@@ -827,13 +806,13 @@ def recv_dbl_tpsa(self: mad_process):
 
 # lists ---------------------------------------------------------------------- #
 # Lists of strings are really slow to send, is there a way to improve this? (jgray 2024)
-def send_list(self: mad_process, lst: list):
+def send_list(self: MadProcess, lst: list):
     """Send a list to the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         lst (list): The list to send.
-    
+
     Returns:
         None
     """
@@ -842,25 +821,26 @@ def send_list(self: mad_process, lst: list):
         self.send(item)
 
 
-def recv_list(self: mad_process) -> list:
+def recv_list(self: MadProcess) -> list:
     """Receive a list from the MAD-NG pipe.
-    
+
     Returns:
         list: The received list.
     """
     varname = self.varname  # cache
-    lstLen = recv_int(self)
-    vals = [self.recv(varname and varname + f"[{i + 1}]") for i in range(lstLen)]
+    len_list = recv_int(self)
+    vals = [self.recv(varname and varname + f"[{i + 1}]") for i in range(len_list)]
     self.varname = varname  # reset
     return vals
 
-def send_dict(self: mad_process, dct: dict):
+
+def send_dict(self: MadProcess, dct: dict):
     """Send a dictionary to the MAD-NG pipe.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         dct (dict): The dictionary to send.
-    
+
     Returns:
         int: The number of bytes written to the MAD-NG input stream.
 
@@ -869,15 +849,18 @@ def send_dict(self: mad_process, dct: dict):
     """
     for key, value in dct.items():
         if key is None:
-            self.send(None) # Stop the communication of the dictionary to MAD-NG
-            raise ValueError("nil key in a dictionary is not allowed in lua, remove the key None from the dictionary")
+            self.send(None)  # Stop the communication of the dictionary to MAD-NG
+            raise ValueError(
+                "nil key in a dictionary is not allowed in lua, remove the key None from the dictionary"
+            )
         self.send(key)
         self.send(value)
     self.send(None)
 
-def recv_dict(self: mad_process) -> dict:
+
+def recv_dict(self: MadProcess) -> dict:
     """Receive a dictionary from the MAD-NG pipe.
-    
+
     Returns:
         dict: The received dictionary.
     """
@@ -896,22 +879,22 @@ def recv_dict(self: mad_process) -> dict:
 
 
 # object (table with metatable are treated as pure reference) ---------------- #
-def recv_reference(self: mad_process):
+def recv_reference(self: MadProcess):
     """Receive a reference to an object from MAD-NG.
-    
+
     Returns:
         mad_ref: A reference object corresponding to the received variable.
     """
-    return mad_ref(self.varname, self)
+    return MadRef(self.varname, self)
 
 
-def send_reference(self, obj: mad_ref):
+def send_reference(self, obj: MadRef):
     """Send a reference to an object in MAD-NG.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
         obj (mad_ref): The reference object to send.
-    
+
     Returns:
         int: The number of bytes written to the MAD-NG input stream.
     """
@@ -919,12 +902,12 @@ def send_reference(self, obj: mad_ref):
 
 
 # error ---------------------------------------------------------------------- #
-def recv_err(self: mad_process):
+def recv_err(self: MadProcess):
     """Receive an error message from MAD-NG and raise an exception.
-    
+
     Args:
         self (mad_process): The MAD-NG process instance.
-    
+
     Raises:
         RuntimeError: Always raised with the error message from MAD-NG.
     """
@@ -960,25 +943,23 @@ type_fun = {
 
 
 def get_typestr(
-    a: str | int | float | np.ndarray | bool | list | dict | tuple | range | mad_ref,
+    a: str | int | float | np.ndarray | bool | list | dict | tuple | range | MadRef,
 ) -> type:
     """Determine the type string for the given input.
-    
+
     Args:
         a: The data for which to determine the type.
-    
+
     Returns:
         type: The corresponding type used for serialization.
     """
     if isinstance(a, np.ndarray):
         return a.dtype
-    elif type(a) is int:  # Check for signed 32 bit int
+    if type(a) is int:  # Check for signed 32 bit int
         if a.bit_length() < 31:
             return int
-        else:
-            return float
-    else:
-        return type(a)
+        return float
+    return type(a)
 
 
 type_str = {
@@ -988,7 +969,7 @@ type_str = {
     list: "lst_",
     dict: "dct_",
     tuple: "lst_",
-    mad_ref: "ref_",
+    MadRef: "ref_",
     int: "int_",
     np.int32: "int_",
     float: "num_",

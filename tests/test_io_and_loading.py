@@ -1,7 +1,10 @@
-import os
 import unittest
+from pathlib import Path
+
 import numpy as np
+
 from pymadng import MAD
+
 
 class TestLoad(unittest.TestCase):
     a = np.arange(1, 21).reshape(4, 5)
@@ -19,18 +22,12 @@ class TestLoad(unittest.TestCase):
             self.assertTrue(mad.send("py:send(tan == MAD.gmath.tan)").recv())
 
             mad.load("MAD.element", "quadrupole", "sextupole", "drift")
-            self.assertTrue(
-                mad.send("py:send(quadrupole == MAD.element.quadrupole)").recv()
-            )
-            self.assertTrue(
-                mad.send("py:send(sextupole  == MAD.element.sextupole )").recv()
-            )
-            self.assertTrue(
-                mad.send("py:send(drift      == MAD.element.drift     )").recv()
-            )
+            self.assertTrue(mad.send("py:send(quadrupole == MAD.element.quadrupole)").recv())
+            self.assertTrue(mad.send("py:send(sextupole  == MAD.element.sextupole )").recv())
+            self.assertTrue(mad.send("py:send(drift      == MAD.element.drift     )").recv())
 
-    def test_run_file(self):
-        with open("test.mad", "w") as f:
+        test_file = Path("test.mad")
+        with test_file.open("w") as f:
             f.write("""
             local matrix, cmatrix in MAD
             a = matrix(4, 5):seq()
@@ -41,10 +38,8 @@ class TestLoad(unittest.TestCase):
             self.assertIsNone(mad.matrix)
             self.assertTrue(np.all(mad.a == self.a))
             self.assertTrue(np.all(mad.b == self.b))
-        os.remove("test.mad")
-
-    def test_load_file(self):
-        with open("test.mad", "w") as f:
+        test_file.unlink()
+        with test_file.open("w") as f:
             f.write("""
             local matrix, cmatrix in MAD
             local a = matrix(4, 5):seq()
@@ -55,7 +50,7 @@ class TestLoad(unittest.TestCase):
             mad.loadfile("test.mad", "res1", "res2")
             self.assertTrue(np.all(mad.res1 == np.matmul(self.a, self.c)))
             self.assertTrue(np.all(mad.res2 == np.matmul(self.a, self.c.conj())))
-        os.remove("test.mad")
+        test_file.unlink()
 
     def test_globals(self):
         with MAD() as mad:
@@ -64,6 +59,7 @@ class TestLoad(unittest.TestCase):
             self.assertIn("a", global_vars)
             self.assertIn("b", global_vars)
             self.assertIn("c", global_vars)
+
 
 if __name__ == "__main__":
     unittest.main()

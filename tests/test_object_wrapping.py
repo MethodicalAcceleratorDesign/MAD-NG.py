@@ -8,10 +8,11 @@ import pandas as pd
 import tfs
 
 from pymadng import MAD
-from pymadng.madp_classes import high_level_mad_ref, mad_high_level_last_ref
+from pymadng.madp_classes import MadLastRef, MadRef
 
 # TODO: Test the following functions:
 # - __str__ on mad references (low priority)
+
 
 class TestGetSet(unittest.TestCase):
     def test_get(self):
@@ -29,7 +30,7 @@ class TestGetSet(unittest.TestCase):
             self.assertRaises(AttributeError, lambda: qd.asdfg)
             self.assertRaises(KeyError, lambda: qd["asdfg"])
             self.assertRaises(IndexError, lambda: qd[1])
-            self.assertTrue(isinstance(qf.qd, high_level_mad_ref))
+            self.assertTrue(isinstance(qf.qd, MadRef))
             self.assertEqual(qf.qd.knl.eval(), [0, 0.25])
             self.assertEqual(qf.qd.l, 1)
             self.assertEqual(qf.qd, qd)
@@ -38,7 +39,7 @@ class TestGetSet(unittest.TestCase):
             objList = mad.recv("objList")
             for i in range(len(objList)):
                 if i % 2 != 0:
-                    self.assertTrue(isinstance(objList[i].qd, high_level_mad_ref))
+                    self.assertTrue(isinstance(objList[i].qd, MadRef))
                     self.assertEqual(objList[i].qd._parent, f"objList[{i + 1}]")
                     self.assertEqual(objList[i].qd.knl.eval(), [0, 0.25])
                     self.assertEqual(objList[i].qd.l, 1)
@@ -265,9 +266,9 @@ class TestOps(unittest.TestCase):
             )
             self.assertTrue(np.all(list(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
             self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == pyMat))
-            self.assertEqual(np.sin(1), mad.math['sin'](1).eval())
+            self.assertEqual(np.sin(1), mad.math["sin"](1).eval())
             self.assertAlmostEqual(
-                np.cos(0.5), mad.math['cos'](0.5).eval(), None, None, 4e-16
+                np.cos(0.5), mad.math["cos"](0.5).eval(), None, None, 4e-16
             )
 
             # temp vars
@@ -472,8 +473,8 @@ class TestEval(unittest.TestCase):
 
     def test_eval_class(self):
         with MAD() as mad:
-            result = mad.math['sqrt'](2) + mad.math['log'](10)
-            self.assertTrue(isinstance(result, mad_high_level_last_ref))
+            result = mad.math["sqrt"](2) + mad.math["log"](10)
+            self.assertTrue(isinstance(result, MadLastRef))
             self.assertEqual(result.eval(), math.sqrt(2) + math.log(10))
 
 
