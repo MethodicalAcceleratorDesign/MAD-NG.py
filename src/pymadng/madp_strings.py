@@ -1,6 +1,6 @@
 from typing import Any
 
-from .madp_pymad import mad_ref
+from .madp_pymad import BaseMadRef
 
 
 # Keep an eye out for failures when kwargs is empty, shouldn't occur in current setup (jgray 2023)
@@ -78,7 +78,7 @@ def create_mad_string(py_name, var: Any):
         return "nil", []
     if isinstance(var, str):
         return var, []
-    if isinstance(var, mad_ref):
+    if isinstance(var, BaseMadRef):
         return var._name, []
     if isinstance(var, dict):
         return format_kwargs_to_string(py_name, **var)

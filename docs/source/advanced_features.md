@@ -46,7 +46,7 @@ In PyMAD-NG, accessing or calling any MAD-NG function or object returns a Python
 ### Example:
 ```python
 r = mad.math.exp(1)
-print(type(r))  # high_level_mad_ref
+print(type(r))  # MadRef
 print(r.eval())  # 2.718...
 ```
 
@@ -201,4 +201,3 @@ This ensures the MAD process is correctly shut down when finished.
 These tools are designed to give you complete control over your simulations while staying fast and maintainable.
 
 Next: head over to **Debugging & Troubleshooting** to diagnose and resolve common issues in real-world workflows.
-

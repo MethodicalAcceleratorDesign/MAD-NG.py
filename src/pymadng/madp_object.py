@@ -12,7 +12,7 @@ from .madp_classes import (
     MadRef,
 )
 from .madp_last import LastCounter
-from .madp_pymad import is_private, mad_process, type_fun
+from .madp_pymad import MadProcess, is_private, type_fun
 from .madp_strings import format_kwargs_to_string
 
 if TYPE_CHECKING:
@@ -35,15 +35,15 @@ bin_path = Path(__file__).parent.resolve() / "bin"
 # --------------------- Overload recv_ref functions ---------------------- #
 # Override the type of reference created by python
 # (so madp_pymad can be run independently, these objects create pythonic objects)
-def recv_ref(self: mad_process) -> MadRef:
+def recv_ref(self: MadProcess) -> MadRef:
     return MadRef(self.varname, self)
 
 
-def recv_obj(self: mad_process) -> MadObject:
+def recv_obj(self: MadProcess) -> MadObject:
     return MadObject(self.varname, self)
 
 
-def recv_fun(self: mad_process) -> MadFunc:
+def recv_fun(self: MadProcess) -> MadFunc:
     return MadFunc(self.varname, self)
 
 
@@ -90,7 +90,7 @@ class MAD:
         """
         # ------------------------- Create the process --------------------------- #
         mad_path = mad_path or bin_path / ("mad_" + platform.system())
-        self.__process = mad_process(
+        self.__process = MadProcess(
             mad_path=mad_path,
             py_name=py_name,
             raise_on_madng_error=raise_on_madng_error,
@@ -103,8 +103,8 @@ class MAD:
         # ------------------------------------------------------------------------ #
 
         ## Store the relavent objects into a function to get reference objects
-        self.__get_mad_reflast = lambda: MadLastRef(self.__process)
-        self.__get_mad_ref = lambda name: MadRef(name, self.__process)
+        self.__get_MadReflast = lambda: MadLastRef(self.__process)
+        self.__get_MadRef = lambda name: MadRef(name, self.__process)
 
         if not ipython_use_jedi:  # Stop jedi running getattr on my classes...
             try:
@@ -128,7 +128,7 @@ class MAD:
             "track",
             "match",
         ]
-        self.mod_load("MAD", *modules_to_import)
+        self.load("MAD", *modules_to_import)
         self.__MAD_version__ = self.MAD.env.version
 
         # Send a function to MAD-NG to create a list in the return or a single value
@@ -146,7 +146,9 @@ _last = {}
     # ------------------------------------------------------------------------------------------#
 
     # --------------------------- Receiving data from subprocess -------------------------------#
-    def recv(self, varname: str = None) -> str | int | float | np.ndarray | bool | list | MadRef:
+    def recv(
+        self, varname: str = None
+    ) -> str | int | float | np.ndarray | bool | list | MadRef:
         """
         Retrieve data from the MAD-NG process.
 
@@ -160,7 +162,9 @@ _last = {}
         """
         return self.__process.recv(varname)
 
-    def receive(self, varname: str = None) -> str | int | float | np.ndarray | bool | list | MadRef:
+    def receive(
+        self, varname: str = None
+    ) -> str | int | float | np.ndarray | bool | list | MadRef:
         """
         Alias for the recv method.
 
@@ -302,7 +306,7 @@ _last = {}
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    def mod_load(self, module: str, *varnames: str):
+    def load(self, module: str, *varnames: str):
         """
         Import classes or functions from a specific MAD-NG module.
 
@@ -314,12 +318,12 @@ _last = {}
         """
         script = ""
         if varnames == ():
-            varnames = [x.strip("()") for x in dir(self.__get_mad_ref(module))]
+            varnames = [x.strip("()") for x in dir(self.__get_MadRef(module))]
         for classname in varnames:
             script += f"""{classname} = {module}.{classname}\n"""
         self.__process.send(script)
 
-    def call(self, path: str | Path, *varnames: str):
+    def loadfile(self, path: str | Path, *varnames: str):
         """
         Load and execute a .mad file in the MAD-NG environment.
 
@@ -331,7 +335,9 @@ _last = {}
         """
         path: Path = Path(path).resolve()
         if varnames == ():
-            self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
+            self.__process.send(
+                f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
+            )
         else:
             # The parent/stem is necessary, otherwise the file will not be found
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)
@@ -406,7 +412,7 @@ _last = {}
         Returns:
             Any: The result of the evaluated expression.
         """
-        rtrn = self.__get_mad_reflast()
+        rtrn = self.__get_MadReflast()
         self.send(f"{rtrn._name} = {expression}")
         return rtrn.eval()
 
@@ -452,7 +458,7 @@ _last = {}
         Returns:
             mad_high_level_last_ref: A reference to the deferred expression.
         """
-        rtrn = self.__get_mad_reflast()
+        rtrn = self.__get_MadReflast()
         kwargs_string, vars_to_send = format_kwargs_to_string(self.py_name, **kwargs)
         self.__process.send(
             f"{rtrn._name} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"

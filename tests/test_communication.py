@@ -71,19 +71,19 @@ class TestOutput(unittest.TestCase):
 
 
 class TestSignalHandler(unittest.TestCase):
-    @patch("pymadng.madp_pymad.mad_process._setup_signal_handler")
+    @patch("pymadng.madp_pymad.MadProcess._setup_signal_handler")
     def test_signal_handler_called_in_main_thread(self, mock_setup_signal_handler):
         with patch("pathlib.Path.exists", return_value=True):
             MAD()
         mock_setup_signal_handler.assert_called_once()
 
-    @patch("pymadng.madp_pymad.mad_process._setup_signal_handler")
+    @patch("pymadng.madp_pymad.MadProcess._setup_signal_handler")
     def test_signal_handler_not_called_in_non_main_thread(self, mock_setup_signal_handler):
-        def create_mad_process():
+        def create_mad_proc():
             with patch("pathlib.Path.exists", return_value=True):
                 MAD()
 
-        thread = threading.Thread(target=create_mad_process)
+        thread = threading.Thread(target=create_mad_proc)
         thread.start()
         thread.join()
         mock_setup_signal_handler.assert_not_called()

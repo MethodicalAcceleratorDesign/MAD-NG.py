@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import warnings  # To warn the user when they try to deepcopy a mad_ref
+import warnings  # To warn the user when they try to deepcopy a MadRef
 from typing import TYPE_CHECKING, Any  # To make stuff look nicer
 
 import numpy as np
 
-from .madp_pymad import is_private, mad_process, mad_ref, type_str
+from .madp_pymad import BaseMadRef, MadProcess, is_private, type_str
 from .madp_strings import format_args_to_string, format_kwargs_to_string
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ MADX_methods = ["load", "open_env", "close_env"]
 
 
 # MAD High Level reference
-class MadRef(mad_ref):
+class MadRef(BaseMadRef):
     """
     A high-level MAD reference.
 
@@ -27,7 +27,7 @@ class MadRef(mad_ref):
     Automatically handles indexing differences between Python and MAD-NG.
     """
 
-    def __init__(self, name: str, mad_proc: mad_process):
+    def __init__(self, name: str, mad_proc: MadProcess):
         super().__init__(name, mad_proc)
         self._parent = (
             "[" in name and "[".join(name.split("[")[:-1]) or None
@@ -40,13 +40,14 @@ class MadRef(mad_ref):
         if is_private(item):
             # If the attribute is private, set it as a normal attribute
             super().__setattr__(item, value)
-        # Otherwise, set the item as a variable in the MAD-NG process
-        self[item] = value
+        else:
+            # Otherwise, set the item as a variable in the MAD-NG process
+            self[item] = value
 
     def __setitem__(
         self,
         item: str | int,
-        value: str | int | float | np.ndarray | bool | list | mad_ref,
+        value: str | int | float | np.ndarray | bool | list | BaseMadRef,
     ):
         if isinstance(item, int):
             item = item + 1  # Ints need to be incremented by 1 to match MAD-NG indexing
@@ -97,7 +98,7 @@ class MadRef(mad_ref):
             str: The string representation of the MAD-NG reference.
         """
         val = self._mad.recv_vars(self._name, shallow_copy=True)
-        if isinstance(val, MadRef):
+        if isinstance(val, BaseMadRef):
             return repr(val)
         return str(val)
 
@@ -140,11 +141,11 @@ class MadRef(mad_ref):
         val = self.eval()
         if isinstance(val, list):
             for i, v in enumerate(val):
-                if isinstance(v, mad_ref):
+                if isinstance(v, BaseMadRef):
                     val[i] = v.__deepcopy__(memo)
         elif isinstance(val, type(self)) and val._name == self._name:
             warnings.warn(
-                "An attempt to deepcopy a mad_ref has been made, this is not supported and will result in a copy of the reference."
+                "An attempt to deepcopy a MadRef has been made, this is not supported and will result in a copy of the reference."
             )
         return val
 
@@ -153,7 +154,7 @@ class MadObject(MadRef):
     """
     A high-level MAD object for complex data and table handling.
 
-    Inherits from high_level_mad_ref and extends functionality for retrieving object keys,
+    Inherits from MadRef and extends functionality for retrieving object keys,
     iteration, and conversion to Pandas dataframes.
     """
 
@@ -343,7 +344,7 @@ class MadLast:  # The init and del for a _last object
     This class assigns a unique temporary name for storing return values from MAD-NG functions.
     """
 
-    def __init__(self, mad_proc: mad_process):
+    def __init__(self, mad_proc: MadProcess):
         self._mad = mad_proc
         self._last_counter = mad_proc.last_counter
         self._lastnum = mad_proc.last_counter.get()
@@ -358,7 +359,7 @@ class MadLastRef(MadLast, MadRef):
     """
     A combined reference for '_last' objects.
 
-    Inherits from both mad_last and high_level_mad_ref to provide callable behavior on the last result.
+    Inherits from both MadLast and MadRef to provide callable behavior on the last result.
     """
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:

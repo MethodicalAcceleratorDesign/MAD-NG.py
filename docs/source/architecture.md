@@ -4,7 +4,7 @@
 
 # PyMAD-NG Architecture Overview
 
-This section explains the internal architecture of PyMAD-NG, outlining how Python interacts with MAD-NG. 
+This section explains the internal architecture of PyMAD-NG, outlining how Python interacts with MAD-NG.
 
 ```{note}
 Understanding the architecture will help advanced users contribute to development, extend functionality, and debug issues more effectively.
@@ -62,7 +62,7 @@ This is implemented using `os.pipe()` and `select.select()` to manage reads and 
 - Handles naming of Python process in MAD-NG via `py_name`
 - Configures subprocess behavior (debug mode, stdout redirection)
 
-### {class}`madp_pymad.mad_process`
+### {class}`madp_pymad.MadProcess`
 
 - Manages low-level pipe setup and subprocess launch
 - Provides `send`, `recv`, and `close` methods
@@ -111,7 +111,7 @@ Because MAD-NG entities are only known at runtime, PyMAD-NG uses dynamic attribu
 
 - Tab completion (`dir(mad)`) only works for preloaded or cached attributes
 - Use {func}`MAD.globals()` to list current MAD-NG global variables
-- {class}`madp_classes.high_level_mad_ref` objects will not show introspectable properties until evaluated
+- {class}`madp_classes.high_level_MadRef` objects will not show introspectable properties until evaluated
 
 ---
 
@@ -130,8 +130,8 @@ All sends are "protected" by default:
 | Component                                      | Role                                                       |
 | ---------------------------------------------- | ---------------------------------------------------------- |
 | {class}`MAD` class                      | Main interface and environment for interacting with MAD-NG |
-| {class}`madp_pymad.mad_process`         | Launches and communicates with MAD-NG subprocess           |
-| {class}`madp_classes.high_level_mad_ref` | Wraps MAD objects for Pythonic access                      |
+| {class}`madp_pymad.MadProcess`         | Launches and communicates with MAD-NG subprocess           |
+| {class}`madp_classes.high_level_MadRef` | Wraps MAD objects for Pythonic access                      |
 | {class}`madp_last`                       | Tracks temporary intermediate results from MAD-NG          |
 | Type dispatch                                  | Maps Python objects to MAD-NG-compatible messages          |
 
