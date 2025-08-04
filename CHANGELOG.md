@@ -1,5 +1,5 @@
 0.7.1 (2025/08/04)
-Update to MAD-NG 1.1.5 \
+Update to MAD-NG 1.1.5
 
 0.7.0 (2025/06/05)
 Update to MAD-NG 1.1.3 \
