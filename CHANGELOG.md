@@ -1,3 +1,6 @@
+0.7.1 (2025/08/04)
+Update to MAD-NG 1.1.5
+
 0.7.0 (2025/06/05)
 Update to MAD-NG 1.1.3 \
 Breaking change: tables in lua are always returned as references, so you must use `eval` to get the value of the table. Or use the optional second argument in `py:send` such as `py:send(data, true)` to return the value of the table. \
