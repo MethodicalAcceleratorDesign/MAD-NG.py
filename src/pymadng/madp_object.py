@@ -306,46 +306,105 @@ _last = {}
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    def load(self, module: str, *vars: str):
+    def load(self, module_or_chunk: str, *vars: str):
         """
-        Import classes or functions from a specific MAD-NG module.
-
-        If no specific names are provided, imports all available members from the module.
+        Import classes/functions from a MAD-NG module, or load a Lua chunk.
+        
+        This function supports two modes:
+        1. MAD-NG module loading (PyMAD-NG extension): Import specific members from a module
+        2. Native MAD-NG load function: Load and compile a Lua chunk from a string
+        
+        The function automatically detects the intended usage:
+        - If additional variables are provided, it assumes module loading mode
+        - If only one argument is provided and it contains Lua code patterns, it uses native load
+        - Otherwise, it defaults to module loading mode
 
         Args:
-            module (str): The module name in MAD-NG.
-            *vars (str): Optional list of members to import.
+            module_or_chunk (str): Either a module name for importing, or a Lua code chunk to load
+            *vars (str): Optional list of members to import (module mode only)
+            
+        Returns:
+            For native MAD-NG load: Returns a reference to the loaded function
+            For module loading: None (imports are done as side effects)
         """
-        script = ""
-        if vars == ():
-            vars = [x.strip("()") for x in dir(self.__get_mad_ref(module))]
-        for className in vars:
-            script += f"""{className} = {module}.{className}\n"""
-        self.__process.send(script)
-
-    def loadfile(self, path: str | Path, *vars: str):
+        # Check if this is native MAD-NG load usage (Lua chunk loading)
+        if not vars and self._is_lua_chunk(module_or_chunk):
+            # Use native MAD-NG load function to load Lua chunk
+            rtrn = self.__get_mad_reflast()
+            self.__process.send(f"{rtrn._name} = load([[{module_or_chunk}]])")
+            return rtrn.eval()
+        else:
+            # Original PyMAD-NG module loading behavior
+            script = ""
+            if vars == ():
+                vars = [x.strip("()") for x in dir(self.__get_mad_ref(module_or_chunk))]
+            for className in vars:
+                script += f"""{className} = {module_or_chunk}.{className}\n"""
+            self.__process.send(script)
+    
+    def _is_lua_chunk(self, text: str) -> bool:
         """
-        Load and execute a .mad file in the MAD-NG environment.
-
-        If additional variable names are provided, assign each to the corresponding member of the loaded file.
-
+        Heuristic to determine if a string is likely a Lua code chunk.
+        
         Args:
-            path (str | Path): File path for the .mad file.
-            *vars (str): Optional names to bind to specific elements from the file.
+            text (str): The text to analyze
+            
+        Returns:
+            bool: True if the text appears to be Lua code
+        """
+        # Check for common Lua patterns
+        lua_patterns = [
+            'function', 'end', 'local', 'return', 'if', 'then', 'else',
+            'for', 'while', 'do', '=', '--', '[[', ']]'
+        ]
+        
+        # If it contains multiple Lua keywords/patterns, likely a chunk
+        pattern_count = sum(1 for pattern in lua_patterns if pattern in text)
+        
+        # Also check for obvious non-module patterns
+        has_statements = any(pattern in text for pattern in ['=', 'function', 'local', 'return'])
+        
+        return pattern_count >= 2 or has_statements
+
+    def loadfile(self, path: str | Path, *vars: str, native_loadfile: bool = False):
+        """
+        Load and execute a file in the MAD-NG environment.
+        
+        This function supports two modes:
+        1. PyMAD-NG extension: Load .mad files and import specific variables
+        2. Native MAD-NG loadfile: Load and compile Lua files (returns compiled function)
+        
+        Args:
+            path (str | Path): File path for the file to load
+            *vars (str): Optional names to bind to specific elements from the file (PyMAD-NG mode only)
+            native_loadfile (bool): If True, use native MAD-NG loadfile behavior
+            
+        Returns:
+            For native MAD-NG loadfile: Returns a reference to the loaded function
+            For PyMAD-NG mode: None (imports/execution done as side effects)
         """
         path: Path = Path(path).resolve()
-        if vars == ():
-            self.__process.send(
-                f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
-            )
+        
+        # Check if this should be native MAD-NG loadfile usage
+        if native_loadfile or (not vars and not str(path).endswith('.mad')):
+            # Use native MAD-NG loadfile function
+            rtrn = self.__get_mad_reflast()
+            self.__process.send(f"{rtrn._name} = loadfile('{path}')")
+            return rtrn.eval()
         else:
-            # The parent/stem is necessary, otherwise the file will not be found
-            # This is thanks to the way the require function works in MAD-NG (how it searches for files)
-            script = f"package.path = '{path.parent}/?.mad;' .. package.path\n"
-            script += f"local __req = require('{path.stem}')"
-            for var in vars:
-                script += f"{var} = __req.{var}\n"
-            self.__process.send(script)
+            # Original PyMAD-NG behavior for .mad files
+            if vars == ():
+                self.__process.send(
+                    f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
+                )
+            else:
+                # The parent/stem is necessary, otherwise the file will not be found
+                # This is thanks to the way the require function works in MAD-NG (how it searches for files)
+                script = f"package.path = '{path.parent}/?.mad;' .. package.path\n"
+                script += f"local __req = require('{path.stem}')"
+                for var in vars:
+                    script += f"{var} = __req.{var}\n"
+                self.__process.send(script)
 
     # ----------------------- Make the class work with dict and dot access ------------------------#
     def __getattr__(self, item):
