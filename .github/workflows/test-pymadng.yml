@@ -3,7 +3,7 @@
 
 name: Test pymadng
 
-on: 
+on:
   push:
     branches:
       - main
@@ -22,19 +22,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     - name: Get MAD Binaries
       run: |
-        mkdir ./src/pymadng/bin 
-        curl https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.5 -o ./src/pymadng/bin/mad_Linux
-        curl https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.5 -o ./src/pymadng/bin/mad_Darwin
+        mkdir ./src/pymadng/bin
+        curl https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.6 -o ./src/pymadng/bin/mad_Linux
+        curl https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.6 -o ./src/pymadng/bin/mad_Darwin
         chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
     - name: Install dependencies
       run: |

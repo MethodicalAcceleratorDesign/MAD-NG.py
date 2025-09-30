@@ -1,17 +1,18 @@
 import math
-import os
 import sys
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import tfs
 
 from pymadng import MAD
-from pymadng.madp_classes import high_level_mad_ref, mad_high_level_last_ref
+from pymadng.madp_classes import MadLastRef, MadRef
 
 # TODO: Test the following functions:
 # - __str__ on mad references (low priority)
+
 
 class TestGetSet(unittest.TestCase):
     def test_get(self):
@@ -29,26 +30,26 @@ class TestGetSet(unittest.TestCase):
             self.assertRaises(AttributeError, lambda: qd.asdfg)
             self.assertRaises(KeyError, lambda: qd["asdfg"])
             self.assertRaises(IndexError, lambda: qd[1])
-            self.assertTrue(isinstance(qf.qd, high_level_mad_ref))
+            self.assertTrue(isinstance(qf.qd, MadRef))
             self.assertEqual(qf.qd.knl.eval(), [0, 0.25])
             self.assertEqual(qf.qd.l, 1)
             self.assertEqual(qf.qd, qd)
 
             mad.send("objList = {qd, qf, qd, qf, qd} py:send(objList)")
-            objList = mad.recv("objList")
-            for i in range(len(objList)):
+            obj_lst = mad.recv("objList")
+            for i in range(len(obj_lst)):
                 if i % 2 != 0:
-                    self.assertTrue(isinstance(objList[i].qd, high_level_mad_ref))
-                    self.assertEqual(objList[i].qd._parent, f"objList[{i + 1}]")
-                    self.assertEqual(objList[i].qd.knl.eval(), [0, 0.25])
-                    self.assertEqual(objList[i].qd.l, 1)
-                    self.assertEqual(objList[i].qd, qd)
+                    self.assertTrue(isinstance(obj_lst[i].qd, MadRef))
+                    self.assertEqual(obj_lst[i].qd._parent, f"objList[{i + 1}]")
+                    self.assertEqual(obj_lst[i].qd.knl.eval(), [0, 0.25])
+                    self.assertEqual(obj_lst[i].qd.l, 1)
+                    self.assertEqual(obj_lst[i].qd, qd)
 
                 else:
-                    self.assertEqual(objList[i].knl.eval(), [0, 0.25])
-                    self.assertEqual(objList[i].l, 1)
-                    self.assertEqual(objList[i], qd)
-                self.assertEqual(objList[i]._parent, "objList")
+                    self.assertEqual(obj_lst[i].knl.eval(), [0, 0.25])
+                    self.assertEqual(obj_lst[i].l, 1)
+                    self.assertEqual(obj_lst[i], qd)
+                self.assertEqual(obj_lst[i]._parent, "objList")
 
     def test_set(self):  # Need more?
         with MAD() as mad:
@@ -113,7 +114,7 @@ class TestGetSet(unittest.TestCase):
 
 class TestObjFun(unittest.TestCase):
     def test_call_obj(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("element", "quadrupole", "sextupole")
             qd = mad.quadrupole(knl=[0, 0.25], l=1)
             sd = mad.sextupole(knl=[0, 0.25, 0.5], l=1)
@@ -153,12 +154,10 @@ class TestObjFun(unittest.TestCase):
             mad.send("func_test = \\a-> \\b-> \\c-> 'a'+b")
             mad.func_test(1)(2)(3)
             self.assertRaises(RuntimeError, lambda: mad.recv())
-            self.assertRaises(
-                RuntimeError, lambda: mad.mtable.read("'abad.tfs'").eval()
-            )
+            self.assertRaises(RuntimeError, lambda: mad.mtable.read("'abad.tfs'").eval())
 
     def test_call_func(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("element", "quadrupole")
             mad["qd"] = mad.quadrupole(knl=[0, 0.25], l=1)
             mad.qd.select()
@@ -183,11 +182,9 @@ class TestObjFun(unittest.TestCase):
       notLast = {mult_rtrn()}
       """)
 
-            mad["o11", "o12", "o13", "o2"] = mad._MAD__get_mad_ref("last_rtn")
-            mad["p11", "p12", "p13", "p2"] = mad._MAD__get_mad_ref("notLast")
-            mad["objCpy"] = mad._MAD__get_mad_ref(
-                "lastobj"
-            )  # Test single object in __mklast__
+            mad["o11", "o12", "o13", "o2"] = mad._MAD__get_MadRef("last_rtn")
+            mad["p11", "p12", "p13", "p2"] = mad._MAD__get_MadRef("notLast")
+            mad["objCpy"] = mad._MAD__get_MadRef("lastobj")  # Test single object in __mklast__
             self.assertEqual(mad.o11.a, 1)
             self.assertEqual(mad.o11.b, 2)
             self.assertEqual(mad.o12.a, 1)
@@ -206,7 +203,7 @@ class TestObjFun(unittest.TestCase):
             self.assertEqual(mad.p2.b, 3)
             self.assertEqual(mad.objCpy, mad.obj)
 
-    def test_MADX(self):
+    def test_madx(self):
         from pymadng import MAD
 
         mad = MAD()
@@ -218,15 +215,15 @@ class TestObjFun(unittest.TestCase):
 
         self.assertEqual(mad.MADX.MAD.MADX.abs(-1), 1)
         self.assertEqual(mad.MADX.MAD.MADX.ceil(1.2), 2)
-
-        with open("test.seq", "w") as f:
+        seq_file = Path("test.seq")
+        with seq_file.open("w") as f:
             f.write("""
       qd: quadrupole, l=1, knl:={0, 0.25};
       """)
         mad.MADX.load("'test.seq'")
         self.assertEqual(mad.MADX.qd.l, 1)
         self.assertEqual(mad.MADX.qd.knl.eval(), [0, 0.25])
-        os.remove("test.seq")
+        seq_file.unlink()
 
     def test_evaluate_in_madx_environment(self):
         with MAD() as mad:
@@ -240,35 +237,31 @@ class TestObjFun(unittest.TestCase):
 
 class TestOps(unittest.TestCase):
     def test_matrix(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("MAD", "matrix")
-            pyMat = np.arange(1, 101).reshape((10, 10))
+            py_mat = np.arange(1, 101).reshape((10, 10))
 
             mad["mat"] = mad.matrix(10).seq(2) + 2
-            self.assertTrue(np.all(mad.mat == pyMat + 4))
+            self.assertTrue(np.all(mad.mat == py_mat + 4))
 
             mad["mat"] = mad.matrix(10).seq() / 3
-            self.assertTrue(np.allclose(mad.mat, pyMat / 3))
+            self.assertTrue(np.allclose(mad.mat, py_mat / 3))
 
             mad["mat"] = mad.matrix(10).seq() * 4
-            self.assertTrue(np.all(mad.mat == pyMat * 4))
+            self.assertTrue(np.all(mad.mat == py_mat * 4))
 
             mad["mat"] = mad.matrix(10).seq() ** 3
-            self.assertTrue(np.all(mad.mat == np.linalg.matrix_power(pyMat, 3)))
+            self.assertTrue(np.all(mad.mat == np.linalg.matrix_power(py_mat, 3)))
 
             mad["mat"] = mad.matrix(10).seq() + 2 / 3 * 4**3  # bidmas
-            self.assertTrue(np.all(mad.mat == pyMat + 2 / 3 * 4**3))
+            self.assertTrue(np.all(mad.mat == py_mat + 2 / 3 * 4**3))
 
             # conversions
-            self.assertTrue(
-                np.all(np.array(mad.MAD.matrix(10).seq()) == np.arange(1, 101))
-            )
+            self.assertTrue(np.all(np.array(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
             self.assertTrue(np.all(list(mad.MAD.matrix(10).seq()) == np.arange(1, 101)))
-            self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == pyMat))
-            self.assertEqual(np.sin(1), mad.math['sin'](1).eval())
-            self.assertAlmostEqual(
-                np.cos(0.5), mad.math['cos'](0.5).eval(), None, None, 4e-16
-            )
+            self.assertTrue(np.all(mad.MAD.matrix(10).seq().eval() == py_mat))
+            self.assertEqual(np.sin(1), mad.math["sin"](1).eval())
+            self.assertAlmostEqual(np.cos(0.5), mad.math["cos"](0.5).eval(), None, None, 4e-16)
 
             # temp vars
             res = (
@@ -279,9 +272,7 @@ class TestOps(unittest.TestCase):
                 - mad.matrix(3).seq(4)
             ).eval()
             np_mat = np.arange(9).reshape((3, 3)) + 1
-            exp = ((np.matmul((np_mat * 2), (np_mat + 3)) + 3) * 2 + (np_mat + 2)) - (
-                np_mat + 4
-            )
+            exp = ((np.matmul((np_mat * 2), (np_mat + 3)) + 3) * 2 + (np_mat + 2)) - (np_mat + 4)
             self.assertTrue(np.all(exp == res))
 
 
@@ -320,14 +311,12 @@ class TestArgsAndKwargs(unittest.TestCase):
 
 class TestDir(unittest.TestCase):
     def test_dir(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("MAD", "gfunc", "element", "object")
             mad.load("element", "quadrupole")
             mad.load("gfunc", "functor")
             obj_dir = dir(mad.object)
-            mad.send(
-                "my_obj = object {a1 = 2, a2 = functor(\\s->s.a1), a3 = \\s->s.a1}"
-            )
+            mad.send("my_obj = object {a1 = 2, a2 = functor(\\s->s.a1), a3 = \\s->s.a1}")
             obj_exp = sorted(["a1", "a2()", "a3"] + obj_dir)
             self.assertEqual(dir(mad.my_obj), obj_exp)
             self.assertEqual(mad.my_obj.a1, mad.my_obj.a3)
@@ -341,7 +330,7 @@ class TestDir(unittest.TestCase):
             )  # Adding to the instance should change the dir
 
     def test_dir_on_mad_object(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("MAD", "object")
             mad.send("my_obj = object {a = 1, b = 2, c = 3}")
             expected_dir = sorted(["a", "b", "c"] + dir(mad.object))
@@ -352,7 +341,7 @@ class TestDir(unittest.TestCase):
         with MAD() as mad:
             mad.load("MAD", "object")
             mad.send("last_obj = __mklast__(object {x = 10, y = 20})")
-            mad["last"] = mad._MAD__get_mad_ref("last_obj")
+            mad["last"] = mad._MAD__get_MadRef("last_obj")
             expected_dir = sorted(["x", "y"] + dir(mad.object))
             self.assertGreater(len(expected_dir), 0)
             self.assertEqual(dir(mad.last), expected_dir)
@@ -369,7 +358,7 @@ class TestDir(unittest.TestCase):
 
 
 class TestDataFrame(unittest.TestCase):
-    def generalDataFrame(self, headers, DataFrame, force_pandas=False):
+    def gen_data_frame(self, headers, dataframe, force_pandas=False):
         mad = MAD()
         mad.send("""
 test = mtable{
@@ -395,7 +384,7 @@ test:addcol("generator", \\ri, m -> m:getcol("number")[ri] + 1i * m:getcol("numb
 test:write("test")
              """)
         df = mad.test.to_df(force_pandas=force_pandas)
-        self.assertTrue(isinstance(df, DataFrame))
+        self.assertTrue(isinstance(df, dataframe))
         header = getattr(df, headers)
         self.assertEqual(header["name"], "test")
         self.assertEqual(header["string"], "string")
@@ -413,9 +402,7 @@ test:write("test")
         self.assertEqual(df["string"].tolist(), ["a", "b", "c", "d", "e"])
         self.assertEqual(df["number"].tolist(), [1.1, 2.2, 3.3, 4.4, 5.5])
         self.assertEqual(df["integer"].tolist(), [1, 2, 3, 4, 5])
-        self.assertEqual(
-            df["complex"].tolist(), [1 + 2j, 2 + 3j, 3 + 4j, 4 + 5j, 5 + 6j]
-        )
+        self.assertEqual(df["complex"].tolist(), [1 + 2j, 2 + 3j, 3 + 4j, 4 + 5j, 5 + 6j])
         self.assertEqual(df["boolean"].tolist(), [True, False, True, False, True])
         lists = [the_list.eval() for the_list in df["list"]]
         self.assertEqual(lists, [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]])
@@ -429,16 +416,16 @@ test:write("test")
             [range(1, 12), range(2, 13), range(3, 14), range(4, 15), range(5, 16)],
         )
 
-    def test_tfsDataFrame(self):
-        self.generalDataFrame("headers", tfs.TfsDataFrame)
+    def test_generate_tfs_data_frame(self):
+        self.gen_data_frame("headers", tfs.TfsDataFrame)
 
-    def test_pandasDataFrame(self):
+    def test_data_frame_without_tfs(self):
         sys.modules["tfs"] = None  # Remove tfs-pandas
-        self.generalDataFrame("attrs", pd.DataFrame)
+        self.gen_data_frame("attrs", pd.DataFrame)
         del sys.modules["tfs"]
 
-    def test_tfsDataFrame_force_pandas(self):
-        self.generalDataFrame("attrs", pd.DataFrame, force_pandas=True)
+    def test_force_pandas_data_frame(self):
+        self.gen_data_frame("attrs", pd.DataFrame, force_pandas=True)
 
     def test_failure(self):
         with MAD() as mad:
@@ -472,8 +459,8 @@ class TestEval(unittest.TestCase):
 
     def test_eval_class(self):
         with MAD() as mad:
-            result = mad.math['sqrt'](2) + mad.math['log'](10)
-            self.assertTrue(isinstance(result, mad_high_level_last_ref))
+            result = mad.math["sqrt"](2) + mad.math["log"](10)
+            self.assertTrue(isinstance(result, MadLastRef))
             self.assertEqual(result.eval(), math.sqrt(2) + math.log(10))
 
 

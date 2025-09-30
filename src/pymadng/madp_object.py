@@ -2,23 +2,23 @@ from __future__ import annotations  # For type hinting
 
 import platform
 from pathlib import Path
-from typing import Any, TYPE_CHECKING, TextIO  # To make stuff look nicer
-
-import numpy as np  # For arrays  (Works well with multiprocessing and mmap)
+from typing import TYPE_CHECKING, Any, TextIO  # To make stuff look nicer
 
 # Custom Classes:
 from .madp_classes import (
-    high_level_mad_func,
-    high_level_mad_object,
-    high_level_mad_ref,
-    mad_high_level_last_ref,
+    MadFunc,
+    MadLastRef,
+    MadObject,
+    MadRef,
 )
-from .madp_last import last_counter
-from .madp_pymad import is_private, mad_process, type_fun
+from .madp_last import LastCounter
+from .madp_pymad import MadProcess, is_private, type_fun
 from .madp_strings import format_kwargs_to_string
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    import numpy as np
 
 # TODO: Make it so that MAD does the loop for variables not python (speed) (jgray 2023)
 # TODO: Review recv_and exec:
@@ -35,16 +35,16 @@ bin_path = Path(__file__).parent.resolve() / "bin"
 # --------------------- Overload recv_ref functions ---------------------- #
 # Override the type of reference created by python
 # (so madp_pymad can be run independently, these objects create pythonic objects)
-def recv_ref(self: mad_process) -> high_level_mad_ref:
-    return high_level_mad_ref(self.varname, self)
+def recv_ref(self: MadProcess) -> MadRef:
+    return MadRef(self.varname, self)
 
 
-def recv_obj(self: mad_process) -> high_level_mad_object:
-    return high_level_mad_object(self.varname, self)
+def recv_obj(self: MadProcess) -> MadObject:
+    return MadObject(self.varname, self)
 
 
-def recv_fun(self: mad_process) -> high_level_mad_func:
-    return high_level_mad_func(self.varname, self)
+def recv_fun(self: MadProcess) -> MadFunc:
+    return MadFunc(self.varname, self)
 
 
 type_fun["ref_"]["recv"] = recv_ref
@@ -53,7 +53,7 @@ type_fun["fun_"]["recv"] = recv_fun
 # ------------------------------------------------------------------------ #
 
 
-class MAD(object):
+class MAD:
     """An object that allows communication with MAD-NG
 
     Attributes:
@@ -90,7 +90,7 @@ class MAD(object):
         """
         # ------------------------- Create the process --------------------------- #
         mad_path = mad_path or bin_path / ("mad_" + platform.system())
-        self.__process = mad_process(
+        self.__process = MadProcess(
             mad_path=mad_path,
             py_name=py_name,
             raise_on_madng_error=raise_on_madng_error,
@@ -99,16 +99,16 @@ class MAD(object):
             redirect_stderr=redirect_stderr,
         )
         self.__process.ipython_use_jedi = ipython_use_jedi
-        self.__process.last_counter = last_counter(num_temp_vars)
+        self.__process.last_counter = LastCounter(num_temp_vars)
         # ------------------------------------------------------------------------ #
 
         ## Store the relavent objects into a function to get reference objects
-        self.__get_mad_reflast = lambda: mad_high_level_last_ref(self.__process)
-        self.__get_mad_ref = lambda name: high_level_mad_ref(name, self.__process)
+        self.__get_MadReflast = lambda: MadLastRef(self.__process)
+        self.__get_MadRef = lambda name: MadRef(name, self.__process)
 
         if not ipython_use_jedi:  # Stop jedi running getattr on my classes...
             try:
-                ipython = get_ipython()
+                ipython = get_ipython()  # type: ignore
                 if ipython.__class__.__name__ == "TerminalInteractiveShell":
                     ipython.Completer.use_jedi = False
             except NameError:
@@ -116,7 +116,7 @@ class MAD(object):
         self.py_name = py_name
         # --------------------------------Retrieve the modules of MAD-------------------------------#
         # Limit the 80 modules
-        modulesToImport = [
+        modules_to_import = [
             "element",
             "sequence",
             "mtable",
@@ -128,7 +128,7 @@ class MAD(object):
             "track",
             "match",
         ]
-        self.load("MAD", *modulesToImport)
+        self.load("MAD", *modules_to_import)
         self.__MAD_version__ = self.MAD.env.version
 
         # Send a function to MAD-NG to create a list in the return or a single value
@@ -148,7 +148,7 @@ _last = {}
     # --------------------------- Receiving data from subprocess -------------------------------#
     def recv(
         self, varname: str = None
-    ) -> str | int | float | np.ndarray | bool | list | high_level_mad_ref:
+    ) -> str | int | float | np.ndarray | bool | list | MadRef:
         """
         Retrieve data from the MAD-NG process.
 
@@ -164,7 +164,7 @@ _last = {}
 
     def receive(
         self, varname: str = None
-    ) -> str | int | float | np.ndarray | bool | list | high_level_mad_ref:
+    ) -> str | int | float | np.ndarray | bool | list | MadRef:
         """
         Alias for the recv method.
 
@@ -280,7 +280,7 @@ _last = {}
     # ---------------------------------------------------------------------------------------------------------#
 
     # -------------------------------- Dealing with communication of variables --------------------------------#
-    def send_vars(self, **vars: str | int | float | np.ndarray | bool | list):
+    def send_vars(self, **varnames: str | int | float | np.ndarray | bool | list):
         """
         Send multiple named variables to the MAD-NG process.
 
@@ -289,7 +289,7 @@ _last = {}
         Args:
             **vars: Key-value pairs representing variable names and their values.
         """
-        self.__process.send_vars(**vars)
+        self.__process.send_vars(**varnames)
 
     def recv_vars(self, *names: str, shallow_copy: bool = False) -> Any:
         """
@@ -306,7 +306,7 @@ _last = {}
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    def load(self, module: str, *vars: str):
+    def load(self, module: str, *varnames: str):
         """
         Import classes or functions from a specific MAD-NG module.
 
@@ -314,16 +314,16 @@ _last = {}
 
         Args:
             module (str): The module name in MAD-NG.
-            *vars (str): Optional list of members to import.
+            *varnames (str): Optional list of members to import.
         """
         script = ""
-        if vars == ():
-            vars = [x.strip("()") for x in dir(self.__get_mad_ref(module))]
-        for className in vars:
-            script += f"""{className} = {module}.{className}\n"""
+        if varnames == ():
+            varnames = [x.strip("()") for x in dir(self.__get_MadRef(module))]
+        for classname in varnames:
+            script += f"""{classname} = {module}.{classname}\n"""
         self.__process.send(script)
 
-    def loadfile(self, path: str | Path, *vars: str):
+    def loadfile(self, path: str | Path, *varnames: str):
         """
         Load and execute a .mad file in the MAD-NG environment.
 
@@ -334,7 +334,7 @@ _last = {}
             *vars (str): Optional names to bind to specific elements from the file.
         """
         path: Path = Path(path).resolve()
-        if vars == ():
+        if varnames == ():
             self.__process.send(
                 f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
             )
@@ -343,7 +343,7 @@ _last = {}
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)
             script = f"package.path = '{path.parent}/?.mad;' .. package.path\n"
             script += f"local __req = require('{path.stem}')"
-            for var in vars:
+            for var in varnames:
                 script += f"{var} = __req.{var}\n"
             self.__process.send(script)
 
@@ -398,8 +398,7 @@ _last = {}
         """
         if isinstance(var_name, tuple):
             return self.__process.recv_vars(*var_name)
-        else:
-            return self.__process.recv_vars(var_name)
+        return self.__process.recv_vars(var_name)
 
     # ----------------------------------------------------------------------------------------------#
 
@@ -413,11 +412,11 @@ _last = {}
         Returns:
             Any: The result of the evaluated expression.
         """
-        rtrn = self.__get_mad_reflast()
+        rtrn = self.__get_MadReflast()
         self.send(f"{rtrn._name} = {expression}")
         return rtrn.eval()
 
-    def evaluate_in_madx_environment(self, input: str) -> None:
+    def evaluate_in_madx_environment(self, value: str) -> None:
         """
         Execute code in the native MAD-X environment.
 
@@ -426,28 +425,27 @@ _last = {}
         Args:
             input (str): The MAD-X code to execute.
         """
-        self.__process.send("MADX:open_env()\n" + input + "\nMADX:close_env()")
+        self.__process.send("MADX:open_env()\n" + value + "\nMADX:close_env()")
 
-    def quote_strings(self, input: str | list[str]) -> str | list[str]:
+    def quote_strings(self, value: str | list[str]) -> str | list[str]:
         """
         Surround the provided string or list of strings with single quotes.
 
         Args:
-            input (str or list[str]): The input string(s) to quote.
+            value (str or list[str]): The input string(s) to quote.
 
         Returns:
             The quoted string or list of quoted strings.
         """
-        if isinstance(input, list):
-            return ["'" + x + "'" for x in input]
-        else:
-            return "'" + input + "'"
+        if isinstance(value, list):
+            return ["'" + x + "'" for x in value]
+        return "'" + value + "'"
 
     # ----------------------------------------------------------------------------------------------#
 
     # ---------------------------------------------------------------------------------------------------#
 
-    def create_deferred_expression(self, **kwargs) -> mad_high_level_last_ref:
+    def create_deferred_expression(self, **kwargs) -> MadLastRef:
         """
         Create a deferred expression object in MAD-NG.
 
@@ -460,7 +458,7 @@ _last = {}
         Returns:
             mad_high_level_last_ref: A reference to the deferred expression.
         """
-        rtrn = self.__get_mad_reflast()
+        rtrn = self.__get_MadReflast()
         kwargs_string, vars_to_send = format_kwargs_to_string(self.py_name, **kwargs)
         self.__process.send(
             f"{rtrn._name} = __mklast__( MAD.typeid.deferred {{ {kwargs_string.replace('=', ':=')[1:-3]} }} )"
@@ -470,10 +468,10 @@ _last = {}
         return rtrn
 
     def __dir__(self) -> Iterable[str]:
-        pyObjs = [x for x in super(MAD, self).__dir__() if x[0] != "_"]
-        pyObjs.extend(self.globals())
-        pyObjs.extend(dir(self.recv_vars("_G", shallow_copy=True)))
-        return pyObjs
+        py_objs = [x for x in super().__dir__() if x[0] != "_"]
+        py_objs.extend(self.globals())
+        py_objs.extend(dir(self.recv_vars("_G", shallow_copy=True)))
+        return py_objs
 
     def globals(self) -> list[str]:
         """

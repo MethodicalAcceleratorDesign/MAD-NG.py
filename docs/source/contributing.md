@@ -10,7 +10,7 @@ This guide is for developers who want to contribute to PyMAD-NG or extend its ca
 |--------------------------------------|--------------------------------------------------------|
 | `src/pymadng/madp_object.py`         | Contains the main {class}`pymadng.MAD` class and high-level interface |
 | `src/pymadng/madp_pymad.py`          | Manages subprocess communication and type handling     |
-| `src/pymadng/madp_classes.py`        | Defines reference object wrappers (`mad_ref`, etc.)    |
+| `src/pymadng/madp_classes.py`        | Defines reference object wrappers (`MadRef`, etc.)    |
 | `src/pymadng/madp_last.py`           | Manages temporary variables like `_last[]`             |
 | `src/pymadng/madp_strings.py`        | Utility for quoting and formatting MAD-compatible text |
 | `examples/`                          | Contains working scripts and tutorials                 |
@@ -50,7 +50,7 @@ git checkout -b your-feature-name
 3. **Test Code**
    - All tests are located in the `tests/` directory, currently `unittests` are used.
 
-4. **Run Tests** 
+4. **Run Tests**
 ```bash
 python -m unittest tests/*.py
 ```
@@ -85,4 +85,3 @@ python -m unittest tests/*.py
 - See the [Debugging Guide] or [Architecture Overview] for internals
 
 Thanks for contributing to PyMAD-NG!
-

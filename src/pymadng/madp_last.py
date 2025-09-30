@@ -1,4 +1,4 @@
-class last_counter:
+class LastCounter:
     """Maintain a counter for anonymous '_last' variables in MAD-NG.
 
     The __last__ variable stores the most recent function result in MAD-NG.

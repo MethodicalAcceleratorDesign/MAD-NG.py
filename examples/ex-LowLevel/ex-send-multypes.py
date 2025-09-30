@@ -18,22 +18,14 @@ mad.send("""
 mad.send("cm1 = (MAD.cmatrix(10000, 1000) + 1i)")
 
 # Create a string the manipulates the complex matrix in MAD and sends the result it to Python
-cmatrixString = """
+cmatrix_str = """
     {0} = cm1 {1} {2}
     py:send({0})"""
 
-mad.send(
-    cmatrixString.format("cm4", "*", 1)
-)  ## Set cm4 to cm1 * 1 and send it to Python
-mad.send(
-    cmatrixString.format("cm1", "*", 2)
-)  ## Set cm1 to cm1 * 2 and send it to Python
-mad.send(
-    cmatrixString.format("cm2", "*", 2)
-)  ## Set cm2 to cm1 * 2 and send it to Python
-mad.send(
-    cmatrixString.format("cm3", "/", 3)
-)  ## Set cm3 to cm1 / 3 and send it to Python
+mad.send(cmatrix_str.format("cm4", "*", 1))  ## Set cm4 to cm1 * 1 and send it to Python
+mad.send(cmatrix_str.format("cm1", "*", 2))  ## Set cm1 to cm1 * 2 and send it to Python
+mad.send(cmatrix_str.format("cm2", "*", 2))  ## Set cm2 to cm1 * 2 and send it to Python
+mad.send(cmatrix_str.format("cm3", "/", 3))  ## Set cm3 to cm1 / 3 and send it to Python
 
 ## Create a vector in MAD and send it to Python
 mad.send("""
@@ -72,41 +64,39 @@ my_list[1][0] = 10
 mad_list = mad.recv("list")
 for i, inner_list in enumerate(mad_list):
     for j, val in enumerate(inner_list):
-        print(
-            f"List value at [{i}][{j}]: {val} == {my_list[i][j]}", val == my_list[i][j]
-        )
+        print(f"List value at [{i}][{j}]: {val} == {my_list[i][j]}", val == my_list[i][j])
 
 # Send an integer to MAD and receive a changed version back
-myInt = 4
+an_int = 4
 mad.send("""
-local myInt = py:recv()
-py:send(myInt+2)
+local an_int = py:recv()
+py:send(an_int+2)
 """)
-mad.send(myInt)
+mad.send(an_int)
 print("Integers", mad.recv() == 6)
 
 # Send a float to MAD and receive a changed version back
-myFloat = 6.612
+a_float = 6.612
 mad.send("""
-local myFloat = py:recv()
-py:send(myFloat + 0.56)
+local a_float = py:recv()
+py:send(a_float + 0.56)
 """)
-mad.send(myFloat)
+mad.send(a_float)
 print("Floats", mad.recv() == 6.612 + 0.56)
 
 # Send a complex number to MAD and receive a changed version back
-myCpx = 6.612 + 4j
+a_cpx = 6.612 + 4j
 mad.send("""
-local myCpx = py:recv()
-py:send(myCpx + 0.5i)
+local a_cpx = py:recv()
+py:send(a_cpx + 0.5i)
 """)
-mad.send(myCpx)
+mad.send(a_cpx)
 print("Complex", mad.recv() == 6.612 + 4.5j)
 
 # Send None to MAD and it back
 mad.send("""
-local myNil = py:recv()
-py:send(myNil)
+local a_nil = py:recv()
+py:send(a_nil)
 """)
 mad.send(None)
 print("Nil/None", mad.recv() is None)

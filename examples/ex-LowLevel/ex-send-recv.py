@@ -33,35 +33,23 @@ print("time to write to MAD 960 MB", time.time() - start_time)
 start_time = time.time()
 
 # Create a string the manipulates the complex matrix in MAD and sends the result it to Python
-cmatrixString = """
+cmat_str = """
     {0} = {0} {1} {2}
     py:send({0})
     """
 
 start_time = time.time()
-mad.send(
-    cmatrixString.format("cm1", "*", 2)
-)  # Set cm1 to cm1 * 2 and send it to Python
+mad.send(cmat_str.format("cm1", "*", 2))  # Set cm1 to cm1 * 2 and send it to Python
 cm1 = mad.recv()
-mad.send(
-    cmatrixString.format("cm2", "*", 2)
-)  # Set cm2 to cm1 * 2 and send it to Python
+mad.send(cmat_str.format("cm2", "*", 2))  # Set cm2 to cm1 * 2 and send it to Python
 cm2 = mad.recv()
-mad.send(
-    cmatrixString.format("cm3", "/", 3)
-)  # Set cm3 to cm1 / 3 and send it to Python
+mad.send(cmat_str.format("cm3", "/", 3))  # Set cm3 to cm1 / 3 and send it to Python
 cm3 = mad.recv()
-mad.send(
-    cmatrixString.format("cm4", "*", 1)
-)  # Set cm4 to cm1 * 1 and send it to Python
+mad.send(cmat_str.format("cm4", "*", 1))  # Set cm4 to cm1 * 1 and send it to Python
 cm4 = mad.recv()
-mad.send(
-    cmatrixString.format("cm4", "*", 2)
-)  # Set cm4 to cm1 * 1 and send it to Python
+mad.send(cmat_str.format("cm4", "*", 2))  # Set cm4 to cm1 * 1 and send it to Python
 cm4 = mad.recv()
-mad.send(
-    cmatrixString.format("cm4", "*", 2)
-)  # Set cm4 to cm1 * 1 and send it to Python
+mad.send(cmat_str.format("cm4", "*", 2))  # Set cm4 to cm1 * 1 and send it to Python
 cm4 = mad.recv()
 print("time to read 960 MB from MAD", time.time() - start_time)
 

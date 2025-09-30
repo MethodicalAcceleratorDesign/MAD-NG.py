@@ -25,9 +25,9 @@ jobs:
       id-token: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.x'
     - name: Install dependencies
@@ -36,9 +36,9 @@ jobs:
         pip install build
     - name: Get MAD Binaries
       run: |
-        mkdir src/pymadng/bin 
-        curl https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.5 -o src/pymadng/bin/mad_Linux
-        curl https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.5 -o src/pymadng/bin/mad_Darwin
+        mkdir src/pymadng/bin
+        curl https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.6 -o src/pymadng/bin/mad_Linux
+        curl https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.6 -o src/pymadng/bin/mad_Darwin
         chmod +x src/pymadng/bin/mad_Linux src/pymadng/bin/mad_Darwin
     - name: Build package
       run: python -m build

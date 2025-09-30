@@ -1,9 +1,10 @@
 import os
+from pathlib import Path
 
 from pymadng import MAD
 
-original_dir = os.getcwd()
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+original_dir = Path.cwd()
+os.chdir(Path(__file__).parent)
 
 with MAD(debug=False) as mad:
     mad["psbeam"] = mad.beam(particle="'proton'", pc=2.794987)
@@ -18,14 +19,16 @@ with MAD(debug=False) as mad:
     mad.ps.beam = mad.psbeam
     mad["srv", "mflw"] = mad.survey(sequence=mad.ps)
 
-    mad.srv.write("'PS_survey_py.tfs'",
+    mad.srv.write(
+        "'PS_survey_py.tfs'",
         mad.quote_strings(["name", "kind", "s", "l", "angle", "x", "y", "z", "theta"]),
-        )
+    )
 
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.ps, method=6, nslice=3)
 
     mad.load("MAD.gphys", "melmcol")
-    #Add element properties as columns
+    # Add element properties as columns
+    # fmt: off
     mad.melmcol(mad.mtbl,
         mad.quote_strings(
             ["angle", "tilt", "k0l", "k1l", "k2l", "k3l", "k4l", "k5l", "k6l", "k0sl",
@@ -38,10 +41,11 @@ with MAD(debug=False) as mad:
             "dpx", "mu1", "mu2", "l", "angle", "k0l", "k1l", "k2l", "k3l", "hkick", "vkick"]
             )
         )
-    
+    # fmt: on
     df = mad.mtbl.to_df()
     try:
         import tfs
+
         assert type(df) is tfs.TfsDataFrame
         print("tfs-pandas installed, so the header is stored in headers")
         print(df.headers)

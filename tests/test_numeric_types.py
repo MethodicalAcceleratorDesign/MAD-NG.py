@@ -1,24 +1,31 @@
 import unittest
+
 import numpy as np
+
 from pymadng import MAD
+
 
 class TestList(unittest.TestCase):
     def test_send_recv(self):
         with MAD() as mad:
-            myList = [[1, 2, 3, 4, 5, 6, 7, 8, 9]] * 2
+            test_list = [[1, 2, 3, 4, 5, 6, 7, 8, 9]] * 2
             mad.send("""
             list = py:recv()
             list[1][1] = 10
             list[2][1] = 10
             py:send(list)
             """)
-            mad.send(myList)
-            myList[0][0] = 10
-            myList[1][0] = 10
+            mad.send(test_list)
+            test_list[0][0] = 10
+            test_list[1][0] = 10
             mad_list = mad.recv("list")
             for i, inner_list in enumerate(mad_list):
                 for j, val in enumerate(inner_list):
-                    self.assertEqual(val, myList[i][j], f"Mismatch at index [{i}][{j}]: {val} != {myList[i][j]}")
+                    self.assertEqual(
+                        val,
+                        test_list[i][j],
+                        f"Mismatch at index [{i}][{j}]: {val} != {test_list[i][j]}",
+                    )
 
     def test_send_recv_wref(self):
         with MAD() as mad:
@@ -32,25 +39,30 @@ class TestList(unittest.TestCase):
             list1 = mad.recv("list")
             list2 = mad.recv("list2")
             self.assertEqual(len(list1), 2)
-            
+
             self.assertEqual(list2.eval().keys(), python_dict.keys())
             self.assertEqual(sorted(list2.eval().values()), sorted(python_dict.values()))
 
             self.assertEqual(list1[0].a, 2)
             self.assertEqual(list1[1].b, 6)
 
+
 class TestNums(unittest.TestCase):
     eps = 2**-52
     tiny = 2**-1022
     huge = 2**1023
-    flt_lst = [0, tiny, 2**-64, 2**-63, 2**-53, eps, 2**-52, 2*eps, 2**-32, 2**-31, 1e-9,
-                0.1-eps, 0.1, 0.1+eps, 0.5, 0.7-eps, 0.7, 0.7+eps, 1-eps, 1, 1+eps,
-                1.1, 1.7, 2, 10, 1e2, 1e3, 1e6, 1e9, 2**31, 2**32, 2**52, 2**53,
-                2**63, 2**64, huge]
+    # fmt: off
+    flt_lst = [
+        0, tiny, 2**-64, 2**-63, 2**-53, eps, 2**-52, 2*eps, 2**-32, 2**-31, 1e-9,
+        0.1-eps, 0.1, 0.1+eps, 0.5, 0.7-eps, 0.7, 0.7+eps, 1-eps, 1, 1+eps,
+        1.1, 1.7, 2, 10, 1e2, 1e3, 1e6, 1e9, 2**31, 2**32, 2**52, 2**53,
+        2**63, 2**64, huge
+    ]
+    # fmt: on
 
     def test_send_recv_int(self):
         with MAD() as mad:
-            int_lst = [0, 1, 2, 10, 1e2, 1e3, 1e6, 1e9, 2**31-1]
+            int_lst = [0, 1, 2, 10, 1e2, 1e3, 1e6, 1e9, 2**31 - 1]
             for i in range(len(int_lst)):
                 mad.send("""
                 local is_integer in MAD.typeid
@@ -80,9 +92,9 @@ class TestNums(unittest.TestCase):
                 """)
                 mad.send(self.flt_lst[i])
                 mad.send(-self.flt_lst[i])
-                self.assertEqual(mad.recv(),  self.flt_lst[i]) #Check individual floats
-                self.assertEqual(mad.recv(), -self.flt_lst[i]) #Check negation
-                self.assertEqual(mad.recv(),  self.flt_lst[i] * 1.61) #Check manipulation
+                self.assertEqual(mad.recv(), self.flt_lst[i])  # Check individual floats
+                self.assertEqual(mad.recv(), -self.flt_lst[i])  # Check negation
+                self.assertEqual(mad.recv(), self.flt_lst[i] * 1.61)  # Check manipulation
 
     def test_send_recv_cpx(self):
         with MAD() as mad:
@@ -96,9 +108,10 @@ class TestNums(unittest.TestCase):
                     """)
                     my_cpx = self.flt_lst[i] + 1j * self.flt_lst[j]
                     mad.send(my_cpx)
-                    self.assertEqual(mad.recv(),  my_cpx)
+                    self.assertEqual(mad.recv(), my_cpx)
                     self.assertEqual(mad.recv(), -my_cpx)
-                    self.assertEqual(mad.recv(),  my_cpx * 1.31j)
+                    self.assertEqual(mad.recv(), my_cpx * 1.31j)
+
 
 class TestMatrices(unittest.TestCase):
     def test_send_recv_imat(self):
@@ -108,7 +121,8 @@ class TestMatrices(unittest.TestCase):
             py:send(imat)
             py:send(MAD.imatrix(3, 5):seq())
             """)
-            imat = np.random.randint(0, 255, (5, 5), dtype=np.int32)
+            rng = np.random.default_rng()
+            imat = rng.integers(0, 255, (5, 5), dtype=np.int32)
             mad.send(imat)
             self.assertTrue(np.all(mad.recv() == imat))
             self.assertTrue(np.all(mad.recv() == np.arange(1, 16).reshape(3, 5)))
@@ -136,6 +150,7 @@ class TestMatrices(unittest.TestCase):
             mad.send(cmat)
             self.assertTrue(np.all(mad.recv() == cmat))
             self.assertTrue(np.all(mad.recv() == (np.arange(1, 16).reshape(3, 5) / 2j)))
+
 
 if __name__ == "__main__":
     unittest.main()
