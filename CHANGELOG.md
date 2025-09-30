@@ -1,3 +1,14 @@
+0.8.0 (2025/09/30)
+Update to MAD-NG 1.1.6 \
+Added comprehensive ruff configuration in pyproject.toml with various linting rules \
+Renamed classes and functions to follow PascalCase and snake_case conventions \
+Updated imports to use pathlib.Path instead of os.path \
+Improved code formatting and removed redundant constructs \
+BUG: Fixed used of `py` instead of `py_name`, resulting in py_name being unuable. \
+Removed compatibility for Python versions below 3.10, now only supporting Python 3.10 and above. \
+Updated GitHub Actions workflows to test against Python 3.10 to 3.14 \
+Updated documentation to reflect changes in code style and conventions. \
+
 0.7.1 (2025/08/04)
 Update to MAD-NG 1.1.5
 
