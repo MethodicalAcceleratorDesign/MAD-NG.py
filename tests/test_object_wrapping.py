@@ -114,7 +114,7 @@ class TestGetSet(unittest.TestCase):
 
 class TestObjFun(unittest.TestCase):
     def test_call_obj(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("element", "quadrupole", "sextupole")
             qd = mad.quadrupole(knl=[0, 0.25], l=1)
             sd = mad.sextupole(knl=[0, 0.25, 0.5], l=1)
@@ -157,7 +157,7 @@ class TestObjFun(unittest.TestCase):
             self.assertRaises(RuntimeError, lambda: mad.mtable.read("'abad.tfs'").eval())
 
     def test_call_func(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("element", "quadrupole")
             mad["qd"] = mad.quadrupole(knl=[0, 0.25], l=1)
             mad.qd.select()
@@ -237,7 +237,7 @@ class TestObjFun(unittest.TestCase):
 
 class TestOps(unittest.TestCase):
     def test_matrix(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("MAD", "matrix")
             py_mat = np.arange(1, 101).reshape((10, 10))
 
@@ -311,7 +311,7 @@ class TestArgsAndKwargs(unittest.TestCase):
 
 class TestDir(unittest.TestCase):
     def test_dir(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("MAD", "gfunc", "element", "object")
             mad.load("element", "quadrupole")
             mad.load("gfunc", "functor")
@@ -330,7 +330,7 @@ class TestDir(unittest.TestCase):
             )  # Adding to the instance should change the dir
 
     def test_dir_on_mad_object(self):
-        with MAD() as mad:
+        with MAD(py_name="python") as mad:
             mad.load("MAD", "object")
             mad.send("my_obj = object {a = 1, b = 2, c = 3}")
             expected_dir = sorted(["a", "b", "c"] + dir(mad.object))
