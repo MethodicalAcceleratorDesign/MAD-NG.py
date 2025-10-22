@@ -300,6 +300,7 @@ class TestArgsAndKwargs(unittest.TestCase):
                 abool=True,
                 opposite=False,
                 mat=mad.m1,
+                adict={"a": 1, "b": 2},
             )
             self.assertEqual(sd.knl.eval(), [0, 0.25j, 1 + 1j])
             self.assertEqual(sd.l, 1)
@@ -307,6 +308,7 @@ class TestArgsAndKwargs(unittest.TestCase):
             self.assertEqual(sd.abool, True)
             self.assertEqual(sd.opposite, False)
             self.assertTrue(np.all(sd.mat == np.arange(9).reshape((3, 3)) + 1))
+            self.assertEqual(sd.adict.eval(), {"a": 1, "b": 2})
 
 
 class TestDir(unittest.TestCase):
