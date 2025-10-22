@@ -71,17 +71,12 @@ def create_mad_string(py_name, var: Any):
     Returns:
         tuple: A tuple containing the formatted string and a list of associated variables.
     """
-    if isinstance(var, list):
-        string, vars_to_send = format_args_to_string(py_name, *var)
-        return "{" + string + "}", vars_to_send
     if var is None:
         return "nil", []
     if isinstance(var, str):
         return var, []
     if isinstance(var, BaseMadRef):
         return var._name, []
-    if isinstance(var, dict):
-        return format_kwargs_to_string(py_name, **var)
     if isinstance(var, bool):
         return str(var).lower(), []
     return f"{py_name}:recv()", [var]
