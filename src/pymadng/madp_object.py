@@ -146,9 +146,7 @@ _last = {}
     # ------------------------------------------------------------------------------------------#
 
     # --------------------------- Receiving data from subprocess -------------------------------#
-    def recv(
-        self, varname: str = None
-    ) -> str | int | float | np.ndarray | bool | list | MadRef:
+    def recv(self, varname: str = None) -> str | int | float | np.ndarray | bool | list | MadRef:
         """
         Retrieve data from the MAD-NG process.
 
@@ -162,9 +160,7 @@ _last = {}
         """
         return self.__process.recv(varname)
 
-    def receive(
-        self, varname: str = None
-    ) -> str | int | float | np.ndarray | bool | list | MadRef:
+    def receive(self, varname: str = None) -> str | int | float | np.ndarray | bool | list | MadRef:
         """
         Alias for the recv method.
 
@@ -335,9 +331,7 @@ _last = {}
         """
         path: Path = Path(path).resolve()
         if varnames == ():
-            self.__process.send(
-                f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
-            )
+            self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
         else:
             # The parent/stem is necessary, otherwise the file will not be found
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)
@@ -470,7 +464,6 @@ _last = {}
     def __dir__(self) -> Iterable[str]:
         py_objs = [x for x in super().__dir__() if x[0] != "_"]
         py_objs.extend(self.globals())
-        py_objs.extend(dir(self.recv_vars("_G", shallow_copy=True)))
         return py_objs
 
     def globals(self) -> list[str]:

@@ -79,9 +79,7 @@ class MadProcess:
 
         # Create a chunk of code to start the process
         lua_debug_flag = "true" if debug else "false"
-        startup_chunk = (
-            f"MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}} :__ini({mad_write})"
-        )
+        startup_chunk = f"MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}} :__ini({mad_write})"
 
         if threading.current_thread() is threading.main_thread():
             self._setup_signal_handler()
@@ -127,9 +125,7 @@ class MadProcess:
         if not startup_status_checker[0] or mad_rtrn != "started":
             self.close()
             if mad_rtrn == "started":
-                raise OSError(
-                    f"Could not establish communication with {mad_path} process"
-                )
+                raise OSError(f"Could not establish communication with {mad_path} process")
             raise OSError(f"Could not start {mad_path} process, received: {mad_rtrn}")
 
         # Set the error handler to be on by default
@@ -179,9 +175,7 @@ class MadProcess:
         self.mad_input_stream.write(b"ctpa")
         send_generic_tpsa(self, monos, coefficients, send_cpx)
 
-    def send(
-        self, data: str | int | float | np.ndarray | bool | list | dict
-    ) -> MadProcess:
+    def send(self, data: str | int | float | np.ndarray | bool | list | dict) -> MadProcess:
         """Send data to the MAD-NG process.
 
         Accepts several types (str, int, float, ndarray, bool, list, dict) and sends them using the appropriate serialization.
@@ -205,13 +199,9 @@ class MadProcess:
         if self.raise_on_madng_error:
             # If the user has specified that they want to raise an error always, skip the error handling on and off
             return self.send(string)
-        return self.send(
-            f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);"
-        )
+        return self.send(f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);")
 
-    def protected_variable_retrieval(
-        self, name: str, shallow_copy: bool = False
-    ) -> Any:
+    def protected_variable_retrieval(self, name: str, shallow_copy: bool = False) -> Any:
         """Safely retrieve a variable from MAD-NG.
 
         Enables temporary error handling while retrieving a variable.
@@ -307,9 +297,7 @@ class MadProcess:
             raise ValueError("Cannot retrieve private variables from MAD-NG")
         if len(names) == 1:
             return self.protected_variable_retrieval(names[0], shallow_copy)
-        return tuple(
-            self.protected_variable_retrieval(name, shallow_copy) for name in names
-        )
+        return tuple(self.protected_variable_retrieval(name, shallow_copy) for name in names)
 
     # -------------------------------------------------------------------------- #
 
@@ -695,9 +683,7 @@ def recv_generic_matrix(self: MadProcess, dtype: np.dtype) -> str:
         str: A string representation of the matrix (reshaped numpy array).
     """
     shape = read_data_stream(self, 8, np.int32)
-    return read_data_stream(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(
-        shape
-    )
+    return read_data_stream(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(shape)
 
 
 def recv_matrix(self: MadProcess) -> np.ndarray:
@@ -773,9 +759,7 @@ def send_generic_tpsa(
     assert len(monos) == len(coefficients), (
         "The number of monomials must be equal to the number of coefficients"
     )
-    assert monos.dtype == np.uint8, (
-        "The monomials must be of type 8-bit unsigned integer "
-    )
+    assert monos.dtype == np.uint8, "The monomials must be of type 8-bit unsigned integer "
     write_serial_data(self, "ii", len(monos), len(monos[0]))
     for mono in monos:
         self.mad_input_stream.write(mono.tobytes())
