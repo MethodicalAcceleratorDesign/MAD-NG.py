@@ -1,4 +1,7 @@
 0.8.2 (2025/11/29) \
+Update to MAD-NG 1.1.8
+
+0.8.2 (2025/11/29) \
 Also includes action that can bump all the necessary versions
 
 0.8.1 (2025/10/02) \
