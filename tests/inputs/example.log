@@ -27,7 +27,7 @@ match = MAD.match
 ***pymad.recv: [py:__err(true):send(MAD['env']['version'], false):__err(false)] 62 bytes
 ***pymad.send: [str_] 4 bytes
 ***pymad.send: binary data 4 bytes
-***pymad.send: [1.1.6] 5 bytes
+***pymad.send: [1.1.7] 5 bytes
 ***pymad.recv: binary data 4 bytes
 ***pymad.recv: [
 function __mklast__ (a, b, ...)
