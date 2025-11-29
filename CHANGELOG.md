@@ -1,3 +1,5 @@
+Also added bumping script (2025/11/29)
+
 0.8.1 (2025/10/02) \
 Update to stable MAD-NG 1.1.6 (not dev-release)
 
