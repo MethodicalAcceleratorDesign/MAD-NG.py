@@ -1,5 +1,5 @@
 # This workflow updates the MAD-NG version across the repository
-# It updates the version in workflows, test inputs, and changelog
+# It updates the version in workflows, test inputs, changelog, and package version
 
 name: Bump MAD-NG release
 
@@ -12,6 +12,10 @@ on:
         type: string
       major_minor:
         description: 'Major.minor version for URL path (e.g., 1.1)'
+        required: true
+        type: string
+      package_version:
+        description: 'New package version for pymadng (e.g., 0.8.2)'
         required: true
         type: string
       changelog_entry:
@@ -40,6 +44,11 @@ jobs:
           # Validate major_minor format (x.y)
           if ! echo "${{ inputs.major_minor }}" | grep -qE '^[0-9]+\.[0-9]+$'; then
             echo "Error: major_minor must be in x.y format (e.g., 1.1)"
+            exit 1
+          fi
+          # Validate package_version format (semver: x.y.z)
+          if ! echo "${{ inputs.package_version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: package_version must be in semver format (e.g., 0.8.2)"
             exit 1
           fi
           echo "Inputs validated successfully"
@@ -76,6 +85,12 @@ jobs:
           sed -i "s/\[${{ steps.current.outputs.version }}\]/[${{ inputs.new_version }}]/g" tests/inputs/example.log
           echo "Updated example.log"
 
+      - name: Update package version
+        run: |
+          # Update __version__ in src/pymadng/__init__.py
+          sed -i -E "s/__version__ = \"[0-9]+\.[0-9]+\.[0-9]+\"/__version__ = \"${{ inputs.package_version }}\"/" src/pymadng/__init__.py
+          echo "Updated package version to ${{ inputs.package_version }}"
+
       - name: Update CHANGELOG.md
         run: |
           CHANGELOG_ENTRY="${{ inputs.changelog_entry }}"
@@ -87,8 +102,11 @@ jobs:
           CURRENT_DATE=$(date +%Y/%m/%d)
           
           # Prepend new version entry to CHANGELOG.md with proper format
+          # Format: version (date) \
+          #         changelog entry
           TEMP_FILE=$(mktemp)
-          echo "$CHANGELOG_ENTRY ($CURRENT_DATE)" > "$TEMP_FILE"
+          echo "${{ inputs.package_version }} ($CURRENT_DATE) \\" > "$TEMP_FILE"
+          echo "$CHANGELOG_ENTRY" >> "$TEMP_FILE"
           echo "" >> "$TEMP_FILE"
           cat CHANGELOG.md >> "$TEMP_FILE"
           mv "$TEMP_FILE" CHANGELOG.md
@@ -98,19 +116,25 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          commit-message: "Bump MAD-NG version to ${{ inputs.new_version }}"
-          title: "Bump MAD-NG version to ${{ inputs.new_version }}"
+          commit-message: "Bump MAD-NG to ${{ inputs.new_version }} and package to ${{ inputs.package_version }}"
+          title: "Bump MAD-NG to ${{ inputs.new_version }} and pymadng to ${{ inputs.package_version }}"
           body: |
-            This PR updates the MAD-NG version from ${{ steps.current.outputs.version }} to ${{ inputs.new_version }}.
+            This PR updates the MAD-NG version from ${{ steps.current.outputs.version }} to ${{ inputs.new_version }} and bumps the package version to ${{ inputs.package_version }}.
 
             ## Changes
             - Updated `.github/workflows/test-pymadng.yml`
             - Updated `.github/workflows/python-publish.yml`
             - Updated `tests/inputs/example.log`
+            - Updated `src/pymadng/__init__.py` (package version)
             - Updated `CHANGELOG.md`
 
             ## MAD-NG Release
-            New version: ${{ inputs.new_version }}
+            New MAD-NG version: ${{ inputs.new_version }}
             Major.minor: ${{ inputs.major_minor }}
+
+            ## Package Release
+            New package version: ${{ inputs.package_version }}
+            
+            After merging this PR, create a release with tag `v${{ inputs.package_version }}` to publish to PyPI.
           branch: bump-madng-${{ inputs.new_version }}
           base: main
