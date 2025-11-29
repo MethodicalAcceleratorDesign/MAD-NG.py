@@ -97,6 +97,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           commit-message: "Bump MAD-NG version to ${{ inputs.new_version }}"
           title: "Bump MAD-NG version to ${{ inputs.new_version }}"
           body: |
