@@ -1,0 +1,93 @@
+# This workflow updates the MAD-NG version across the repository
+# It updates the version in workflows, test inputs, and changelog
+
+name: Bump MAD-NG release
+
+on:
+  workflow_dispatch:
+    inputs:
+      new_version:
+        description: 'New MAD-NG version (e.g., 1.1.7)'
+        required: true
+        type: string
+      major_minor:
+        description: 'Major.minor version for URL path (e.g., 1.1)'
+        required: true
+        type: string
+      changelog_entry:
+        description: 'Changelog entry for this update (optional)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get current version
+        id: current
+        run: |
+          # Extract current version from test-pymadng.yml
+          CURRENT_VERSION=$(grep -oP 'mad-linux-\K[0-9]+\.[0-9]+\.[0-9]+' .github/workflows/test-pymadng.yml | head -1)
+          CURRENT_MAJOR_MINOR=$(grep -oP 'releases/madng/\K[0-9]+\.[0-9]+' .github/workflows/test-pymadng.yml | head -1)
+          echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "major_minor=$CURRENT_MAJOR_MINOR" >> "$GITHUB_OUTPUT"
+          echo "Current MAD-NG version: $CURRENT_VERSION"
+          echo "Current major.minor: $CURRENT_MAJOR_MINOR"
+
+      - name: Update test-pymadng.yml
+        run: |
+          sed -i "s|releases/madng/${{ steps.current.outputs.major_minor }}/mad-linux-${{ steps.current.outputs.version }}|releases/madng/${{ inputs.major_minor }}/mad-linux-${{ inputs.new_version }}|g" .github/workflows/test-pymadng.yml
+          sed -i "s|releases/madng/${{ steps.current.outputs.major_minor }}/mad-macos-${{ steps.current.outputs.version }}|releases/madng/${{ inputs.major_minor }}/mad-macos-${{ inputs.new_version }}|g" .github/workflows/test-pymadng.yml
+          echo "Updated test-pymadng.yml"
+
+      - name: Update python-publish.yml
+        run: |
+          sed -i "s|releases/madng/${{ steps.current.outputs.major_minor }}/mad-linux-${{ steps.current.outputs.version }}|releases/madng/${{ inputs.major_minor }}/mad-linux-${{ inputs.new_version }}|g" .github/workflows/python-publish.yml
+          sed -i "s|releases/madng/${{ steps.current.outputs.major_minor }}/mad-macos-${{ steps.current.outputs.version }}|releases/madng/${{ inputs.major_minor }}/mad-macos-${{ inputs.new_version }}|g" .github/workflows/python-publish.yml
+          echo "Updated python-publish.yml"
+
+      - name: Update example.log
+        run: |
+          sed -i "s|\[${{ steps.current.outputs.version }}\]|\[${{ inputs.new_version }}\]|g" tests/inputs/example.log
+          echo "Updated example.log"
+
+      - name: Update CHANGELOG.md
+        run: |
+          CHANGELOG_ENTRY="${{ inputs.changelog_entry }}"
+          if [ -z "$CHANGELOG_ENTRY" ]; then
+            CHANGELOG_ENTRY="Update to MAD-NG ${{ inputs.new_version }}"
+          fi
+          # Prepend new version entry to CHANGELOG.md
+          TEMP_FILE=$(mktemp)
+          echo "$CHANGELOG_ENTRY" > "$TEMP_FILE"
+          echo "" >> "$TEMP_FILE"
+          cat CHANGELOG.md >> "$TEMP_FILE"
+          mv "$TEMP_FILE" CHANGELOG.md
+          echo "Updated CHANGELOG.md"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Bump MAD-NG version to ${{ inputs.new_version }}"
+          title: "Bump MAD-NG version to ${{ inputs.new_version }}"
+          body: |
+            This PR updates the MAD-NG version from ${{ steps.current.outputs.version }} to ${{ inputs.new_version }}.
+
+            ## Changes
+            - Updated `.github/workflows/test-pymadng.yml`
+            - Updated `.github/workflows/python-publish.yml`
+            - Updated `tests/inputs/example.log`
+            - Updated `CHANGELOG.md`
+
+            ## MAD-NG Release
+            New version: ${{ inputs.new_version }}
+            Major.minor: ${{ inputs.major_minor }}
+          branch: bump-madng-${{ inputs.new_version }}
+          base: main
