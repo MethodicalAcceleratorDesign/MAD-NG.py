@@ -160,7 +160,7 @@ mad.send("my_array = py:recv()")
 mad.send(np.linspace(0, 1, 100))
 ```
 
-This allows direct use of scientific computation tools in tandem with accelerator modeling.
+This allows direct use of scientific computation tools in tandem with accelerator modelling.
 
 ---
 
