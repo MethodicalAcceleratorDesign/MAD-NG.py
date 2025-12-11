@@ -29,7 +29,7 @@ Before diving into PyMAD-NG, we recommend you:
 
 - **[LHC Matching Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html)** – Real-world optics matching with intermediate feedback.
 - **[Examples Page](https://pymadng.readthedocs.io/en/latest/examples.html)** - List of examples in an easy to read format. 
-- **[GitHub Examples Directory](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/examples/)** – List of avaliable examples on the repository
+- **[GitHub Examples Directory](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/examples/)** – List of available examples on the repository
 
 If anything seems unclear:
 - Refer to the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng)

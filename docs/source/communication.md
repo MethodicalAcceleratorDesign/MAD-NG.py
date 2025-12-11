@@ -177,7 +177,7 @@ See {meth}`pymadng.MAD.__init__` for all configuration options.
 - Use `mad.to_df()` for table conversion.
 - Avoid deadlocks by receiving before sending again.
 - Manage scope using `local` wisely.
-- Use configuration flags to tailor behavior.
+- Use configuration flags to tailor behaviour.
 
 For more, see the {doc}`advanced_features`, {doc}`debugging`, and {doc}`function_reference` sections.
 
