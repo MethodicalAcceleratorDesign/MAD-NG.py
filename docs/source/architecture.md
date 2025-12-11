@@ -22,7 +22,7 @@ Understanding the architecture will help advanced users contribute to developmen
 PyMAD-NG is a **Python wrapper for MAD-NG**, using standard UNIX pipes to manage two-way communication between Python and the MAD-NG subprocess. It provides both:
 
 - A **low-level string-based API** (like scripting MAD-NG manually)
-- A **high-level object-based API** that emulates Pythonic behavior
+- A **high-level object-based API** that emulates Pythonic behaviour
 
 At the heart of PyMAD-NG is the {class}`MAD` class, which:
 
@@ -60,7 +60,7 @@ This is implemented using `os.pipe()` and `select.select()` to manage reads and 
 - Main interface for users
 - Automatically loads common MAD-NG modules (e.g. `twiss`, `element`, `sequence`)
 - Handles naming of Python process in MAD-NG via `py_name`
-- Configures subprocess behavior (debug mode, stdout redirection)
+- Configures subprocess behaviour (debug mode, stdout redirection)
 
 ### {class}`madp_pymad.MadProcess`
 
@@ -73,7 +73,7 @@ This is implemented using `os.pipe()` and `select.select()` to manage reads and 
 - Wraps MAD-NG references returned to Python
 - Allows chained method calls like `mad.math.sin(1)`
 - Supports `.eval()` to convert a MAD value into a native Python object
-- Implements `__getattr__`, `__getitem__`, `__call__` to emulate Lua table behavior
+- Implements `__getattr__`, `__getitem__`, `__call__` to emulate Lua table behaviour
 
 ### {class}`madp_last`
 

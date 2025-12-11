@@ -15,7 +15,7 @@ This guide explains how to diagnose and fix common issues in PyMAD-NG’s commun
 
 ## 1. Enable Debug Mode
 
-When you initialize the {class}`MAD` object with `debug=True`, MAD-NG runs in a verbose mode. This prints extra information about each command you send, as well as diagnostic messages from the Lua side.
+When you initialise the {class}`MAD` object with `debug=True`, MAD-NG runs in a verbose mode. This prints extra information about each command you send, as well as diagnostic messages from the Lua side.
 
 ```python
 from pymadng import MAD
@@ -37,7 +37,7 @@ If you need to redirect standard error as well:
 mad = MAD(debug=True, stdout="mad_debug.log", redirect_stderr=True)
 ```
 
-This helps keep logs organized, especially when running long scripts.
+This helps keep logs organised, especially when running long scripts.
 
 ---
 
@@ -49,7 +49,7 @@ PyMAD-NG keeps track of all **string-based commands** sent to MAD-NG in a histor
 print(mad.history())
 ```
 
-This is invaluable for tracing unexpected behavior. For instance, if you suspect a weird command or an incorrect syntax was sent, you can look up the last lines in the history.
+This is invaluable for tracing unexpected behaviour. For instance, if you suspect a weird command or an incorrect syntax was sent, you can look up the last lines in the history.
 
 ```{note}
 Binary data (like large NumPy arrays) won’t appear in `mad.history()`. Only textual commands are recorded.
@@ -115,7 +115,7 @@ and manually check for failures.
 
 ### 5.1 Starting MAD-NG
 
-During initialization, PyMAD-NG calls:
+During initialisation, PyMAD-NG calls:
 
 ```
 mad_binary -q -e "MAD.pymad 'py' {_dbg = true} :__ini(fd)"
@@ -136,8 +136,8 @@ mad_binary -q -e "MAD.pymad 'py' {_dbg = true} :__ini(fd)"
 | Issue                                    | Possible Cause                                                   | Recommended Fix                                           |
 |------------------------------------------|------------------------------------------------------------------|-----------------------------------------------------------|
 | **Hang / Deadlock**                      | Called `mad.recv()` without `mad.send(...)`, or vice versa       | Always pair `send()` → `recv()`. Use `debug=True` to see if MAD is expecting data. |
-| **BrokenPipeError**                      | MAD-NG crashed or closed unexpectedly                            | Re-initialize `MAD()`. Check logs for the underlying error.                        |
-| **“Unsupported data type”** error        | Attempted to `send()` an object that PyMAD-NG can’t serialize    | Limit data to `str`, `int`, `float`, `bool`, `list`, or `np.ndarray`.             |
+| **BrokenPipeError**                      | MAD-NG crashed or closed unexpectedly                            | Re-initialise `MAD()`. Check logs for the underlying error.                        |
+| **“Unsupported data type”** error        | Attempted to `send()` an object that PyMAD-NG can’t serialise    | Limit data to `str`, `int`, `float`, `bool`, `list`, or `np.ndarray`.             |
 | **AttributeError / KeyError** accessing a field | Tried to read a reference property without evaluating it first | Call `.eval()` if you need the actual value.                                     |
 | **Exceeding `_last[]`** references       | Too many temp variables stored in `_last[]`                      | Manually name them in MAD, or increase `num_temp_vars`.                           |
 

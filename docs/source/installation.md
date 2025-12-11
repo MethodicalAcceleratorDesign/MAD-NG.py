@@ -13,7 +13,7 @@ Before installing PyMAD-NG, ensure that your system meets the following requirem
 - **Dependencies**:
   - `numpy`
   - `pandas` (optional, for data handling)
-  - `matplotlib` (optional, for visualization)
+  - `matplotlib` (optional, for visualisation)
 
 ---
 
@@ -99,7 +99,7 @@ Debugging PyMAD-NG can involve both Python-side and MAD-NG-side issues. Below ar
 
 ### 1. Enable Debug Mode
 
-You can enable verbose output during initialization by setting `debug=True`. This enables MAD-NG's debug mode and prints useful messages:
+You can enable verbose output during initialisation by setting `debug=True`. This enables MAD-NG's debug mode and prints useful messages:
 
 ```python
 mad = MAD(debug=True)

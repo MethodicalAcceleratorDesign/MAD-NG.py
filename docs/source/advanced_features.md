@@ -90,7 +90,7 @@ while True:
     update_plot(data)
 ```
 
-This is ideal for live visualization, feedback loops, or diagnostics during optimization.
+This is ideal for live visualisation, feedback loops, or diagnostics during optimisation.
 
 ---
 
