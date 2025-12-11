@@ -28,7 +28,7 @@ Dictionaries in python can now be sent to MAD-NG, and will be converted to a lua
 Add an optional parameter to to_df and convert_to_dataframe methods to allow the user to specify to always return a pandas dataframe, instead of a tfs dataframe, when tfs is installed. \
 Update the documentation and examples to work again. \
 Remove iter restriction on MAD-NG objects that are not sequences, now all objects can be iterated over. \
-Renamed redirect_stderr to redirect_stderr in the MAD object, fixing a typo.
+Renamed redirect_sterr to redirect_stderr in the MAD object, fixing a typo.
 
 
 0.6.3 (2025/04/30) \
