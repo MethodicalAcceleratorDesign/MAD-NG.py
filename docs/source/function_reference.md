@@ -74,7 +74,7 @@ These libraries expose MAD-NG’s physics simulation functionality, and are made
 | `sequence`  | Build beamline sequences                                |
 | `object`    | General MAD-NG object interface                         |
 | `track`     | Perform particle tracking                               |
-| `match`     | Launch matching optimizations                           |
+| `match`     | Launch matching optimisations                           |
 | `twiss`     | Compute Twiss parameters                                |
 | `survey`    | Calculate survey tables and coordinates                 |
 | `mtable`    | Handle MAD-NG table output                              |
@@ -134,7 +134,7 @@ mad["energy"] = 6500                 # Sets a global MAD-NG variable
 mad["tw"] = mad.twiss(...)           # Stores the result in MAD-NG
 ```
 
-Using `mad.energy = 6500` only affects Python, not MAD-NG, and will not produce the expected behavior.
+Using `mad.energy = 6500` only affects Python, not MAD-NG, and will not produce the expected behaviour.
 
 
 Functions like `mad.math.sin()` return reference objects that defer computation.
