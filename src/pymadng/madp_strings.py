@@ -80,7 +80,7 @@ def create_mad_string(py_name, var: Any):
         return var, []
     if isinstance(var, BaseMadRef):
         return var._name, []
-    if isinstance(var, dict):
+    if isinstance(var, dict) and all(isinstance(k, str) for k in var):
         return format_kwargs_to_string(py_name, **var)
     if isinstance(var, bool):
         return str(var).lower(), []
