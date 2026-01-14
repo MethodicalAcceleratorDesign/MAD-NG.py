@@ -1,3 +1,6 @@
+0.8.3 (2026/01/14) \
+Bump MAD-NG to 1.1.10, no major changes to pymadng.
+
 0.8.2 (2025/11/29) \
 Update to MAD-NG 1.1.8
 
