@@ -1,3 +1,7 @@
+0.8.4 (2026/02/25) \
+Replaced incorrect Warning call with logging.warning for proper warning handling.
+Also add the .close() method to the MAD class, allowing users to explicitly close the MAD-NG process and clean up resources.
+
 0.8.3 (2026/01/14) \
 Bump MAD-NG to 1.1.10, no major changes to pymadng.
 
