@@ -195,12 +195,12 @@ class MadObject(MadRef):
             raise StopIteration
 
     def to_df(
-        self, columns: list = None, force_pandas: bool = False
+        self, columns: list | None = None, force_pandas: bool = False
     ):  # For backwards compatibility (jgray 2024)
         """See `convert_to_dataframe`"""
         return self.convert_to_dataframe(columns, force_pandas)
 
-    def convert_to_dataframe(self, columns: list = None, force_pandas: bool = False):
+    def convert_to_dataframe(self, columns: list | None = None, force_pandas: bool = False):
         """Converts the object to a pandas dataframe.
 
         Args:
