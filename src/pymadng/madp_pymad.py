@@ -908,10 +908,10 @@ def recv_reference(self: MadProcess):
     Returns:
         BaseMadRef: A reference object corresponding to the received variable.
     """
-            "Reference must have a variable to reference to. "
-            "Reference must have a variable to reference to."
-            "Did you forget to put a name in the receive functions?"
-        )
+    assert self.varname is not None, (
+        "Reference must have a variable to reference to."
+        "Did you forget to put a name in the receive functions?"
+    )
     return BaseMadRef(self.varname, self)
 
 
