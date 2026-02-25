@@ -1,4 +1,5 @@
 0.8.5 (2026/02/25) \
+Remove support for Python 3.10, now only supporting Python 3.11 and above. \
 Replaced incorrect Warning call with logging.warning for proper warning handling. \
 Also add the .close() method to the MAD class, allowing users to explicitly close the MAD-NG process and clean up resources.
 
