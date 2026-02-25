@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import select
 import signal
@@ -15,6 +16,8 @@ import numpy as np
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from numpy.typing import DTypeLike
 
 # TODO: look at cpymad for the suppression of the error messages at exit - copy? (jgray 2024)
 
@@ -39,7 +42,7 @@ class MadProcess:
         py_name: str = "py",
         raise_on_madng_error: bool = True,
         debug: bool = False,
-        stdout: str | Path | TextIO = None,
+        stdout: str | Path | TextIO | None = None,
         redirect_stderr: bool = False,
     ) -> None:
         self.py_name = py_name
@@ -68,7 +71,7 @@ class MadProcess:
 
         # Convert stdout to a file descriptor
         try:
-            stdout = stdout.fileno()
+            stdout_fileno: int = stdout.fileno()
         except AttributeError as e:
             raise TypeError(
                 "Stdout must be a file name, file descriptor, or an object with the fileno method"
@@ -91,11 +94,11 @@ class MadProcess:
             [str(mad_path), "-q", "-e", startup_chunk],
             bufsize=0,
             stdin=mad_read,  # Set the stdin of MAD to the read end of the pipe
-            stdout=stdout,  # Forward stdout
+            stdout=stdout_fileno,  # Forward stdout
             stderr=stderr,  # Forward stderr
             pass_fds=[
                 mad_write,
-                stdout,
+                stdout_fileno,
                 sys.stderr.fileno(),
             ],  # Don't close these (python closes all fds by default)
         )
@@ -179,18 +182,16 @@ class MadProcess:
         self.mad_input_stream.write(b"ctpa")
         send_generic_tpsa(self, monos, coefficients, send_cpx)
 
-    def send(
-        self, data: str | int | float | np.ndarray | bool | list | dict
-    ) -> MadProcess:
+    def send(self, data: Any) -> MadProcess:
         """Send data to the MAD-NG process.
 
-        Accepts several types (str, int, float, ndarray, bool, list, dict) and sends them using the appropriate serialization.
+        Accepts several types (str, int, float, ndarray, bool, list, dict, NoneType) and sends them using the appropriate serialization.
         Returns self to allow method chaining.
         """
         try:
             typ = type_str[get_typestr(data)]
             self.mad_input_stream.write(typ.encode("utf-8"))
-            type_fun[typ]["send"](self, data)
+            type_fun[typ]["send"](self, data)  # type: ignore
             return self
         except KeyError:  # raise not in exception to reduce error output
             raise TypeError(
@@ -221,15 +222,15 @@ class MadProcess:
         Returns:
             The value of the variable.
         """
-        shallow_copy = str(shallow_copy).lower()
+        lua_shallow = str(shallow_copy).lower()
         if self.raise_on_madng_error:
-            return self.send(f"{self.py_name}:send({name}, {shallow_copy})").recv(name)
+            return self.send(f"{self.py_name}:send({name}, {lua_shallow})").recv(name)
         self.send(
-            f"{self.py_name}:__err(true):send({name}, {shallow_copy}):__err(false)"
+            f"{self.py_name}:__err(true):send({name}, {lua_shallow}):__err(false)"
         )  # Enable error handling, ask for the variable, and disable error handling
         return self.recv(name)
 
-    def set_error_handler(self, on_off: bool) -> MadProcess:
+    def set_error_handler(self, on_off: bool) -> None:
         """Toggle error handling in the MAD-NG process.
 
         This determines whether errors are raised immediately.
@@ -242,19 +243,19 @@ class MadProcess:
             return  # If the user has specified that they want to raise an error always, skip the error handling on and off
         self.send(f"{self.py_name}:__err({str(on_off).lower()})")
 
-    def recv(self, varname: str = None) -> Any:
+    def recv(self, varname: str | None = None) -> Any:
         """Receive data from MAD-NG.
 
         Reads 4 bytes to detect the data type and then extracts the corresponding value.
         Optional varname is used for reference purposes.
         Args:
-            varname (str): The variable name to use for reference in MAD-NG.
+            varname (str | None): The variable name to use for reference in MAD-NG.
         Returns:
             Any: The value received from MAD-NG, which can be of various types (str, int, float, ndarray, bool, list, dict).
         """
         typ = self.mad_read_stream.read(4).decode("utf-8")
         self.varname = varname  # For mad reference
-        return type_fun[typ]["recv"](self)
+        return type_fun[typ]["recv"](self)  # type: ignore
 
     def recv_and_exec(self, env: dict = {}) -> dict:
         """Receive a command string from MAD-NG and execute it.
@@ -291,6 +292,7 @@ class MadProcess:
                 self.send(f"{name} = {var._name}")
             else:
                 self.send(f"{name} = {self.py_name}:recv()").send(var)
+        return self
 
     def recv_vars(self, *names, shallow_copy: bool = False) -> Any:
         """Receive one or multiple variables from MAD-NG.
@@ -320,15 +322,23 @@ class MadProcess:
         """
         if self.process.poll() is None:  # If process is still running
             self.send(f"{self.py_name}:__fin()")  # Tell the mad side to finish
-            open_pipe = select.select([self.mad_read_stream], [], [])
+            open_pipe = select.select([self.mad_read_stream], [], [], 5)  # Shorter timeout
             if open_pipe[0]:
-                # Wait for the mad side to finish (variable name in case of errors that need to be caught elsewhere)
+                # Wait for the mad side to finish
                 close_msg = self.recv("closing")
                 if close_msg != "<closing pipe>":
-                    Warning(
+                    logging.warning(
                         f"Unexpected message received: {close_msg}, MAD-NG may not have completed properly"
                     )
-            self.process.terminate()  # Terminate the process on the python side
+
+            # Always try terminate first
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=5)  # Wait for terminate to take effect
+            except subprocess.TimeoutExpired:
+                # If terminate fails, escalate to kill
+                self.process.kill()
+                self.process.wait()
 
         # Close the debug file if it exists
         with suppress(AttributeError):
@@ -339,9 +349,6 @@ class MadProcess:
             self.mad_read_stream.close()
         if not self.mad_input_stream.closed:
             self.mad_input_stream.close()
-
-        # Wait for the process to finish
-        self.process.wait()
 
     def __del__(self):
         """Destructor: Close the MAD process gracefully."""
@@ -430,12 +437,12 @@ def write_serial_data(self: MadProcess, dat_fmt: str, *dat: Any) -> int:
     return self.mad_input_stream.write(struct.pack(dat_fmt, *dat))
 
 
-def read_data_stream(self: MadProcess, dat_sz: int, dat_typ: np.dtype) -> np.ndarray:
+def read_data_stream(self: MadProcess, dat_sz: int, dat_typ: DTypeLike) -> np.ndarray:
     """Read data from the MAD-NG pipe in a specific format.
 
     Args:
         dat_sz (int): The size of the data to read.
-        dat_typ (np.dtype): The data type for numpy conversion.
+        dat_typ (DTypeLike): The data type for numpy conversion.
 
     Returns:
         np.ndarray: The data read from the MAD-NG input stream, converted to the specified numpy type.
@@ -684,7 +691,7 @@ def send_generic_matrix(self: MadProcess, mat: np.ndarray):
     self.mad_input_stream.write(mat.tobytes())
 
 
-def recv_generic_matrix(self: MadProcess, dtype: np.dtype) -> str:
+def recv_generic_matrix(self: MadProcess, dtype: np.dtype) -> np.ndarray:
     """Receive a generic matrix from the MAD-NG pipe.
 
     Args:
@@ -692,7 +699,7 @@ def recv_generic_matrix(self: MadProcess, dtype: np.dtype) -> str:
         dtype (np.dtype): The numpy data type of the matrix.
 
     Returns:
-        str: A string representation of the matrix (reshaped numpy array).
+        np.ndarray: The received matrix as a reshaped numpy array.
     """
     shape = read_data_stream(self, 8, np.int32)
     return read_data_stream(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(
@@ -756,7 +763,7 @@ def send_generic_tpsa(
     self: MadProcess,
     monos: np.ndarray,
     coefficients: np.ndarray,
-    send_num: Callable[[MadProcess, float | complex], None],
+    send_num: Callable[[MadProcess, Any], int],
 ):
     """Send a generic TPSA table to MAD-NG.
 
@@ -767,7 +774,7 @@ def send_generic_tpsa(
         send_num (Callable): The function to send a numeric (float or complex) value.
 
     Returns:
-        None
+        int: The total number of bytes written.
     """
     assert len(monos.shape) == 2, "The list of monomials must have two dimensions"
     assert len(monos) == len(coefficients), (
@@ -783,7 +790,7 @@ def send_generic_tpsa(
         send_num(self, coefficient)
 
 
-def recv_generic_tpsa(self: MadProcess, dtype: np.dtype) -> np.ndarray:
+def recv_generic_tpsa(self: MadProcess, dtype: np.dtype) -> tuple[np.ndarray, np.ndarray]:
     """Receive a generic TPSA table from MAD-NG.
 
     Args:
@@ -791,7 +798,7 @@ def recv_generic_tpsa(self: MadProcess, dtype: np.dtype) -> np.ndarray:
         dtype (np.dtype): The numeric data type for coefficients.
 
     Returns:
-        np.ndarray: A tuple (monomial list, coefficients array).
+        tuple[np.ndarray, np.ndarray]: A tuple (monomial list, coefficients array).
     """
     num_mono, mono_len = read_data_stream(self, 8, np.int32)
     mono_list = np.reshape(
@@ -901,6 +908,10 @@ def recv_reference(self: MadProcess):
     Returns:
         BaseMadRef: A reference object corresponding to the received variable.
     """
+            "Reference must have a variable to reference to. "
+            "Reference must have a variable to reference to."
+            "Did you forget to put a name in the receive functions?"
+        )
     return BaseMadRef(self.varname, self)
 
 

@@ -63,11 +63,11 @@ class MAD:
 
     def __init__(
         self,
-        mad_path: str | Path = None,
+        mad_path: str | Path | None = None,
         py_name: str = "py",
         raise_on_madng_error: bool = True,
         debug: bool = False,
-        stdout: TextIO | str | Path = None,
+        stdout: TextIO | str | Path | None = None,
         redirect_stderr: bool = False,
         num_temp_vars: int = 8,
         ipython_use_jedi: bool = False,
@@ -83,7 +83,7 @@ class MAD:
             py_name (str, optional): Name used for MAD-to-Python communication.
             raise_on_madng_error (bool, optional): If True, raises errors from MAD-NG immediately.
             debug (bool, optional): If True, enables detailed debugging output.
-            stdout (TextIO | str | Path, optional): Destination for MAD-NG's standard output.
+            stdout (TextIO | str | Path | None, optional): Destination for MAD-NG's standard output.
             redirect_stderr (bool, optional): If True, redirects stderr to stdout.
             num_temp_vars (int, optional): Maximum number of temporary variables to track.
             ipython_use_jedi (bool, optional): If True, allows IPython to use jedi for autocompletion.
@@ -146,9 +146,7 @@ _last = {}
     # ------------------------------------------------------------------------------------------#
 
     # --------------------------- Receiving data from subprocess -------------------------------#
-    def recv(
-        self, varname: str = None
-    ) -> str | int | float | np.ndarray | bool | list | MadRef:
+    def recv(self, varname: str | None = None) -> Any:
         """
         Retrieve data from the MAD-NG process.
 
@@ -162,9 +160,7 @@ _last = {}
         """
         return self.__process.recv(varname)
 
-    def receive(
-        self, varname: str = None
-    ) -> str | int | float | np.ndarray | bool | list | MadRef:
+    def receive(self, varname: str | None = None) -> Any:
         """
         Alias for the recv method.
 
@@ -192,14 +188,14 @@ _last = {}
         return self.__process.recv_and_exec(context)
 
     # --------------------------------Sending data to subprocess------------------------------------#
-    def send(self, data: str | int | float | np.ndarray | bool | list) -> MAD:
+    def send(self, data: Any) -> MAD:
         """
         Send data to MAD-NG.
 
         Accepts various types of data and serialises them for transfer to MAD-NG.
 
         Args:
-            data (str/int/float/np.ndarray/bool/list): The information to send.
+            data (str/int/float/np.ndarray/bool/list/dict): The information to send.
 
         Returns:
             MAD: Returns self to facilitate method chaining.
@@ -362,7 +358,7 @@ _last = {}
             raise AttributeError(item)
         return self.__process.recv_vars(item)
 
-    def __setitem__(self, var_name: str, var: Any) -> None:
+    def __setitem__(self, var_name: str | tuple[str, ...], var: Any) -> None:
         """
         Set one or more variables in the MAD-NG process via item assignment.
 
@@ -497,11 +493,19 @@ _last = {}
         history = [x for x in history[2:] if "py:__err" not in x]
         return "\n".join(history)
 
+    def close(self):
+        """Close the MAD-NG process and clean up resources."""
+        self.__process.close()
+
     # -------------------------------For use with the "with" statement-----------------------------------#
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        self.__process.close()
+        self.close()
 
     # ---------------------------------------------------------------------------------------------------#
+
+    def __del__(self):
+        """Destructor: Close the MAD-NG process gracefully."""
+        self.close()
