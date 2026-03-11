@@ -4,10 +4,12 @@ import io
 import re
 import time
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pymadng import MAD
+from pymadng.madp_pymad import MadProcess
 
 INPUTS_FOLDER = Path(__file__).parent / "inputs"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
@@ -15,6 +17,22 @@ ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 def strip_ansi(text: str) -> str:
     return ANSI_ESCAPE.sub("", text)
+
+
+def make_test_process() -> MadProcess:
+    process = object.__new__(MadProcess)
+    process.py_name = "py"
+    process.process = MagicMock()
+    process.process.poll.return_value = None
+    process.mad_read_stream = MagicMock()
+    process.mad_input_stream = MagicMock()
+    process.python_exec_context = {}
+    process._debugger_active = False
+    process.close = MagicMock()
+    process.send = MagicMock()
+    process.recv = MagicMock()
+    process.protected_variable_retrieval = MagicMock()
+    return process
 
 
 def test_logfile(tmp_path):
@@ -158,3 +176,188 @@ def test_breakpoint_quit(tmp_path):
         assert mad._MAD__process.mad_input_stream.closed
 
     assert "break via dbg()" in strip_ansi(test_log.read_text())
+
+
+def test_madprocess_startup_failure_paths():
+    common_patches = [
+        patch("pymadng.madp_pymad.Path.exists", return_value=True),
+        patch("pymadng.madp_pymad.os.pipe", side_effect=[(10, 11), (12, 13)]),
+        patch("pymadng.madp_pymad.os.fdopen", side_effect=[MagicMock(), MagicMock()]),
+        patch("pymadng.madp_pymad.os.close"),
+        patch("pymadng.madp_pymad.subprocess.Popen", return_value=MagicMock()),
+        patch.object(MadProcess, "_setup_signal_handler"),
+        patch.object(MadProcess, "send"),
+        patch.object(MadProcess, "close"),
+    ]
+
+    with (
+        common_patches[0],
+        common_patches[1],
+        common_patches[2],
+        common_patches[3],
+        common_patches[4],
+        common_patches[5],
+        common_patches[6],
+        common_patches[7],
+        patch("pymadng.madp_pymad.select.select", return_value=([], [], [])),
+        patch.object(MadProcess, "recv", return_value="started"),
+        pytest.raises(OSError, match="Could not establish communication"),
+    ):
+        MadProcess("/tmp/mad")
+
+    with (
+        patch("pymadng.madp_pymad.Path.exists", return_value=True),
+        patch("pymadng.madp_pymad.os.pipe", side_effect=[(10, 11), (12, 13)]),
+        patch("pymadng.madp_pymad.os.fdopen", side_effect=[MagicMock(), MagicMock()]),
+        patch("pymadng.madp_pymad.os.close"),
+        patch("pymadng.madp_pymad.subprocess.Popen", return_value=MagicMock()),
+        patch.object(MadProcess, "_setup_signal_handler"),
+        patch.object(MadProcess, "send"),
+        patch.object(MadProcess, "close"),
+        patch("pymadng.madp_pymad.select.select", return_value=([object()], [], [])),
+        patch.object(MadProcess, "recv", return_value="boom"),
+        pytest.raises(OSError, match="Could not start"),
+    ):
+        MadProcess("/tmp/mad")
+
+
+def test_madprocess_internal_debugger_branches():
+    process = make_test_process()
+    with pytest.raises(TypeError, match="Debugger commands must be strings"):
+        process._normalise_debugger_command(1)  # type: ignore[arg-type]
+
+    process = make_test_process()
+    process.process.poll.return_value = 0
+    assert process._read_debugger_state() == "terminated"
+
+    process = make_test_process()
+    process.recv.side_effect = RuntimeError("boom")
+    with (
+        patch("pymadng.madp_pymad.select.select", return_value=([object()], [], [])),
+        pytest.raises(RuntimeError, match="boom"),
+    ):
+        process._read_debugger_state()
+
+    process = make_test_process()
+    process.recv.return_value = "unexpected"
+    with (
+        patch("pymadng.madp_pymad.select.select", return_value=([object()], [], [])),
+        pytest.raises(RuntimeError, match="Unexpected message"),
+    ):
+        process._read_debugger_state()
+
+    process = make_test_process()
+    process._debugger_active = True
+    with pytest.raises(RuntimeError, match="already active"):
+        process.enter_debugger()
+
+    process = make_test_process()
+    process.recv.return_value = "not-enter"
+    with pytest.raises(RuntimeError, match="Unexpected message received while entering debugger"):
+        process.enter_debugger(commands=["c"])
+
+    process = make_test_process()
+    with pytest.raises(ValueError, match="must end with continue"):
+        process._run_scripted_debugger(["h"])
+
+    process = make_test_process()
+    process._read_debugger_state = MagicMock(side_effect=["active", "active", "resumed"])
+    process._run_scripted_debugger(["h", "c"])
+
+    process = make_test_process()
+    process._read_debugger_state = MagicMock(side_effect=["active", "active", "terminated"])
+    process._run_scripted_debugger(["h", "q"])
+    process.close.assert_called_once()
+
+    process = make_test_process()
+    process._read_debugger_state = MagicMock(side_effect=["active", "active", "active"])
+    with pytest.raises(RuntimeError, match="did not resume"):
+        process._run_scripted_debugger(["h", "c"])
+
+    process = make_test_process()
+    process._stdin_is_tty = MagicMock(return_value=True)
+    process._run_readline_debugger = MagicMock()
+    process._run_interactive_debugger(None)
+    process._run_readline_debugger.assert_called_once()
+
+    process = make_test_process()
+    process._stdin_is_tty = MagicMock(return_value=False)
+    process._read_debugger_state = MagicMock(return_value="resumed")
+    with (
+        patch("pymadng.madp_pymad.Path.open", side_effect=OSError),
+        patch("sys.stdin", io.StringIO("c\n")),
+    ):
+        process._run_interactive_debugger(None)
+
+    process = make_test_process()
+    process.process.poll.return_value = 0
+    with pytest.raises(RuntimeError, match="terminated the subprocess"):
+        process._run_interactive_debugger(io.StringIO(""))
+
+    process = make_test_process()
+    with pytest.raises(EOFError, match="Reached EOF"):
+        process._run_interactive_debugger(io.StringIO(""))
+
+    process = make_test_process()
+    with patch("pymadng.madp_pymad.os.isatty", side_effect=ValueError):
+        assert process._stdin_is_tty() is False
+
+    process = make_test_process()
+    process._read_debugger_state = MagicMock(return_value="terminated")
+    with patch("builtins.input", return_value="q"):
+        process._run_readline_debugger()
+    process.close.assert_called_once()
+
+    process = make_test_process()
+    process.process.poll.return_value = 0
+    with (
+        patch("builtins.input", side_effect=EOFError),
+        pytest.raises(RuntimeError, match="terminated the subprocess"),
+    ):
+        process._run_readline_debugger()
+
+    process = make_test_process()
+    with (
+        patch("builtins.input", side_effect=EOFError),
+        pytest.raises(EOFError, match="Reached EOF"),
+    ):
+        process._run_readline_debugger()
+
+    with patch("sys.stdout.write", side_effect=OSError):
+        make_test_process()._render_debugger_prompt()
+
+
+def test_madprocess_internal_recv_and_close_branches():
+    process = make_test_process()
+    process.recv.return_value = "value = 3"
+    env = process.recv_and_exec()
+    assert env["value"] == 3
+    assert env["mad"] is process
+
+    process = make_test_process()
+    process.recv.return_value = "value = 4"
+    env = {"mad": "sentinel"}
+    result = process.recv_and_exec(env)
+    assert result["mad"] == "sentinel"
+
+    with pytest.raises(ValueError, match="Cannot retrieve private variables"):
+        make_test_process().recv_vars("_private")
+
+    process = make_test_process()
+    process.recv.return_value = "unexpected"
+    process.stdout_file = MagicMock()
+    process.mad_read_stream.closed = False
+    process.mad_input_stream.closed = False
+    with (
+        patch("pymadng.madp_pymad.select.select", return_value=([object()], [], [])),
+        patch("pymadng.madp_pymad.logging.warning") as warning,
+    ):
+        MadProcess.close(process)
+    warning.assert_called_once()
+
+    process = make_test_process()
+    process.send.side_effect = BrokenPipeError
+    process.stdout_file = MagicMock()
+    process.mad_read_stream.closed = False
+    process.mad_input_stream.closed = False
+    MadProcess.close(process)

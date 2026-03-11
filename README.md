@@ -4,7 +4,6 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/pymadng.svg)](https://pypi.org/project/pymadng/)
 [![Documentation Status](https://readthedocs.org/projects/pymadng/badge/?version=latest)](https://pymadng.readthedocs.io/en/latest/)
-[![codecov](https://codecov.io/gh/MethodicalAcceleratorDesign/MAD-NG.py/branch/main/graph/badge.svg)](https://codecov.io/gh/MethodicalAcceleratorDesign/MAD-NG.py)
 [![License](https://img.shields.io/github/license/MethodicalAcceleratorDesign/MAD-NG.py)](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/LICENSE)
 
 ---
