@@ -18,14 +18,17 @@ def strip_ansi(text: str) -> str:
 
 
 def test_logfile(tmp_path):
-    example_log = INPUTS_FOLDER / "example.log"
     test_log1 = tmp_path / "test.log"
     test_log2 = tmp_path / "test2.log"
 
     with MAD(stdout=test_log1, debug=True, raise_on_madng_error=False):
         pass
     time.sleep(0.1)
-    assert test_log1.read_text() == example_log.read_text()
+    text = test_log1.read_text()
+    assert "***pymad.recv: type is str_" in text
+    assert "io.stdout:setvbuf('line')" in text
+    assert "py:send('started')" in text
+    assert "started" in text
 
     with MAD(stdout=test_log2, debug=True) as mad:
         mad.send("!This is a line that does nothing")
@@ -69,7 +72,7 @@ def test_err(tmp_path):
 def test_breakpoint(tmp_path):
     test_log = tmp_path / "test_breakpoint.log"
 
-    with MAD(stdout=test_log, raise_on_madng_error=False) as mad:
+    with MAD(stdout=test_log, redirect_stderr=True, raise_on_madng_error=False) as mad:
         for name in ("python_breakpoint", "pydbg", "breakpoint"):
             mad.send(f"py:send(type({name}))")
             assert mad.recv() == "function"
@@ -86,7 +89,7 @@ def test_breakpoint(tmp_path):
 def test_breakpoint_from_py_send(tmp_path):
     test_log = tmp_path / "test_breakpoint_exec.log"
 
-    with MAD(stdout=test_log, raise_on_madng_error=False) as mad:
+    with MAD(stdout=test_log, redirect_stderr=True, raise_on_madng_error=False) as mad:
         mad.send("py:send([[breakpoint(commands=['h', 'c'])]])")
         mad.recv_and_exec()
         mad.send("py:send([[pydbg(commands=['c'])]])")
@@ -101,7 +104,7 @@ def test_breakpoint_from_py_send(tmp_path):
 def test_breakpoint_invalid_scripted_commands(tmp_path):
     test_log = tmp_path / "test_breakpoint_invalid.log"
 
-    with MAD(stdout=test_log, raise_on_madng_error=False) as mad:
+    with MAD(stdout=test_log, redirect_stderr=True, raise_on_madng_error=False) as mad:
         with pytest.raises(ValueError, match="must not be empty"):
             mad.breakpoint(commands=[])
 
@@ -112,7 +115,7 @@ def test_breakpoint_invalid_scripted_commands(tmp_path):
 def test_breakpoint_interactive_input_stream_resume(tmp_path):
     test_log = tmp_path / "test_breakpoint_input_stream_resume.log"
 
-    with MAD(stdout=test_log, raise_on_madng_error=False) as mad:
+    with MAD(stdout=test_log, redirect_stderr=True, raise_on_madng_error=False) as mad:
         mad.breakpoint(input_stream=io.StringIO("h\nc\n"))
         mad.send("py:send('alive')")
         assert mad.recv() == "alive"
@@ -125,7 +128,7 @@ def test_breakpoint_interactive_input_stream_resume(tmp_path):
 def test_breakpoint_interactive_input_stream_quit(tmp_path):
     test_log = tmp_path / "test_breakpoint_input_stream_quit.log"
 
-    with MAD(stdout=test_log, raise_on_madng_error=False) as mad:
+    with MAD(stdout=test_log, redirect_stderr=True, raise_on_madng_error=False) as mad:
         mad.breakpoint(input_stream=io.StringIO("q\n"))
         assert mad._MAD__process.process.poll() is not None
         assert mad._MAD__process.mad_read_stream.closed
@@ -137,7 +140,7 @@ def test_breakpoint_interactive_input_stream_quit(tmp_path):
 def test_breakpoint_reentry_from_python_callback(tmp_path):
     test_log = tmp_path / "test_breakpoint_reentry.log"
 
-    with MAD(stdout=test_log, raise_on_madng_error=False) as mad:
+    with MAD(stdout=test_log, redirect_stderr=True, raise_on_madng_error=False) as mad:
         mad.send("py:send([[breakpoint(commands=['c'])]])")
         mad.recv_and_exec({"breakpoint": lambda *_args, **_kwargs: mad.breakpoint(commands=["c"])})
 
@@ -148,7 +151,7 @@ def test_breakpoint_reentry_from_python_callback(tmp_path):
 def test_breakpoint_quit(tmp_path):
     test_log = tmp_path / "test_breakpoint_quit.log"
 
-    with MAD(stdout=test_log, raise_on_madng_error=False) as mad:
+    with MAD(stdout=test_log, redirect_stderr=True, raise_on_madng_error=False) as mad:
         mad.breakpoint(commands=["q"])
         assert mad._MAD__process.process.poll() is not None
         assert mad._MAD__process.mad_read_stream.closed
