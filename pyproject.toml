@@ -38,7 +38,9 @@ where = ["src"]
 version = {attr = "pymadng.__version__"}
 
 [project.optional-dependencies]
+dev = ["pre-commit>=4,<5", "ruff>=0.13,<0.14"]
 tfs = ["tfs-pandas>3.0.0"]
+test = ["pytest>=8,<9", "pytest-cov>=6,<7"]
 
 # ----- Dev Tools Configuration ----- #
 
@@ -92,3 +94,14 @@ extend-select = [
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["src/pymadng"]
+
+[tool.coverage.report]
+omit = ["tests/*"]

@@ -4,6 +4,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/pymadng.svg)](https://pypi.org/project/pymadng/)
 [![Documentation Status](https://readthedocs.org/projects/pymadng/badge/?version=latest)](https://pymadng.readthedocs.io/en/latest/)
+[![codecov](https://codecov.io/gh/MethodicalAcceleratorDesign/MAD-NG.py/branch/main/graph/badge.svg)](https://codecov.io/gh/MethodicalAcceleratorDesign/MAD-NG.py)
 [![License](https://img.shields.io/github/license/MethodicalAcceleratorDesign/MAD-NG.py)](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/LICENSE)
 
 ---
@@ -28,8 +29,15 @@ Before diving into PyMAD-NG, we recommend you:
 ### Explore Key Examples
 
 - **[LHC Matching Example](https://pymadng.readthedocs.io/en/latest/ex-lhc-couplingLocal.html)** – Real-world optics matching with intermediate feedback.
-- **[Examples Page](https://pymadng.readthedocs.io/en/latest/examples.html)** - List of examples in an easy to read format. 
+- **[Examples Page](https://pymadng.readthedocs.io/en/latest/examples.html)** - List of examples in an easy to read format.
 - **[GitHub Examples Directory](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/blob/main/examples/)** – List of available examples on the repository
+
+### A Few Things To Know Early
+
+- `MAD()` launches a real MAD-NG subprocess immediately. Prefer `with MAD() as mad:` in normal use.
+- `mad["x"] = value` writes a variable inside MAD-NG. `mad.x = value` only changes the Python wrapper object.
+- Communication is explicit: tell MAD-NG to `py:send(...)` before calling `mad.recv()`, and tell MAD-NG to `py:recv()` before sending Python data.
+- Many high-level results are references to MAD-NG objects. Use `.eval()` or conversion helpers such as `.to_df()` when you want Python-side values.
 
 If anything seems unclear:
 - Refer to the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng)
@@ -59,7 +67,7 @@ Examples are stored in the `examples/` folder.
 Run any script with:
 
 ```bash
-python3 examples/ex-fodos.py
+python3 examples/ex-fodo/ex-fodos.py
 ```
 
 You can also batch-run everything using:
@@ -82,7 +90,7 @@ python3 runall.py
 
 ## 🤝 Contributing
 
-We welcome contributions! See [`CONTRIBUTING.md`](docs/source/contributing.md) or the [Contributing Guide](https://pymadng.readthedocs.io/en/latest/contributing.html) in the docs.
+We welcome contributions! See [the contributing guide](docs/source/contributing.md) or the [Contributing Guide](https://pymadng.readthedocs.io/en/latest/contributing.html) in the docs.
 
 Bug reports, feature requests, and pull requests are encouraged.
 
