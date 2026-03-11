@@ -11,9 +11,9 @@ permissions:
 
 env:
   python-version: "3.11"
-  ALLOWED_COVERAGE_DECREASE: 1.0
-  MIN_COVERAGE: 80.0
-  MIN_DIFF_COVERAGE: 85.0
+  ALLOWED_COVERAGE_DECREASE: 0
+  MIN_COVERAGE: 0.80
+  MIN_DIFF_COVERAGE: 0.85
 
 defaults:
   run:
