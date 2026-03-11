@@ -25,7 +25,7 @@ def test_logfile(tmp_path):
         pass
     time.sleep(0.1)
     text = test_log1.read_text()
-    assert "***pymad.recv: type is str_" in text
+    assert "***pymad.recv: binary data 4 bytes" in text
     assert "io.stdout:setvbuf('line')" in text
     assert "py:send('started')" in text
     assert "started" in text
