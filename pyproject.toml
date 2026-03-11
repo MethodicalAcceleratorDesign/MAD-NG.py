@@ -101,6 +101,7 @@ python_files = ["test_*.py"]
 addopts = "-ra"
 
 [tool.coverage.run]
+relative_files = true
 source = ["src/pymadng"]
 
 [tool.coverage.report]
