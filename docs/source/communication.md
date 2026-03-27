@@ -16,6 +16,10 @@ Key points:
 - Data is retrieved via `{func}`MAD.recv`()` after explicit instruction to send it.
 - MAD-NG stdout is redirected to Python, but not intercepted.
 
+```{tip}
+Think of PyMAD-NG as controlling a persistent remote interpreter. Python and MAD-NG do not share memory; they exchange commands, references, and serialised data through pipes.
+```
+
 ```{important}
 You must always **send instructions before sending data**, and **send a request before receiving data**.
 ```
@@ -33,6 +37,25 @@ mad.recv()                  # Receive the value → 42
 
 Both {func}`MAD.send` and {func}`MAD.recv` are the core communication methods.
 See the {class}`pymadng.MAD` reference for more details.
+
+### Two Common Patterns
+
+#### Pattern A: MAD-NG asks Python for data
+
+```python
+mad.send("arr = py:recv()")
+mad.send(my_array)
+```
+
+#### Pattern B: Python asks MAD-NG for data
+
+```python
+mad.send("tbl = twiss {sequence=seq}")
+mad.send("py:send(tbl)")
+tbl = mad.recv("tbl") # Receives the table as a Python object that is interactive and can be converted to a DataFrame
+```
+
+If you keep these two patterns distinct, most send/receive bugs become much easier to reason about.
 
 ---
 
@@ -63,13 +86,17 @@ The following types can be sent from Python to MAD-NG:
   - {func}`MAD.send`
 * - `start, stop, size` as float, int
   - `range`, `logrange`
-  - `mad.send_rng()`, `mad.send_lrng()`
+  - `mad.send_range()`, `mad.send_logrange()`
 * - Complex structures (e.g., TPSA, CTPSA)
   - `TPSA`, `CTPSA`
-  - `mad.send_tpsa()`, `mad.send_ctpsa()`
+  - `mad.send_tpsa()`, `mad.send_cpx_tpsa()`
 ```
 
 For full compatibility, see the {mod}`pymadng.MAD` documentation.
+
+```{note}
+High-level MAD objects are often returned as references rather than copied Python objects. This is expected behaviour and is part of how PyMAD-NG avoids unnecessary data transfer.
+```
 
 ---
 
@@ -113,6 +140,15 @@ mad.send(arr2)                 # DEADLOCK if previous data not yet received
 Always ensure each {func}`MAD.send` has a matching {func}`MAD.recv` if data is expected back.
 ```
 
+### A Safer Way to Think About It
+
+Before each operation, ask one question:
+
+- "Is MAD-NG waiting for Python?"
+- or "Is Python waiting for MAD-NG?"
+
+If both sides are waiting to receive, the session will deadlock.
+
 ---
 
 ## Scope: Local vs Global
@@ -135,6 +171,65 @@ mad.send("print(a + (b or 5))")  # b is nil → 10 + 5 = 15
 
 ```{tip}
 Use `local` to avoid polluting the global MAD-NG namespace.
+```
+
+### Python Assignment vs MAD Assignment
+
+This is worth stating explicitly because it is a common first-use mistake:
+
+```python
+mad["x"] = 5   # writes x inside MAD-NG
+mad.x = 5      # writes an attribute on the Python wrapper only
+```
+
+If you intend to create a MAD-NG variable, always use square-bracket assignment.
+
+---
+
+## References and Materialising Values
+
+Many objects returned by the high-level interface are references to values living inside MAD-NG.
+
+```python
+ref = mad.math.sin(1)
+```
+
+To materialise a Python value, if it exists (rather than a reference), use the `eval()` method:
+
+```python
+value = ref.eval()
+```
+
+To materialise a table:
+
+```python
+df = mad.tbl.to_df()
+```
+
+This distinction is especially important when inspecting objects interactively, writing assertions in tests, or passing results into ordinary Python libraries.
+
+---
+
+## Executing Python Returned by MAD-NG
+
+{func}`MAD.recv_and_exec` executes Python code sent back from MAD-NG:
+
+```python
+mad.send("py:send([[print('hello from MAD')]])")
+mad.recv_and_exec()
+```
+
+The execution context automatically includes:
+
+- `mad`: the current PyMAD-NG session
+- `breakpoint`: the debugger bridge
+- `pydbg`: alias for the debugger bridge
+
+That means MAD-NG can request an interactive debugger stop like this:
+
+```python
+mad.send("py:send([[breakpoint()]])")
+mad.recv_and_exec()
 ```
 
 ---
@@ -174,10 +269,9 @@ See {meth}`pymadng.MAD.__init__` for all configuration options.
 ## Summary
 
 - Always match {func}`MAD.send` with {func}`MAD.recv` when data is expected.
-- Use `mad.to_df()` for table conversion.
+- Use `.to_df()` on MAD tables when you want a DataFrame.
 - Avoid deadlocks by receiving before sending again.
 - Manage scope using `local` wisely.
 - Use configuration flags to tailor behaviour.
 
 For more, see the {doc}`advanced_features`, {doc}`debugging`, and {doc}`function_reference` sections.
-
