@@ -1,3 +1,6 @@
+0.9.1 (2026/03/31) \
+Dependabot updates and new MAD-NG version
+
 0.9.0 (2026/02/25) \
 Remove support for Python 3.10, now only supporting Python 3.11 and above. \
 Replaced incorrect Warning call with logging.warning for proper warning handling. \
