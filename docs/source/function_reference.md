@@ -117,8 +117,48 @@ The first argument is the module path. Optional additional arguments allow impor
 | {func}`MAD.recv`         | Receive results or values from MAD-NG           |
 | {func}`MAD.eval`         | Evaluate an expression and return the result    |
 | {func}`MAD.recv_and_exec`| Execute Python code sent from MAD-NG            |
+| {func}`MAD.breakpoint`   | Enter the MAD-NG debugger from Python           |
+| {func}`MAD.pydbg`        | Alias for {func}`MAD.breakpoint`                |
 
 These tools are essential for controlling the MAD subprocess directly.
+
+### Interactive Debugger Bridge
+
+PyMAD-NG exposes MAD-NG's `MAD.dbg()` debugger through the high-level interface.
+
+#### From Python
+
+```python
+mad.breakpoint()
+mad.pydbg()
+```
+
+#### From MAD strings
+
+PyMAD-NG installs MAD-side helper functions at startup:
+
+```python
+mad.send("breakpoint()")
+mad.send("pydbg()")
+mad.send("python_breakpoint()")
+```
+
+#### From `recv_and_exec()`
+
+When executing Python code sent from MAD-NG, the execution environment automatically includes `breakpoint` and `pydbg`:
+
+```python
+mad.send("py:send([[breakpoint()]])")
+mad.recv_and_exec()
+```
+
+For automated debugging sessions, pass scripted commands:
+
+```python
+mad.breakpoint(commands=["where", "c"])
+```
+
+If the debugger command is `q`, the MAD subprocess terminates and the current `MAD` session is finished.
 
 ---
 
