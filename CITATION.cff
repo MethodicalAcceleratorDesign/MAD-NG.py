@@ -9,30 +9,15 @@ abstract: >
   from the Python ecosystem.
 
 authors:
-  - family-names: Gray
-    given-names: Joshua
-    orcid: "https://orcid.org/0009-0003-4396-6286"
-  - family-names: Deniau
-    given-names: Laurent
-    orcid: "https://orcid.org/0000-0002-5184-062X"
+- family-names: Gray
+  given-names: Joshua
+  orcid: "https://orcid.org/0009-0003-4396-6286"
+- family-names: Deniau
+  given-names: Laurent
+  orcid: "https://orcid.org/0000-0002-5184-062X"
 
-repository-code: "https://github.com/MethodicalAcceleratorDesign/MAD-NG.py"
-repository-artifact: "https://pypi.org/project/pymadng/"
+version: 0.9.1
+date-released: 2026-03-31
+doi: 10.5281/zenodo.19351899
 url: "https://pymadng.readthedocs.io/en/latest/"
-
 license: "GPL-3.0"
-
-keywords:
-  - accelerator physics
-  - beam dynamics
-  - optics
-  - MAD-NG
-  - Python
-
-# Update these fields to match the latest release when necessary
-version: "0.9.1"
-date-released: "2026-03-31"
-
-identifiers:
-  - type: doi
-    value: "https://doi.org/10.5281/zenodo.19351899"
