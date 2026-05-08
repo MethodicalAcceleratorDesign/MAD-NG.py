@@ -1,3 +1,6 @@
+0.9.2 (2026/05/08) \
+Bump to 1.1.12
+
 0.9.1 (2026/03/31) \
 Dependabot updates and new MAD-NG version
 
