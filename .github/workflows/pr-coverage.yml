@@ -1,0 +1,103 @@
+name: PR Coverage
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  python-version: "3.11"
+  ALLOWED_COVERAGE_DECREASE: 0
+  MIN_COVERAGE: 0.80
+  MIN_DIFF_COVERAGE: 0.85
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    outputs:
+      reference_percent_covered: ${{ steps.coverage_comment.outputs.reference_percent_covered }}
+      new_percent_covered: ${{ steps.coverage_comment.outputs.new_percent_covered }}
+      diff_total_percent_covered: ${{ steps.coverage_comment.outputs.diff_total_percent_covered }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.python-version }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Get MAD binaries
+        run: |
+          mkdir -p ./src/pymadng/bin
+          curl https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.11 -o ./src/pymadng/bin/mad_Linux
+          curl https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.11 -o ./src/pymadng/bin/mad_Darwin
+          chmod +x ./src/pymadng/bin/mad_Linux ./src/pymadng/bin/mad_Darwin
+
+      - name: Install package
+        run: uv sync --extra tfs --extra test
+
+      - name: Run coverage
+        run: uv run pytest tests --cov=src/pymadng --cov-report=xml --cov-report=term
+
+      - name: Coverage comment
+        id: coverage_comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  check-coverage:
+    needs: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check coverage decrease
+        env:
+          CURRENT_COVERAGE: ${{ needs.coverage.outputs.new_percent_covered }}
+          REF_COVERAGE: ${{ needs.coverage.outputs.reference_percent_covered }}
+        run: |
+          MIN_COVERAGE_DECR=$(echo "${REF_COVERAGE} - ${ALLOWED_COVERAGE_DECREASE}" | bc)
+          echo "Reference Coverage: ${REF_COVERAGE}"
+          echo "Current Coverage: ${CURRENT_COVERAGE}"
+          echo "Minimum Allowed Coverage: ${MIN_COVERAGE_DECR}"
+          if (( $(echo "${CURRENT_COVERAGE} < ${MIN_COVERAGE_DECR}" | bc -l) )); then
+            echo "Failed: coverage decreased (${CURRENT_COVERAGE} < ${MIN_COVERAGE_DECR})."
+            exit 1
+          fi
+          echo "Success: coverage did not decrease."
+
+      - name: Check total coverage
+        env:
+          CURRENT_COVERAGE: ${{ needs.coverage.outputs.new_percent_covered }}
+        run: |
+          echo "Current Coverage: ${CURRENT_COVERAGE}"
+          echo "Minimum Allowed Coverage: ${MIN_COVERAGE}"
+          if (( $(echo "${CURRENT_COVERAGE} < ${MIN_COVERAGE}" | bc -l) )); then
+            echo "Failed: coverage is below minimum (${CURRENT_COVERAGE} < ${MIN_COVERAGE})."
+            exit 1
+          fi
+          echo "Success: coverage meets minimum requirement."
+
+      - name: Check diff coverage
+        env:
+          CURRENT_DIFF_COVERAGE: ${{ needs.coverage.outputs.diff_total_percent_covered }}
+        run: |
+          echo "Current Diff Coverage: ${CURRENT_DIFF_COVERAGE}"
+          echo "Minimum Allowed Diff Coverage: ${MIN_DIFF_COVERAGE}"
+          if (( $(echo "${CURRENT_DIFF_COVERAGE} < ${MIN_DIFF_COVERAGE}" | bc -l) )); then
+            echo "Failed: diff coverage is below minimum (${CURRENT_DIFF_COVERAGE} < ${MIN_DIFF_COVERAGE})."
+            exit 1
+          fi
+          echo "Success: diff coverage meets minimum requirement."

@@ -15,11 +15,17 @@ from typing import TYPE_CHECKING, Any, TextIO
 import numpy as np
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
     from numpy.typing import DTypeLike
 
 # TODO: look at cpymad for the suppression of the error messages at exit - copy? (jgray 2024)
+
+DEBUGGER_ENTER_MESSAGE = "__pymadng_debug_enter__"
+DEBUGGER_EXIT_MESSAGE = "__pymadng_debug_exit__"
+DEBUGGER_RESUME_COMMANDS = {"c", "cont", "continue"}
+DEBUGGER_TERMINATE_COMMANDS = {"q", "quit"}
+DEBUGGER_PROMPT = "\001\033[34m\002dbg>\001\033[0m\002 "
 
 
 def is_private(varname):
@@ -80,11 +86,22 @@ class MadProcess:
         # Redirect stderr to stdout, if specified
         stderr = stdout if redirect_stderr else sys.stderr.fileno()
 
-        # Create a chunk of code to start the process
         lua_debug_flag = "true" if debug else "false"
-        startup_chunk = (
-            f"MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}} :__ini({mad_write})"
-        )
+        startup_chunk = f"""
+local __pymad = MAD.pymad '{py_name}' {{_dbg = {lua_debug_flag}}}
+rawset(_G, '{py_name}', __pymad)
+local function __python_breakpoint()
+  __pymad:send('{DEBUGGER_ENTER_MESSAGE}')
+  io.stdout:setvbuf('no')
+  MAD.dbg()
+  io.stdout:setvbuf('line')
+  __pymad:send('{DEBUGGER_EXIT_MESSAGE}')
+end
+rawset(_G, 'python_breakpoint', __python_breakpoint)
+rawset(_G, 'pydbg', __python_breakpoint)
+rawset(_G, 'breakpoint', __python_breakpoint)
+__pymad:__ini({mad_write})
+"""
 
         if threading.current_thread() is threading.main_thread():
             self._setup_signal_handler()
@@ -114,6 +131,7 @@ class MadProcess:
         self.mad_read_stream = os.fdopen(self.mad_output_pipe, "rb")
         self.history = ""  # Begin the recording of the history
         self.debug = debug  # Record debug mode status
+        self._debugger_active = False
 
         # stdout should be line buffered by default, but for jupyter notebook,
         # stdout is redirected and not line buffered by default
@@ -130,9 +148,7 @@ class MadProcess:
         if not startup_status_checker[0] or mad_rtrn != "started":
             self.close()
             if mad_rtrn == "started":
-                raise OSError(
-                    f"Could not establish communication with {mad_path} process"
-                )
+                raise OSError(f"Could not establish communication with {mad_path} process")
             raise OSError(f"Could not start {mad_path} process, received: {mad_rtrn}")
 
         # Set the error handler to be on by default
@@ -149,6 +165,155 @@ class MadProcess:
             raise KeyboardInterrupt("MAD process was interrupted, and has been deleted")
 
         signal.signal(signal.SIGINT, delete_process)
+
+    def _normalise_debugger_command(self, command: str) -> bytes:
+        if not isinstance(command, str):
+            raise TypeError("Debugger commands must be strings")
+        if not command.endswith("\n"):
+            command += "\n"
+        return command.encode("utf-8")
+
+    def _send_debugger_command(self, command: str) -> None:
+        self.mad_input_stream.write(self._normalise_debugger_command(command))
+
+    def _read_debugger_state(self, timeout: float = 0.1) -> str:
+        if self.process.poll() is not None:
+            return "terminated"
+
+        ready, _, _ = select.select([self.mad_read_stream], [], [], timeout)
+        if not ready:
+            return "active"
+
+        try:
+            message = self.recv()
+        except Exception:
+            if self.process.poll() is not None:
+                return "terminated"
+            raise
+
+        if isinstance(message, BrokenPipeError):
+            return "terminated"
+
+        if message == DEBUGGER_EXIT_MESSAGE:
+            return "resumed"
+
+        raise RuntimeError(f"Unexpected message received while debugging: {message!r}")
+
+    def enter_debugger(
+        self, commands: Iterable[str] | None = None, input_stream: TextIO | None = None
+    ) -> None:
+        if self._debugger_active:
+            raise RuntimeError("MAD debugger is already active")
+
+        scripted_commands = None
+        if commands is not None:
+            scripted_commands = list(commands)
+            if not scripted_commands:
+                raise ValueError("Debugger command list must not be empty")
+
+        self._debugger_active = True
+        try:
+            self.send("python_breakpoint()")
+            entry_message = self.recv()
+            if entry_message != DEBUGGER_ENTER_MESSAGE:
+                raise RuntimeError(
+                    f"Unexpected message received while entering debugger: {entry_message!r}"
+                )
+
+            if scripted_commands is not None:
+                self._run_scripted_debugger(scripted_commands)
+                return
+
+            self._run_interactive_debugger(input_stream)
+        finally:
+            self._debugger_active = False
+
+    def _run_scripted_debugger(self, commands: list[str]) -> None:
+        final_command = commands[-1].strip().split(maxsplit=1)[0].lower()
+        if (
+            final_command not in DEBUGGER_RESUME_COMMANDS
+            and final_command not in DEBUGGER_TERMINATE_COMMANDS
+        ):
+            raise ValueError(
+                "Scripted debugger commands must end with continue ('c') or quit ('q')"
+            )
+
+        for command in commands:
+            self._send_debugger_command(command)
+            state = self._read_debugger_state()
+            if state == "resumed":
+                return
+            if state == "terminated":
+                self.close()
+                return
+
+        state = self._read_debugger_state(timeout=1.0)
+        if state == "resumed":
+            return
+        if state == "terminated":
+            self.close()
+            return
+        raise RuntimeError("MAD debugger did not resume after scripted commands")
+
+    def _run_interactive_debugger(self, input_stream: TextIO | None) -> None:
+        if input_stream is None and self._stdin_is_tty():
+            self._run_readline_debugger()
+            return
+
+        if input_stream is None:
+            try:
+                with Path("/dev/tty").open() as tty_stream:
+                    self._run_interactive_debugger(tty_stream)
+                    return
+            except OSError:
+                input_stream = sys.stdin
+
+        while True:
+            command = input_stream.readline()
+            if command == "":
+                if self.process.poll() is not None:
+                    raise RuntimeError("MAD debugger terminated the subprocess")
+                raise EOFError("Reached EOF while the MAD debugger was active")
+
+            self._send_debugger_command(command)
+            state = self._read_debugger_state()
+            if state == "resumed":
+                return
+            if state == "terminated":
+                self.close()
+                return
+
+    def _stdin_is_tty(self) -> bool:
+        try:
+            return os.isatty(sys.stdin.fileno())
+        except (AttributeError, OSError, ValueError):
+            return False
+
+    def _run_readline_debugger(self) -> None:
+        while True:
+            try:
+                self._render_debugger_prompt()
+                command = input(DEBUGGER_PROMPT)
+            except EOFError as exc:
+                if self.process.poll() is not None:
+                    raise RuntimeError("MAD debugger terminated the subprocess") from exc
+                raise EOFError("Reached EOF while the MAD debugger was active") from exc
+
+            self._send_debugger_command(command)
+            state = self._read_debugger_state()
+            if state == "resumed":
+                return
+            if state == "terminated":
+                self.close()
+                return
+
+    def _render_debugger_prompt(self) -> None:
+        try:
+            stdout = sys.stdout
+            stdout.write("\r\x1b[2K")
+            stdout.flush()
+        except (AttributeError, OSError, ValueError):
+            pass
 
     def send_range(self, start: float, stop: float, size: int) -> None:
         """Send a linear range (numpy array) to MAD-NG.
@@ -206,13 +371,9 @@ class MadProcess:
         if self.raise_on_madng_error:
             # If the user has specified that they want to raise an error always, skip the error handling on and off
             return self.send(string)
-        return self.send(
-            f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);"
-        )
+        return self.send(f"{self.py_name}:__err(true); {string}; {self.py_name}:__err(false);")
 
-    def protected_variable_retrieval(
-        self, name: str, shallow_copy: bool = False
-    ) -> Any:
+    def protected_variable_retrieval(self, name: str, shallow_copy: bool = False) -> Any:
         """Safely retrieve a variable from MAD-NG.
 
         Enables temporary error handling while retrieving a variable.
@@ -257,7 +418,7 @@ class MadProcess:
         self.varname = varname  # For mad reference
         return type_fun[typ]["recv"](self)  # type: ignore
 
-    def recv_and_exec(self, env: dict = {}) -> dict:
+    def recv_and_exec(self, env: dict | None = None) -> dict:
         """Receive a command string from MAD-NG and execute it.
 
         The execution context includes numpy as np and the mad process instance.
@@ -267,11 +428,17 @@ class MadProcess:
         Returns:
             dict: The updated environment dictionary after executing the received command.
         """
+        if env is None:
+            env = {}
+
         # Check if user has already defined mad (madp_object will have mad defined), otherwise define it
         try:
             env["mad"]
         except KeyError:
             env["mad"] = self
+
+        env.setdefault("breakpoint", self.enter_debugger)
+        env.setdefault("pydbg", self.enter_debugger)
 
         exec(compile(self.recv(), "ffrom_mad", "exec"), self.python_exec_context, env)
         return env
@@ -309,9 +476,7 @@ class MadProcess:
             raise ValueError("Cannot retrieve private variables from MAD-NG")
         if len(names) == 1:
             return self.protected_variable_retrieval(names[0], shallow_copy)
-        return tuple(
-            self.protected_variable_retrieval(name, shallow_copy) for name in names
-        )
+        return tuple(self.protected_variable_retrieval(name, shallow_copy) for name in names)
 
     # -------------------------------------------------------------------------- #
 
@@ -321,15 +486,18 @@ class MadProcess:
         Closes all communication pipes and waits for the subprocess to finish.
         """
         if self.process.poll() is None:  # If process is still running
-            self.send(f"{self.py_name}:__fin()")  # Tell the mad side to finish
-            open_pipe = select.select([self.mad_read_stream], [], [], 5)  # Shorter timeout
-            if open_pipe[0]:
-                # Wait for the mad side to finish
-                close_msg = self.recv("closing")
-                if close_msg != "<closing pipe>":
-                    logging.warning(
-                        f"Unexpected message received: {close_msg}, MAD-NG may not have completed properly"
-                    )
+            try:
+                self.send(f"{self.py_name}:__fin()")  # Tell the mad side to finish
+                open_pipe = select.select([self.mad_read_stream], [], [], 5)  # Shorter timeout
+                if open_pipe[0]:
+                    # Wait for the mad side to finish
+                    close_msg = self.recv("closing")
+                    if close_msg != "<closing pipe>":
+                        logging.warning(
+                            f"Unexpected message received: {close_msg}, MAD-NG may not have completed properly"
+                        )
+            except BrokenPipeError:
+                pass
 
             # Always try terminate first
             self.process.terminate()
@@ -702,9 +870,7 @@ def recv_generic_matrix(self: MadProcess, dtype: np.dtype) -> np.ndarray:
         np.ndarray: The received matrix as a reshaped numpy array.
     """
     shape = read_data_stream(self, 8, np.int32)
-    return read_data_stream(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(
-        shape
-    )
+    return read_data_stream(self, shape[0] * shape[1] * dtype.itemsize, dtype).reshape(shape)
 
 
 def recv_matrix(self: MadProcess) -> np.ndarray:
@@ -780,9 +946,7 @@ def send_generic_tpsa(
     assert len(monos) == len(coefficients), (
         "The number of monomials must be equal to the number of coefficients"
     )
-    assert monos.dtype == np.uint8, (
-        "The monomials must be of type 8-bit unsigned integer "
-    )
+    assert monos.dtype == np.uint8, "The monomials must be of type 8-bit unsigned integer "
     write_serial_data(self, "ii", len(monos), len(monos[0]))
     for mono in monos:
         self.mad_input_stream.write(mono.tobytes())

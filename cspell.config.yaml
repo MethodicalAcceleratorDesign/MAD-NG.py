@@ -1,0 +1,68 @@
+version: "0.2"
+language: en-GB
+
+ignorePaths:
+  - .git
+  - .venv
+  - build
+  - dist
+
+words:
+  - addopts
+  - assertf
+  - automodule
+  - beamline
+  - cmatrix
+  - CTPSA
+  - currentmodule
+  - dataframe
+  - dataframes
+  - defexpr
+  - eval-rst
+  - fodo
+  - fodos
+  - gmath
+  - gphys
+  - imatrix
+  - initialise
+  - kwargs
+  - ipairs
+  - irange
+  - lhcb
+  - linenos
+  - linters
+  - literalinclude
+  - logrange
+  - MADX
+  - MADNG
+  - madp
+  - matplotlib
+  - mtable
+  - mtbl
+  - ndarray
+  - numpy
+  - knl
+  - pathlib
+  - pyplot
+  - pydbg
+  - pymad
+  - pymadng
+  - PyPI
+  - pyproject
+  - pytest
+  - runall
+  - rtrn
+  - seqfile
+  - stdout
+  - stderr
+  - sterr
+  - testpaths
+  - tonumber
+  - tostring
+  - TPSA
+  - tpsa
+  - twiss
+  - venv
+  - vars
+  - xlabel
+  - ylabel

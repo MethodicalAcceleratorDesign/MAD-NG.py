@@ -1,65 +1,61 @@
-import unittest
-from pathlib import Path
+from __future__ import annotations
 
 import numpy as np
 
 from pymadng import MAD
 
+A_MATRIX = np.arange(1, 21).reshape(4, 5)
+B_MATRIX = np.arange(1, 7).reshape(2, 3)
+C_MATRIX = (np.arange(1, 16) + 1j).reshape(5, 3)
 
-class TestLoad(unittest.TestCase):
-    a = np.arange(1, 21).reshape(4, 5)
-    b = np.arange(1, 7).reshape(2, 3)
-    c = (np.arange(1, 16) + 1j).reshape(5, 3)
 
-    def test_load(self):
-        with MAD() as mad:
-            mad.load("MAD", "matrix")
-            self.assertTrue(mad.send("py:send(matrix == MAD.matrix)").recv())
+def test_load(tmp_path):
+    with MAD() as mad:
+        mad.load("MAD", "matrix")
+        assert mad.send("py:send(matrix == MAD.matrix)").recv()
 
-            mad.load("MAD.gmath")
-            self.assertTrue(mad.send("py:send(sin == MAD.gmath.sin)").recv())
-            self.assertTrue(mad.send("py:send(cos == MAD.gmath.cos)").recv())
-            self.assertTrue(mad.send("py:send(tan == MAD.gmath.tan)").recv())
+        mad.load("MAD.gmath")
+        assert mad.send("py:send(sin == MAD.gmath.sin)").recv()
+        assert mad.send("py:send(cos == MAD.gmath.cos)").recv()
+        assert mad.send("py:send(tan == MAD.gmath.tan)").recv()
 
-            mad.load("MAD.element", "quadrupole", "sextupole", "drift")
-            self.assertTrue(mad.send("py:send(quadrupole == MAD.element.quadrupole)").recv())
-            self.assertTrue(mad.send("py:send(sextupole  == MAD.element.sextupole )").recv())
-            self.assertTrue(mad.send("py:send(drift      == MAD.element.drift     )").recv())
+        mad.load("MAD.element", "quadrupole", "sextupole", "drift")
+        assert mad.send("py:send(quadrupole == MAD.element.quadrupole)").recv()
+        assert mad.send("py:send(sextupole  == MAD.element.sextupole )").recv()
+        assert mad.send("py:send(drift      == MAD.element.drift     )").recv()
 
-        test_file = Path("test.mad")
-        with test_file.open("w") as f:
-            f.write("""
+    test_file = tmp_path / "test.mad"
+    test_file.write_text(
+        """
             local matrix, cmatrix in MAD
             a = matrix(4, 5):seq()
             b = cmatrix(2, 3):seq()
-            """)
-        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            mad.loadfile("test.mad")
-            self.assertIsNone(mad.matrix)
-            self.assertTrue(np.all(mad.a == self.a))
-            self.assertTrue(np.all(mad.b == self.b))
-        test_file.unlink()
-        with test_file.open("w") as f:
-            f.write("""
+            """
+    )
+    with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+        mad.loadfile(test_file)
+        assert mad.matrix is None
+        assert np.all(mad.a == A_MATRIX)
+        assert np.all(mad.b == B_MATRIX)
+
+    test_file.write_text(
+        """
             local matrix, cmatrix in MAD
             local a = matrix(4, 5):seq()
             local c = cmatrix(5, 3):seq() + 1i
             return {res1 = a * c, res2 = a * c:conj()}
-            """)
-        with MAD() as mad:
-            mad.loadfile("test.mad", "res1", "res2")
-            self.assertTrue(np.all(mad.res1 == np.matmul(self.a, self.c)))
-            self.assertTrue(np.all(mad.res2 == np.matmul(self.a, self.c.conj())))
-        test_file.unlink()
-
-    def test_globals(self):
-        with MAD() as mad:
-            mad.send_vars(a=1, b=2, c=3)
-            global_vars = mad.globals()
-            self.assertIn("a", global_vars)
-            self.assertIn("b", global_vars)
-            self.assertIn("c", global_vars)
+            """
+    )
+    with MAD() as mad:
+        mad.loadfile(test_file, "res1", "res2")
+        assert np.all(mad.res1 == np.matmul(A_MATRIX, C_MATRIX))
+        assert np.all(mad.res2 == np.matmul(A_MATRIX, C_MATRIX.conj()))
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_globals():
+    with MAD() as mad:
+        mad.send_vars(a=1, b=2, c=3)
+        global_vars = mad.globals()
+        assert "a" in global_vars
+        assert "b" in global_vars
+        assert "c" in global_vars

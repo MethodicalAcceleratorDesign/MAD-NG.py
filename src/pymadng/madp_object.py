@@ -172,7 +172,7 @@ _last = {}
         """
         return self.__process.recv(varname)
 
-    def recv_and_exec(self, context: dict = {}) -> dict:
+    def recv_and_exec(self, context: dict | None = None) -> dict:
         """
         Receive a string from MAD-NG and execute it.
 
@@ -184,8 +184,36 @@ _last = {}
         Returns:
             dict: The updated execution environment.
         """
+        if context is None:
+            context = {}
         context["mad"] = self
+        context.setdefault("breakpoint", self.breakpoint)
+        context.setdefault("pydbg", self.breakpoint)
         return self.__process.recv_and_exec(context)
+
+    def breakpoint(
+        self, commands: Iterable[str] | None = None, input_stream: TextIO | None = None
+    ) -> MAD:
+        """
+        Enter the MAD-NG debugger through the active subprocess.
+
+        Args:
+            commands (Iterable[str] | None, optional): Scripted debugger commands. When
+                omitted, commands are read interactively from the terminal.
+            input_stream (TextIO | None, optional): Alternate stream to read debugger
+                commands from in interactive mode.
+
+        Returns:
+            MAD: Self for method chaining once the debugger resumes.
+        """
+        self.__process.enter_debugger(commands=commands, input_stream=input_stream)
+        return self
+
+    def pydbg(
+        self, commands: Iterable[str] | None = None, input_stream: TextIO | None = None
+    ) -> MAD:
+        """Alias for :meth:`breakpoint`."""
+        return self.breakpoint(commands=commands, input_stream=input_stream)
 
     # --------------------------------Sending data to subprocess------------------------------------#
     def send(self, data: Any) -> MAD:
@@ -331,9 +359,7 @@ _last = {}
         """
         path: Path = Path(path).resolve()
         if varnames == ():
-            self.__process.send(
-                f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
-            )
+            self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
         else:
             # The parent/stem is necessary, otherwise the file will not be found
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)

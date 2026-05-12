@@ -135,7 +135,7 @@ except RuntimeError as e:
 Or it is possible to ignore the error and continue execution of the python script:
 
 ```python
-mad = MAD(raise_on_error=False)
+mad = MAD(raise_on_madng_error=False)
 mad.send("a = 1/'0'")
 assert mad.send("py:send(1)").recv() == 1
 ``` 
@@ -157,6 +157,25 @@ mad.send("py:send('print(\'debug line\')')")
 mad.recv_and_exec()
 ```
 
+The execution context also exposes the debugger bridge, so MAD can ask Python to open the MAD debugger:
+
+```python
+mad.send("py:send([[breakpoint()]])")
+mad.recv_and_exec()
+```
+
+You can also stop from Python directly:
+
+```python
+mad.breakpoint()
+```
+
+For scripted or non-interactive sessions:
+
+```python
+mad.breakpoint(commands=["h", "c"])
+```
+
 ### 6. Ensure Communication Order
 
 MAD-NG uses FIFO communication. Always follow the rule:
@@ -174,4 +193,3 @@ Now that PyMAD-NG is installed, you can move on to:
 
 - **[Quick Start Guide →](quickstartguide.md)** *(Learn the basics and run your first PyMAD-NG script)*  
 - **[API Reference →](reference.rst)** *(Explore the functions and classes available in PyMAD-NG)*
-

@@ -1,3 +1,9 @@
+0.10.0 (2026/03/11) \
+Major debug update: PyMAD-NG now exposes the MAD-NG debugger directly through `MAD.breakpoint()` and `MAD.pydbg()`, with MAD-side aliases (`breakpoint`, `pydbg`, and `python_breakpoint`) available inside executed code. \
+Debugger sessions now support scripted commands for tests and automation, plus improved interactive terminal handling with a stable Python-rendered prompt. \
+Quitting from the debugger now shuts down the current MAD session cleanly without leaving pipe state inconsistent. \
+Expanded debugger test coverage and documentation for Python-driven MAD debugging workflows.
+
 0.9.2 (2026/05/08) \
 Bump to 1.1.12
 
