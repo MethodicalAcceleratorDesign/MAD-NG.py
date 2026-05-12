@@ -4,6 +4,9 @@ Debugger sessions now support scripted commands for tests and automation, plus i
 Quitting from the debugger now shuts down the current MAD session cleanly without leaving pipe state inconsistent. \
 Expanded debugger test coverage and documentation for Python-driven MAD debugging workflows.
 
+0.9.2 (2026/05/08) \
+Bump to 1.1.12
+
 0.9.1 (2026/03/31) \
 Dependabot updates and new MAD-NG version
 
