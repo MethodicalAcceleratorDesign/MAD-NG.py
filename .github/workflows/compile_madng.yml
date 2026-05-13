@@ -6,8 +6,6 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
-    container:
-      image: rockylinux:9
     defaults:
       run:
         shell: bash
@@ -23,47 +21,49 @@ jobs:
         path: MAD
         submodules: recursive
 
-    - name: Install dependencies
+    - name: Build MAD-NG in Rocky Linux 9
       run: |
-        dnf install -y \
-          gcc gcc-c++ gcc-gfortran make git \
-          diffutils findutils sed which tar gzip
+        docker run --rm \
+          -v "${GITHUB_WORKSPACE}:/work" \
+          -w /work \
+          rockylinux:9 \
+          bash -lc '
+            dnf install -y \
+              gcc gcc-c++ gcc-gfortran make git \
+              diffutils findutils sed which tar gzip
 
-    - name: Select Makefile
-      run: |
-        cp MAD/src/Makefile.lxplus MAD/src/Makefile
-        sed -i \
-          -e 's#^CC[[:space:]]*=.*#CC=gcc#g' \
-          -e 's#^CXX[[:space:]]*=.*#CXX=g++#g' \
-          -e 's#-fdiagnostics-all-candidates##g' \
-          MAD/src/Makefile || true
+            cp MAD/src/Makefile.lxplus MAD/src/Makefile
+            sed -i \
+              -e '"'"'s#^CC[[:space:]]*=.*#CC=gcc#g'"'"' \
+              -e '"'"'s#^CXX[[:space:]]*=.*#CXX=g++#g'"'"' \
+              -e '"'"'s#-fdiagnostics-all-candidates##g'"'"' \
+              MAD/src/Makefile || true
 
-    - name: Stage MAD-NG headers
-      run: |
-        mkdir -p MAD/tools
-        cp -f tools/stage_madng_headers_linux.sh MAD/tools/
-        chmod +x MAD/tools/stage_madng_headers_linux.sh
-        (cd MAD && ./tools/stage_madng_headers_linux.sh)
+            mkdir -p MAD/tools
+            cp -f tools/stage_madng_headers_linux.sh MAD/tools/
+            chmod +x MAD/tools/stage_madng_headers_linux.sh
+            (cd MAD && ./tools/stage_madng_headers_linux.sh)
 
-    - name: Compile MAD-NG
-      working-directory: MAD/src
-      run: |
-        export CC=gcc CXX=g++
-        export LDOPTIONS="-no-pie"
+            cd MAD/src
+            export CC=gcc CXX=g++
+            export LDOPTIONS="-no-pie"
 
-        if [ -f mad_dynmap.cpp ]; then
-          sed -i.bak \
-            -e 's/M::MT/typename M::MT/g' \
-            -e 's/M::MP/typename M::MP/g' \
-            -e 's/M::T/typename M::T/g' \
-            -e 's/M::P/typename M::P/g' \
-            -e 's/M::R/typename M::R/g' \
-            mad_dynmap.cpp || true
-        fi
+            if [ -f mad_dynmap.cpp ]; then
+              sed -i.bak \
+                -e '"'"'s/M::MT/typename M::MT/g'"'"' \
+                -e '"'"'s/M::MP/typename M::MP/g'"'"' \
+                -e '"'"'s/M::T/typename M::T/g'"'"' \
+                -e '"'"'s/M::P/typename M::P/g'"'"' \
+                -e '"'"'s/M::R/typename M::R/g'"'"' \
+                mad_dynmap.cpp || true
+            fi
 
-        make SHELL=/bin/bash \
-          CC="${CC}" CXX="${CXX}" \
-          LDOPTIONS="${LDOPTIONS:-}"
+            make SHELL=/bin/bash \
+              CC="${CC}" CXX="${CXX}" \
+              LDOPTIONS="${LDOPTIONS:-}"
+
+            chmod 755 mad
+          '
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
