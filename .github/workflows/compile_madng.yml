@@ -29,7 +29,7 @@ jobs:
       run: |
         if [ "$RUNNER_OS" = "Linux" ]; then
           sudo apt-get update
-          sudo apt-get install -y build-essential
+          sudo apt-get install -y build-essential gcc-11 g++-11
         elif [ "$RUNNER_OS" = "macOS" ]; then
           brew update
           brew install llvm libomp
@@ -40,8 +40,8 @@ jobs:
         if [ "$RUNNER_OS" = "Linux" ]; then
           cp MAD/src/Makefile.lxplus MAD/src/Makefile
           sed -i \
-            -e 's#^CC[[:space:]]*=.*#CC=gcc#g' \
-            -e 's#^CXX[[:space:]]*=.*#CXX=g++#g' \
+            -e 's#^CC[[:space:]]*=.*#CC=gcc-11#g' \
+            -e 's#^CXX[[:space:]]*=.*#CXX=g++-11#g' \
             -e 's#-fdiagnostics-all-candidates##g' \
             MAD/src/Makefile || true
         elif [ "$RUNNER_OS" = "macOS" ]; then
@@ -97,15 +97,15 @@ jobs:
         LIB_INCLUDES="-I${LIB}/luajit/src -I${LIB}/nlopt/src/api -I${LIB}/fftw3/api -I${LIB}/nfft3/include"
 
         if [ "$RUNNER_OS" = "Linux" ]; then
-          export CC=gcc CXX=g++
+          export CC=gcc-11 CXX=g++-11
           export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES}"
-          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 -fpermissive ${LIB_INCLUDES}"
+          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 ${LIB_INCLUDES}"
         elif [ "$RUNNER_OS" = "macOS" ]; then
           llvm="$(brew --prefix llvm)"
           export PATH="${llvm}/bin:${PATH}"
           export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
           export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
-          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 -fpermissive ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
+          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
 
