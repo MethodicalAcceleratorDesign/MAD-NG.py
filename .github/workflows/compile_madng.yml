@@ -31,7 +31,7 @@ jobs:
             set -euo pipefail
 
             dnf install -y \
-              gcc gcc-c++ gcc-gfortran make git \
+              gcc gcc-c++ gcc-gfortran make cmake git \
               libquadmath-devel \
               diffutils findutils sed which tar gzip
 
@@ -125,7 +125,8 @@ jobs:
         ln -sf "${gcc_bin}" "${toolshim}/gcc"
         ln -sf "${gxx_bin}" "${toolshim}/g++"
         ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
-        PATH="${toolshim}:${PATH}" \
+        brew_bin="$(brew --prefix)/bin"
+        PATH="${toolshim}:${brew_bin}:${PATH}" \
           JOBS="$(sysctl -n hw.ncpu)" \
           CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib \
           ./tools/build_madng_deps_macos.sh

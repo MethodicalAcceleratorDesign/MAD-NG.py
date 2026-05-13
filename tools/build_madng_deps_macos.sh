@@ -231,7 +231,7 @@ build_nfft3() {
   need_cmd make
 
   local tar="nfft-${NFFT_VERSION}.tar.gz"
-  local url="http://www.nfft.org/download/${tar}"
+  local url="https://www-user.tu-chemnitz.de/~potts/nfft/download/${tar}"
   local tar_path="${LIB_DIR}/${tar}"
   local src_dir="${LIB_DIR}/nfft-${NFFT_VERSION}"
   local dir="${LIB_DIR}/nfft3"
