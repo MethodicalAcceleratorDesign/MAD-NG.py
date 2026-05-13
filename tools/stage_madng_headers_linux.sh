@@ -97,6 +97,14 @@ main() {
     if [[ ! -e "${local_dir}/src/luajit.h" && -e "${local_dir}/src/luajit.h.in" ]]; then
       cp -f "${local_dir}/src/luajit.h.in" "${local_dir}/src/luajit.h"
     fi
+
+    # Fallback: some forks may place the template elsewhere.
+    if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
+      alt="$(find "${local_dir}" -maxdepth 3 -name 'luajit.h.in' -o -name 'luajit.h' | head -n 1 || true)"
+      if [[ -n "${alt}" && -e "${alt}" ]]; then
+        cp -f "${alt}" "${local_dir}/src/luajit.h"
+      fi
+    fi
   fi
 
   # NLOpt headers -> lib/nlopt/src/api/nlopt.h

@@ -32,6 +32,12 @@ jobs:
       run: |
         if [ "$RUNNER_OS" = "Linux" ]; then
           cp MAD/src/Makefile.lxplus MAD/src/Makefile
+
+          # Prefer clang/clang++ on CI (Makefile.lxplus may default to gcc/g++)
+          sed -i \
+            -e 's#^CC[[:space:]]*=.*#CC=clang#g' \
+            -e 's#^CXX[[:space:]]*=.*#CXX=clang++#g' \
+            MAD/src/Makefile || true
         elif [ "$RUNNER_OS" = "macOS" ]; then
           cp MAD/src/Makefile.macosx MAD/src/Makefile
 
@@ -96,7 +102,8 @@ jobs:
           export CPPFLAGS="-I$(brew --prefix libomp)/include"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
-        make -j SHELL=/bin/bash
+        # Enable job control for Makefile recipes that use `bg`
+        bash -m -lc "make -j CC='${CC}' CXX='${CXX}' CPPFLAGS='${CPPFLAGS:-}' LDFLAGS='${LDFLAGS:-}'"
 
     - name: Upload it
       uses: actions/upload-artifact@v7
