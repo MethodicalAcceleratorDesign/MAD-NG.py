@@ -92,15 +92,22 @@ jobs:
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
 
-        # Remove 'bg' commands from Makefile entirely (convert to sequential execution)
-        # Preserve leading recipe indentation so Makefile separators remain valid.
-        # Some Makefile lines have trailing tokens/comments; match and replace the
-        # leading `bg <script> <out>` portion only.
-        sed -i.bak -E 's/^([[:space:]]*)bg[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+).*/\1\2 > \3/' Makefile
+        # Remove MAD-NG's async "bg" helper from the Makefile for CI.
+        # It may appear either as the literal token `bg ...` or as `$(BG) ...`.
+        sed -i.bak -E \
+          -e 's/\$\((BG)\)[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)/\2 > \3/g' \
+          -e 's/\$\{BG\}[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)/\1 > \2/g' \
+          -e 's/^([[:space:]]*)bg[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+).*/\1\2 > \3/' \
+          Makefile
 
         # Verify the sed worked by checking a few lines
         echo "=== Makefile after bg removal ==="
-        grep -c "^[^#]*bg " Makefile && echo "WARNING: bg commands still present!" || echo "OK: bg commands removed"
+        if grep -nE '(^|[[:space:]])(bg|\$\((BG)\)|\$\{BG\})[[:space:]]+' Makefile; then
+          echo "WARNING: bg commands still present!"
+          exit 1
+        else
+          echo "OK: bg commands removed"
+        fi
 
         # Patch template syntax errors in mad_dynmap.cpp for GitHub Actions runner.
         # Adding 'typename' fixes C++ standard compliance without changing functionality.
