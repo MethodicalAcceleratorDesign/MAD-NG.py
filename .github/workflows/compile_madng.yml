@@ -39,6 +39,22 @@ jobs:
           exit 1
         fi
 
+    - name: Stage MAD-NG headers
+      run: |
+        mkdir -p MAD/tools
+        cp -f tools/stage_madng_headers_linux.sh MAD/tools/ || true
+        cp -f tools/stage_madng_headers_macos.sh MAD/tools/ || true
+        chmod +x MAD/tools/stage_madng_headers_*.sh
+
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          (cd MAD && ./tools/stage_madng_headers_linux.sh)
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          (cd MAD && ./tools/stage_madng_headers_macos.sh)
+        else
+          echo "Unsupported OS: $RUNNER_OS"
+          exit 1
+        fi
+
     - name: Install Linux dependencies
       if: runner.os == 'Linux'
       run: |
