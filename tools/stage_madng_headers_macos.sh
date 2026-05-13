@@ -100,10 +100,18 @@ main() {
 
     # Fallback: some forks may place the template elsewhere.
     if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
-      alt="$(find "${local_dir}" -maxdepth 3 -name 'luajit.h.in' -o -name 'luajit.h' | head -n 1 || true)"
+      alt="$(find "${local_dir}" -maxdepth 3 \( -name 'luajit.h.in' -o -name 'luajit.h' \) | head -n 1 || true)"
       if [[ -n "${alt}" && -e "${alt}" ]]; then
         cp -f "${alt}" "${local_dir}/src/luajit.h"
       fi
+    fi
+
+    # Last resort: the MAD-patch fork generates luajit.h during build.
+    if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
+      echo "luajit.h not in repo — generating via make..."
+      make -C "${local_dir}/src" luajit.h 2>/dev/null \
+        || make -C "${local_dir}" 2>/dev/null \
+        || true
     fi
   fi
 
