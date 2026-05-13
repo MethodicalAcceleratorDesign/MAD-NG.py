@@ -94,7 +94,9 @@ jobs:
 
         # Remove 'bg' commands from Makefile entirely (convert to sequential execution)
         # Preserve leading recipe indentation so Makefile separators remain valid.
-        sed -i.bak -E 's/^([[:space:]]*)bg[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)$/\1\2 > \3/' Makefile
+        # Some Makefile lines have trailing tokens/comments; match and replace the
+        # leading `bg <script> <out>` portion only.
+        sed -i.bak -E 's/^([[:space:]]*)bg[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+).*/\1\2 > \3/' Makefile
 
         # Verify the sed worked by checking a few lines
         echo "=== Makefile after bg removal ==="
