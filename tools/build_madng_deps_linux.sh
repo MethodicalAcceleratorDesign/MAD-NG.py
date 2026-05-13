@@ -195,9 +195,10 @@ build_lapack() {
       -e 's/^\(FFLAGS_NOOPT[[:space:]]*=[[:space:]]*.*\)$/\1 -fPIC/' \
       make.inc || true
     make clean
-    make -j"${JOBS}" lib
-    cp -f liblapack.a "${BIN_DIR}/liblapack.a"
+    make -j"${JOBS}" blaslib
+    make -j"${JOBS}" lapacklib
     cp -f librefblas.a "${BIN_DIR}/librefblas.a"
+    cp -f liblapack.a "${BIN_DIR}/liblapack.a"
   )
 }
 
@@ -232,7 +233,7 @@ build_nfft3() {
   need_cmd make
 
   local tar="nfft-${NFFT_VERSION}.tar.gz"
-  local url="http://www.nfft.org/download/${tar}"
+  local url="https://www-user.tu-chemnitz.de/~potts/nfft/download/${tar}"
   local tar_path="${LIB_DIR}/${tar}"
   local src_dir="${LIB_DIR}/nfft-${NFFT_VERSION}"
   local dir="${LIB_DIR}/nfft3"

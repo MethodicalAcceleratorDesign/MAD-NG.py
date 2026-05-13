@@ -193,9 +193,10 @@ build_lapack() {
       -e 's/^\(FFLAGS_NOOPT[[:space:]]*=[[:space:]]*.*\)$/\1 -fPIC/' \
       make.inc || true
     make clean
-    make -j"${JOBS}" lib
-    cp -f liblapack.a "${BIN_DIR}/liblapack.a"
+    make -j"${JOBS}" blaslib
+    make -j"${JOBS}" lapacklib
     cp -f librefblas.a "${BIN_DIR}/librefblas.a"
+    cp -f liblapack.a "${BIN_DIR}/liblapack.a"
   )
 }
 
