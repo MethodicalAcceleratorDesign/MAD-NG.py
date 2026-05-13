@@ -109,6 +109,19 @@ jobs:
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
 
+        # Patch template syntax errors in mad_dynmap.cpp for GitHub Actions runner.
+        # Adding 'typename' fixes C++ standard compliance without changing functionality.
+        # Only patches the cloned copy in CI, not upstream.
+        if [ -f mad_dynmap.cpp ]; then
+          sed -i.bak \
+            -e 's/M::MT/typename M::MT/g' \
+            -e 's/M::MP/typename M::MP/g' \
+            -e 's/M::T/typename M::T/g' \
+            -e 's/M::P/typename M::P/g' \
+            -e 's/M::R/typename M::R/g' \
+            mad_dynmap.cpp || true
+        fi
+
         JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
         make -j"${JOBS}" SHELL=/bin/bash \
           CC="${CC}" CXX="${CXX}" \
