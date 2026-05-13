@@ -245,12 +245,14 @@ build_nfft3() {
   fi
 
   ( cd "${dir}"
-    ./configure --enable-all --disable-shared \
+    make distclean || true
+    ./configure --disable-shared \
       --with-fftw3="$(pwd)/../fftw3" \
       --with-fftw3-libdir="$(pwd)/../fftw3/.libs" \
       --with-fftw3-includedir="$(pwd)/../fftw3/api" \
       CC="${CC}"
-    make clean || true
+    # Only build the library — strip applications/examples/tests from SUBDIRS.
+    sed -i.bak 's/^\(SUBDIRS[[:space:]]*=\).*/\1 include kernel/' Makefile
     make -j"${JOBS}"
     cp -f .libs/libnfft3.a "${BIN_DIR}/libnfft3.a"
   )

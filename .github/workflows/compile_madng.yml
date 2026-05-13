@@ -30,6 +30,8 @@ jobs:
           bash -lc '
             set -euo pipefail
 
+            dnf install -y dnf-plugins-core
+            dnf config-manager --enable crb
             dnf install -y \
               gcc gcc-c++ gcc-gfortran make cmake git \
               libquadmath-devel libstdc++-static \
