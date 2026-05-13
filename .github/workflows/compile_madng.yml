@@ -1,6 +1,3 @@
-# This workflow will install Python dependencies, run tests on a variety Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: Make a MAD-NG Binary
 
 on:
@@ -19,94 +16,90 @@ jobs:
 
     steps:
     - name: Checkout current repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4
 
-    - name: Clone another repo
-      uses: actions/checkout@v6
+    - name: Clone MAD-NG
+      uses: actions/checkout@v4
       with:
         repository: MethodicalAcceleratorDesign/MAD-NG
         path: MAD
         submodules: recursive
 
+    - name: Install dependencies
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          brew update
+          brew install llvm libomp
+        fi
+
     - name: Select Makefile
       run: |
         if [ "$RUNNER_OS" = "Linux" ]; then
           cp MAD/src/Makefile.lxplus MAD/src/Makefile
-
-          # Prefer clang/clang++ on CI (Makefile.lxplus may default to gcc/g++)
           sed -i \
-            -e 's#^CC[[:space:]]*=.*#CC=clang#g' \
-            -e 's#^CXX[[:space:]]*=.*#CXX=clang++#g' \
+            -e 's#^CC[[:space:]]*=.*#CC=gcc#g' \
+            -e 's#^CXX[[:space:]]*=.*#CXX=g++#g' \
+            -e 's#-fdiagnostics-all-candidates##g' \
             MAD/src/Makefile || true
         elif [ "$RUNNER_OS" = "macOS" ]; then
-          cp MAD/src/Makefile.macosx MAD/src/Makefile
-
-          # Ensure we use Homebrew LLVM clang (Apple clang doesn't support -fopenmp)
           brew_prefix_llvm="$(brew --prefix llvm)"
+          cp MAD/src/Makefile.macosx MAD/src/Makefile
           sed -i.bak \
             -e "s#^CC[[:space:]]*=[[:space:]]*gcc#CC=${brew_prefix_llvm}/bin/clang#g" \
             -e "s#^CC[[:space:]]*=[[:space:]]*clang#CC=${brew_prefix_llvm}/bin/clang#g" \
             -e "s#^CXX[[:space:]]*=[[:space:]]*g\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
             -e "s#^CXX[[:space:]]*=[[:space:]]*clang\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
+            -e "s#-fdiagnostics-all-candidates##g" \
             MAD/src/Makefile
-        else
-          echo "Unsupported OS: $RUNNER_OS"
-          exit 1
         fi
 
     - name: Stage MAD-NG headers
       run: |
         mkdir -p MAD/tools
-        cp -f tools/stage_madng_headers_linux.sh MAD/tools/ || true
-        cp -f tools/stage_madng_headers_macos.sh MAD/tools/ || true
-        chmod +x MAD/tools/stage_madng_headers_*.sh
-
         if [ "$RUNNER_OS" = "Linux" ]; then
+          cp -f tools/stage_madng_headers_linux.sh MAD/tools/
+          chmod +x MAD/tools/stage_madng_headers_linux.sh
           (cd MAD && ./tools/stage_madng_headers_linux.sh)
         elif [ "$RUNNER_OS" = "macOS" ]; then
+          cp -f tools/stage_madng_headers_macos.sh MAD/tools/
+          chmod +x MAD/tools/stage_madng_headers_macos.sh
           (cd MAD && ./tools/stage_madng_headers_macos.sh)
-        else
-          echo "Unsupported OS: $RUNNER_OS"
-          exit 1
         fi
-
-    - name: Install Linux dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          clang \
-          gcc \
-          g++ \
-          make \
-
-    - name: Install macOS dependencies
-      if: runner.os == 'macOS'
-      run: |
-        brew update
-        brew install llvm libomp
 
     - name: Compile MAD-NG
       working-directory: MAD/src
-
       run: |
+        # GitHub Actions has no TTY/job-control; provide a synchronous `bg` shim.
+        mkdir -p "${RUNNER_TEMP}/madng-bin"
+        printf '#!/usr/bin/env bash\n[ "$#" -ge 2 ] && "$1" > "$2"\n' \
+          > "${RUNNER_TEMP}/madng-bin/bg"
+        chmod +x "${RUNNER_TEMP}/madng-bin/bg"
+        export PATH="${RUNNER_TEMP}/madng-bin:${PATH}"
+
         if [ "$RUNNER_OS" = "Linux" ]; then
-          export CC=clang
-          export CXX=clang++
-        fi
-        if [ "$RUNNER_OS" = "macOS" ]; then
-          export PATH="$(brew --prefix llvm)/bin:$PATH"
-          export CC="$(brew --prefix llvm)/bin/clang"
-          export CXX="$(brew --prefix llvm)/bin/clang++"
+          export CC=gcc CXX=g++
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          llvm="$(brew --prefix llvm)"
+          export PATH="${llvm}/bin:${PATH}"
+          export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
           export CPPFLAGS="-I$(brew --prefix libomp)/include"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
+          # Avoid x86_64-specific tuning flags on arm64.
+          export CFLAGS="-O3 -ftree-vectorize -fPIC -flto"
+          export CXXFLAGS="-O3 -ftree-vectorize -fPIC -flto"
         fi
-        # Enable job control for Makefile recipes that use `bg`
-        bash -m -lc "make -j CC='${CC}' CXX='${CXX}' CPPFLAGS='${CPPFLAGS:-}' LDFLAGS='${LDFLAGS:-}'"
 
-    - name: Upload it
-      uses: actions/upload-artifact@v7
+        JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+        make -j"${JOBS}" SHELL=/bin/bash \
+          CC="${CC}" CXX="${CXX}" \
+          CPPFLAGS="${CPPFLAGS:-}" LDFLAGS="${LDFLAGS:-}" \
+          CFLAGS="${CFLAGS:-}" CXXFLAGS="${CXXFLAGS:-}"
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
       with:
-        name: executable-${{ runner.os }}
+        name: mad-${{ runner.os }}
         path: MAD/src/mad
