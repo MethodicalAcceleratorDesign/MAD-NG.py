@@ -34,6 +34,15 @@ jobs:
           cp MAD/src/Makefile.lxplus MAD/src/Makefile
         elif [ "$RUNNER_OS" = "macOS" ]; then
           cp MAD/src/Makefile.macosx MAD/src/Makefile
+
+          # Ensure we use Homebrew LLVM clang (Apple clang doesn't support -fopenmp)
+          brew_prefix_llvm="$(brew --prefix llvm)"
+          sed -i.bak \
+            -e "s#^CC[[:space:]]*=[[:space:]]*gcc#CC=${brew_prefix_llvm}/bin/clang#g" \
+            -e "s#^CC[[:space:]]*=[[:space:]]*clang#CC=${brew_prefix_llvm}/bin/clang#g" \
+            -e "s#^CXX[[:space:]]*=[[:space:]]*g\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
+            -e "s#^CXX[[:space:]]*=[[:space:]]*clang\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
+            MAD/src/Makefile
         else
           echo "Unsupported OS: $RUNNER_OS"
           exit 1
@@ -61,6 +70,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           build-essential \
+          clang \
           gcc \
           g++ \
           make \
@@ -75,6 +85,10 @@ jobs:
       working-directory: MAD/src
 
       run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          export CC=clang
+          export CXX=clang++
+        fi
         if [ "$RUNNER_OS" = "macOS" ]; then
           export PATH="$(brew --prefix llvm)/bin:$PATH"
           export CC="$(brew --prefix llvm)/bin/clang"
@@ -82,7 +96,7 @@ jobs:
           export CPPFLAGS="-I$(brew --prefix libomp)/include"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
-        make -j
+        make -j SHELL=/bin/bash
 
     - name: Upload it
       uses: actions/upload-artifact@v7

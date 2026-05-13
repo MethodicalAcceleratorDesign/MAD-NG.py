@@ -4,7 +4,7 @@ set -euo pipefail
 # Stage headers into the layout expected by MAD-NG's unmodified `src/Makefile`.
 #
 # Expected include paths (from `src/Makefile`):
-#   -I../lib/luajit/src            -> lua.h, luaconf.h, lualib.h, lauxlib.h, lua.hpp
+#   -I../lib/luajit/src            -> lua.h, luajit.h, luaconf.h, lualib.h, lauxlib.h, lua.hpp
 #   -I../lib/nlopt/src/api         -> nlopt.h
 #   -I../lib/fftw3/api             -> fftw3.h
 #   -I../lib/nfft3/include         -> nfft3.h (and friends)
@@ -92,6 +92,11 @@ main() {
       git checkout "${LUAJIT_REF}"
       git pull --ff-only || true
     )
+
+    # Some LuaJIT variants ship `luajit.h.in` instead of `luajit.h`.
+    if [[ ! -e "${local_dir}/src/luajit.h" && -e "${local_dir}/src/luajit.h.in" ]]; then
+      cp -f "${local_dir}/src/luajit.h.in" "${local_dir}/src/luajit.h"
+    fi
   fi
 
   # NLOpt headers -> lib/nlopt/src/api/nlopt.h
@@ -149,6 +154,7 @@ main() {
   echo "Header checks (expected by src/Makefile):"
   for f in \
     "${LIB_DIR}/luajit/src/lua.h" \
+    "${LIB_DIR}/luajit/src/luajit.h" \
     "${LIB_DIR}/nlopt/src/api/nlopt.h" \
     "${LIB_DIR}/fftw3/api/fftw3.h" \
     "${LIB_DIR}/nfft3/include/nfft3.h"
