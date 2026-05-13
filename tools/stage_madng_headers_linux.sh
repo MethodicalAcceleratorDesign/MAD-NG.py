@@ -160,6 +160,7 @@ main() {
 
   echo
   echo "Header checks (expected by src/Makefile):"
+  local rc=0
   for f in \
     "${LIB_DIR}/luajit/src/lua.h" \
     "${LIB_DIR}/luajit/src/luajit.h" \
@@ -170,9 +171,11 @@ main() {
     if [[ -e "${f}" ]]; then
       echo "  OK  ${f}"
     else
-      echo "  MISS ${f}"
+      echo "  MISS ${f}" >&2
+      rc=1
     fi
   done
+  return "${rc}"
 }
 
 main "$@"
