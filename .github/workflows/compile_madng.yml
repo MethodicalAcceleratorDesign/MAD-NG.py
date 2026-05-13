@@ -79,8 +79,9 @@ jobs:
         chmod +x "${RUNNER_TEMP}/madng-bin/bg"
         export PATH="${RUNNER_TEMP}/madng-bin:${PATH}"
 
-        # Include paths the Makefile expects to find in ../lib relative to src/.
-        LIB_INCLUDES="-I../lib/luajit/src -I../lib/nlopt/src/api -I../lib/fftw3/api -I../lib/nfft3/include"
+        # Absolute include paths — relative ones break when make spawns sub-processes.
+        LIB="$(cd ../lib && pwd)"
+        LIB_INCLUDES="-I${LIB}/luajit/src -I${LIB}/nlopt/src/api -I${LIB}/fftw3/api -I${LIB}/nfft3/include"
 
         if [ "$RUNNER_OS" = "Linux" ]; then
           export CC=gcc CXX=g++
