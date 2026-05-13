@@ -128,25 +128,21 @@ rebuild_lpeg() {
       -e "s|^[#[:space:]]*LUALIB[[:space:]]*=.*|LUALIB = ${luajit_lib}|" \
       -e "s|^COPT[[:space:]]*=.*|COPT = -O3|" \
       makefile
-    if ! grep -qE '^[[:space:]]*lpeg\.a:' makefile; then
+    if ! grep -qE '^[[:space:]]*liblpeg\.a:' makefile; then
       awk '
         BEGIN{done=0}
         {print}
         (!done && $0 ~ /^lpeg\.so:/){
           print ""
-          print "lpeg.a: $(FILES)"
-          print "\tenv $(AR) -r lib$@ $(FILES)"
+          print "liblpeg.a: $(FILES)"
+          print "\tenv $(AR) -r $@ $(FILES)"
           print ""
           done=1
         }
       ' makefile > makefile.mad.tmp && mv makefile.mad.tmp makefile
     fi
-    sed -i \
-      -e 's/^\(linux:\).*/\1 lpeg.a/' \
-      -e 's/^\(macosx:\).*/\1 lpeg.a/' \
-      makefile || true
     make clean || true
-    make AR=ar linux
+    make AR=ar LUADIR="${luajit_inc}" LUALIB="${luajit_lib}" liblpeg.a
     mkdir -p "${BIN_DIR}"
     cp -f liblpeg.a "${BIN_DIR}/liblpeg.a"
   )
@@ -228,8 +224,13 @@ main() {
     url="https://fftw.org/${tar_name}"
     fetch_tarball "${url}" "${tar_path}"
     ( cd "${LIB_DIR}" && tar xzf "${tar_name}" )
-    rm -f "${LIB_DIR}/fftw3"
-    ln -s "fftw-${FFTW_VERSION}" "${LIB_DIR}/fftw3"
+    rm -rf "${LIB_DIR}/fftw3"
+    mkdir -p "${LIB_DIR}/fftw3/api"
+    if [[ -e "${LIB_DIR}/fftw-${FFTW_VERSION}/api/fftw3.h" ]]; then
+      ln -s "${LIB_DIR}/fftw-${FFTW_VERSION}/api/fftw3.h" "${LIB_DIR}/fftw3/api/fftw3.h"
+    else
+      ln -s "${LIB_DIR}/fftw-${FFTW_VERSION}/fftw3.h" "${LIB_DIR}/fftw3/api/fftw3.h"
+    fi
   fi
 
   # NFFT headers -> lib/nfft3/include/nfft3.h
@@ -245,8 +246,15 @@ main() {
     url="https://www-user.tu-chemnitz.de/~potts/nfft/download/${tar_name}"
     fetch_tarball "${url}" "${tar_path}"
     ( cd "${LIB_DIR}" && tar xzf "${tar_name}" )
-    rm -f "${LIB_DIR}/nfft3"
-    ln -s "nfft-${NFFT_VERSION}" "${LIB_DIR}/nfft3"
+    rm -rf "${LIB_DIR}/nfft3"
+    mkdir -p "${LIB_DIR}/nfft3/include"
+    if [[ -d "${LIB_DIR}/nfft-${NFFT_VERSION}/include" ]]; then
+      for header in "${LIB_DIR}"/nfft-"${NFFT_VERSION}"/include/*; do
+        ln -s "${header}" "${LIB_DIR}/nfft3/include/$(basename "${header}")"
+      done
+    else
+      ln -s "${LIB_DIR}/nfft-${NFFT_VERSION}/nfft3.h" "${LIB_DIR}/nfft3/include/nfft3.h"
+    fi
   fi
 
   echo
