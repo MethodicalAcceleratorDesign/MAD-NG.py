@@ -39,9 +39,34 @@ jobs:
           exit 1
         fi
 
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          gcc \
+          g++ \
+          make \
+
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew update
+        brew install llvm libomp
+
     - name: Compile MAD-NG
       working-directory: MAD/src
-      run: make -j
+      
+      run: |
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          export PATH="$(brew --prefix llvm)/bin:$PATH"
+          export CC="$(brew --prefix llvm)/bin/clang"
+          export CXX="$(brew --prefix llvm)/bin/clang++"
+          export CPPFLAGS="-I$(brew --prefix libomp)/include"
+          export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
+        fi
+        make -j
 
     - name: Upload it
       uses: actions/upload-artifact@v7
