@@ -138,7 +138,7 @@ main() {
     need_cmd tar
     tar_name="nfft-${NFFT_VERSION}.tar.gz"
     tar_path="${LIB_DIR}/${tar_name}"
-    url="http://www.nfft.org/download/${tar_name}"
+    url="https://www-user.tu-chemnitz.de/~potts/nfft/download/${tar_name}"
     fetch_tarball "${url}" "${tar_path}"
     ( cd "${LIB_DIR}" && tar xzf "${tar_name}" )
     rm -f "${LIB_DIR}/nfft3"
@@ -162,4 +162,3 @@ main() {
 }
 
 main "$@"
-
