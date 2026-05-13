@@ -51,10 +51,11 @@ jobs:
 
             cd MAD/src
             export CC=gcc CXX=g++
-            # GCC keeps libgfortran.a/libquadmath.a in its private lib dir;
-            # add it so -Wl,-Bstatic can find them.
+            # LIBRARY_PATH makes GCC prepend -L at the START of the ld invocation,
+            # before -lgfortran/-lquadmath are seen (unlike LDOPTIONS which comes after).
             gcc_libdir="$(gcc -print-libgcc-file-name | xargs dirname)"
-            export LDOPTIONS="-no-pie -L${gcc_libdir}"
+            export LIBRARY_PATH="${gcc_libdir}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+            export LDOPTIONS="-no-pie"
 
             make SHELL=/bin/bash \
               CC="${CC}" CXX="${CXX}" \
