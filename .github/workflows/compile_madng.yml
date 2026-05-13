@@ -39,12 +39,11 @@ jobs:
         fi
 
     - name: Compile MAD-NG
-      run: |
-        cd MAD/src
-        make -j
+      working-directory: MAD/src
+      run: make -j
 
     - name: Upload it
-    - uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v7
       with:
         name: executable-${{ runner.os }}
         path: MAD/src/mad
