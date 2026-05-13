@@ -75,29 +75,37 @@ jobs:
     - name: Compile MAD-NG
       working-directory: MAD/src
       run: |
-        # GitHub Actions has no TTY/job-control; provide a synchronous `bg` shim.
-        mkdir -p "${RUNNER_TEMP}/madng-bin"
-        printf '#!/usr/bin/env bash\n[ "$#" -ge 2 ] && "$1" > "$2"\n' \
-          > "${RUNNER_TEMP}/madng-bin/bg"
-        chmod +x "${RUNNER_TEMP}/madng-bin/bg"
-        export PATH="${RUNNER_TEMP}/madng-bin:${PATH}"
+        # GitHub Actions has no job control/TTY. MAD-NG Makefiles use `bg ...`
+        # to parallelize some conversions; patch it to run synchronously.
+        sed -i.bak -e 's#^bg #./bg_shim #g' Makefile || true
 
-        # Absolute include paths — relative ones break when make spawns sub-processes.
+        printf '%s\n' \
+          '#!/usr/bin/env bash' \
+          'set -euo pipefail' \
+          '# expected: bg <script> <output>' \
+          'script="${1:-}"' \
+          'out="${2:-}"' \
+          'if [[ -z "${script}" || -z "${out}" ]]; then' \
+          '  exit 0' \
+          'fi' \
+          '"${script}" > "${out}"' \
+          > ./bg_shim
+        chmod +x ./bg_shim
+
+        # Absolute include paths.
         LIB="$(cd ../lib && pwd)"
         LIB_INCLUDES="-I${LIB}/luajit/src -I${LIB}/nlopt/src/api -I${LIB}/fftw3/api -I${LIB}/nfft3/include"
-        COMMON_CFLAGS="${LIB_INCLUDES}"
 
         if [ "$RUNNER_OS" = "Linux" ]; then
           export CC=gcc CXX=g++
-          # MAD-NG Makefiles typically use CFLAGS for include paths.
-          export CFLAGS="${COMMON_CFLAGS}"
-          export CXXFLAGS="${COMMON_CFLAGS}"
+          export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES}"
+          export CXXFLAGS="${CXXFLAGS:-} ${LIB_INCLUDES}"
         elif [ "$RUNNER_OS" = "macOS" ]; then
           llvm="$(brew --prefix llvm)"
           export PATH="${llvm}/bin:${PATH}"
           export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
-          export CFLAGS="${COMMON_CFLAGS} -I$(brew --prefix libomp)/include"
-          export CXXFLAGS="${CFLAGS}"
+          export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
+          export CXXFLAGS="${CXXFLAGS:-} ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
 
