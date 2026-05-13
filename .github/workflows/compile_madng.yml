@@ -4,15 +4,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  build-linux:
+    runs-on: ubuntu-22.04
+    container:
+      image: rockylinux:9
     defaults:
       run:
         shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-15-intel]
 
     steps:
     - name: Checkout current repo
@@ -27,70 +25,32 @@ jobs:
 
     - name: Install dependencies
       run: |
-        if [ "$RUNNER_OS" = "Linux" ]; then
-          sudo apt-get update
-          sudo apt-get install -y build-essential gcc-11 g++-11
-        elif [ "$RUNNER_OS" = "macOS" ]; then
-          brew update
-          brew install llvm libomp make
-        fi
+        dnf install -y \
+          gcc gcc-c++ gcc-gfortran make git \
+          diffutils findutils sed which tar gzip
 
     - name: Select Makefile
       run: |
-        if [ "$RUNNER_OS" = "Linux" ]; then
-          cp MAD/src/Makefile.lxplus MAD/src/Makefile
-          sed -i \
-            -e 's#^CC[[:space:]]*=.*#CC=gcc-11#g' \
-            -e 's#^CXX[[:space:]]*=.*#CXX=g++-11#g' \
-            -e 's#-fdiagnostics-all-candidates##g' \
-            MAD/src/Makefile || true
-        elif [ "$RUNNER_OS" = "macOS" ]; then
-          brew_prefix_llvm="$(brew --prefix llvm)"
-          cp MAD/src/Makefile.macosx MAD/src/Makefile
-          sed -i.bak \
-            -e "s#^CC[[:space:]]*=[[:space:]]*gcc#CC=${brew_prefix_llvm}/bin/clang#g" \
-            -e "s#^CC[[:space:]]*=[[:space:]]*clang#CC=${brew_prefix_llvm}/bin/clang#g" \
-            -e "s#^CXX[[:space:]]*=[[:space:]]*g\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
-            -e "s#^CXX[[:space:]]*=[[:space:]]*clang\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
-            -e "s#-fdiagnostics-all-candidates##g" \
-            -e "s#-march=native##g" \
-            -e "s#-mtune=native##g" \
-            -e "s#-mfma##g" \
-            MAD/src/Makefile
-        fi
+        cp MAD/src/Makefile.lxplus MAD/src/Makefile
+        sed -i \
+          -e 's#^CC[[:space:]]*=.*#CC=gcc#g' \
+          -e 's#^CXX[[:space:]]*=.*#CXX=g++#g' \
+          -e 's#-fdiagnostics-all-candidates##g' \
+          MAD/src/Makefile || true
 
     - name: Stage MAD-NG headers
       run: |
         mkdir -p MAD/tools
-        if [ "$RUNNER_OS" = "Linux" ]; then
-          cp -f tools/stage_madng_headers_linux.sh MAD/tools/
-          chmod +x MAD/tools/stage_madng_headers_linux.sh
-          (cd MAD && ./tools/stage_madng_headers_linux.sh)
-        elif [ "$RUNNER_OS" = "macOS" ]; then
-          cp -f tools/stage_madng_headers_macos.sh MAD/tools/
-          chmod +x MAD/tools/stage_madng_headers_macos.sh
-          (cd MAD && ./tools/stage_madng_headers_macos.sh)
-        fi
+        cp -f tools/stage_madng_headers_linux.sh MAD/tools/
+        chmod +x MAD/tools/stage_madng_headers_linux.sh
+        (cd MAD && ./tools/stage_madng_headers_linux.sh)
 
     - name: Compile MAD-NG
       working-directory: MAD/src
       run: |
-        if [ "$RUNNER_OS" = "Linux" ]; then
-          export CC=gcc-11 CXX=g++-11
-          export LDOPTIONS="-no-pie"
-        elif [ "$RUNNER_OS" = "macOS" ]; then
-          llvm="$(brew --prefix llvm)"
-          libomp="$(brew --prefix libomp)"
-          export PATH="${llvm}/bin:${PATH}"
-          export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
-          export CCOPTIONS="-I${libomp}/include"
-          export CXXOPTIONS="-I${libomp}/include"
-          export LDOPTIONS="-L${libomp}/lib -lomp"
-        fi
+        export CC=gcc CXX=g++
+        export LDOPTIONS="-no-pie"
 
-        # Patch template syntax errors in mad_dynmap.cpp for GitHub Actions runner.
-        # Adding 'typename' fixes C++ standard compliance without changing functionality.
-        # Only patches the cloned copy in CI, not upstream.
         if [ -f mad_dynmap.cpp ]; then
           sed -i.bak \
             -e 's/M::MT/typename M::MT/g' \
@@ -103,11 +63,68 @@ jobs:
 
         make SHELL=/bin/bash \
           CC="${CC}" CXX="${CXX}" \
-          CCOPTIONS="${CCOPTIONS:-}" CXXOPTIONS="${CXXOPTIONS:-}" \
           LDOPTIONS="${LDOPTIONS:-}"
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
-        name: mad-${{ runner.os }}
+        name: mad-Linux
+        path: MAD/src/mad
+
+  build-macos:
+    runs-on: macos-15-intel
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - name: Checkout current repo
+      uses: actions/checkout@v4
+
+    - name: Clone MAD-NG
+      uses: actions/checkout@v4
+      with:
+        repository: MethodicalAcceleratorDesign/MAD-NG
+        path: MAD
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        brew update
+        brew install gcc make
+
+    - name: Select Makefile
+      run: |
+        cp MAD/src/Makefile.macosx MAD/src/Makefile
+        sed -i.bak \
+          -e "s#-fdiagnostics-all-candidates##g" \
+          MAD/src/Makefile
+
+    - name: Stage MAD-NG headers
+      run: |
+        mkdir -p MAD/tools
+        cp -f tools/stage_madng_headers_macos.sh MAD/tools/
+        chmod +x MAD/tools/stage_madng_headers_macos.sh
+        (cd MAD && ./tools/stage_madng_headers_macos.sh)
+
+    - name: Compile MAD-NG
+      working-directory: MAD/src
+      run: |
+        gcc_prefix="$(brew --prefix gcc)"
+        gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
+        gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
+        gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
+        toolshim="${RUNNER_TEMP}/gcc-shim"
+        mkdir -p "${toolshim}"
+        ln -sf "${gcc_bin}" "${toolshim}/gcc"
+        ln -sf "${gxx_bin}" "${toolshim}/g++"
+        ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
+        export PATH="${toolshim}:${PATH}"
+
+        make SHELL=/bin/bash
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: mad-macOS
         path: MAD/src/mad
