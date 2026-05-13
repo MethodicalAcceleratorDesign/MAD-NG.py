@@ -19,7 +19,6 @@ BIN_DIR="${ROOT}/bin/macosx"
 
 LUAJIT_REF="${LUAJIT_REF:-mad-patch}"
 LUAJIT_REPO="${LUAJIT_REPO:-https://github.com/MethodicalAcceleratorDesign/LuaJIT.git}"
-LFS_REF="${LFS_REF:-v1.8.0}"
 LFS_REPO="${LFS_REPO:-https://github.com/MethodicalAcceleratorDesign/luafilesystem.git}"
 LPEG_VERSION="${LPEG_VERSION:-1.1.0}"
 
@@ -96,7 +95,6 @@ rebuild_lfs() {
     export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11}"
     cd "${dir}"
     git fetch --all --tags
-    git checkout "${LFS_REF}" || git checkout -B "${LFS_REF}" "origin/${LFS_REF}"
     git pull --ff-only || true
     make clean || true
     make lfs.a
