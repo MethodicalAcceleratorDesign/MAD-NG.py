@@ -1,0 +1,50 @@
+# This workflow will install Python dependencies, run tests on a variety Python versions
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Make a MAD-NG Binary
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - name: Checkout current repo
+      uses: actions/checkout@v6
+
+    - name: Clone another repo
+      uses: actions/checkout@v6
+      with:
+        repository: MethodicalAcceleratorDesign/MAD-NG
+        path: MAD
+
+    - name: Select Makefile
+      run: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          cp MAD/src/makefile.lxplus MAD/src/Makefile
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          cp MAD/src/makefile.macos MAD/src/Makefile
+        else
+          echo "Unsupported OS: $RUNNER_OS"
+          exit 1
+        fi
+
+    - name: Compile MAD-NG
+      run: |
+        cd MAD/src
+        make -j
+
+    - name: Upload it
+    - uses: actions/upload-artifact@v7
+      with:
+        name: executable-${{ runner.os }}
+        path: MAD/src/mad
