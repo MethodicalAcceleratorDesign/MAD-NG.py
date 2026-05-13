@@ -25,7 +25,7 @@ FFTW_VERSION="${FFTW_VERSION:-3.3.10}"
 NFFT_VERSION="${NFFT_VERSION:-3.5.3}"
 
 # Optional: point these at already-installed headers (will be copied/symlinked)
-LUAJIT_SRC_DIR="${LUAJIT_SRC_DIR:-}"   # directory containing lua.h etc
+LUAJIT_SRC_DIR="${LUAJIT_SRC_DIR:-}"   # directory containing lua.h, luajit.h, etc
 NLOPT_INC_DIR="${NLOPT_INC_DIR:-}"     # directory containing nlopt.h
 FFTW_INC_DIR="${FFTW_INC_DIR:-}"       # directory containing fftw3.h
 NFFT_INC_DIR="${NFFT_INC_DIR:-}"       # directory containing nfft3.h
@@ -86,6 +86,8 @@ main() {
   # LuaJIT headers -> lib/luajit/src/*
   if [[ -n "${LUAJIT_SRC_DIR}" ]]; then
     echo "Staging LuaJIT headers from LUAJIT_SRC_DIR=${LUAJIT_SRC_DIR}"
+    [[ -e "${LUAJIT_SRC_DIR}/lua.h" ]] || { echo "Missing ${LUAJIT_SRC_DIR}/lua.h" >&2; exit 1; }
+    [[ -e "${LUAJIT_SRC_DIR}/luajit.h" ]] || { echo "Missing ${LUAJIT_SRC_DIR}/luajit.h" >&2; exit 1; }
     mkdir -p "${LIB_DIR}/luajit"
     stage_dir_copy_or_link "${LUAJIT_SRC_DIR}" "${LIB_DIR}/luajit/src" "symlink"
   else
@@ -101,34 +103,16 @@ main() {
       git pull --ff-only || true
     )
 
-    # Some LuaJIT variants ship `luajit.h.in` instead of `luajit.h`.
-    if [[ ! -e "${local_dir}/src/luajit.h" && -e "${local_dir}/src/luajit.h.in" ]]; then
-      cp -f "${local_dir}/src/luajit.h.in" "${local_dir}/src/luajit.h"
-    fi
-
-    # Fallback: some forks may place the template elsewhere.
+    # Follow MAD's documented build flow for the mad-patch branch.
     if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
-      alt="$(find "${local_dir}" -maxdepth 6 \( -name 'luajit.h.in' -o -name 'luajit.h' \) | head -n 1 || true)"
-      if [[ -n "${alt}" && -e "${alt}" ]]; then
-        cp -f "${alt}" "${local_dir}/src/luajit.h"
-      fi
-    fi
-
-    # Last resort: the MAD-patch fork generates luajit.h during build.
-    if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
-      echo "luajit.h not in repo — generating via make..."
+      echo "luajit.h not in repo — building LuaJIT as documented by MAD..."
       mk="$(pick_make)"
-      ( cd "${local_dir}/src"
-        "${mk}" luajit.h 2>/dev/null || true
+      (
+        cd "${local_dir}"
+        "${mk}" clean
+        "${mk}" amalg PREFIX="$(pwd)"
+        "${mk}" install PREFIX="$(pwd)"
       )
-      if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
-        # Fallback: try building minilua and running it manually if make target fails
-        mk="$(pick_make)"
-        "${mk}" -C "${local_dir}/src" host/minilua 2>/dev/null || true
-        if [[ -x "${local_dir}/src/host/minilua" ]]; then
-          "${local_dir}/src/host/minilua" "${local_dir}/src/genversion.lua" > "${local_dir}/src/luajit.h" 2>/dev/null || true
-        fi
-      fi
     fi
   fi
 
