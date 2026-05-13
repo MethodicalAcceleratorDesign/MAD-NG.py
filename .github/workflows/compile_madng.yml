@@ -30,6 +30,7 @@ jobs:
           bash -lc '
             dnf install -y \
               gcc gcc-c++ gcc-gfortran make git \
+              libstdc++-static libquadmath-devel \
               diffutils findutils sed which tar gzip
 
             cp MAD/src/Makefile.lxplus MAD/src/Makefile
@@ -91,13 +92,17 @@ jobs:
     - name: Install dependencies
       run: |
         brew update
-        brew install gcc make
+        brew install gcc make cmake automake libtool pkg-config
 
     - name: Select Makefile
       run: |
         cp MAD/src/Makefile.macosx MAD/src/Makefile
         sed -i.bak \
           -e "s#-fdiagnostics-all-candidates##g" \
+          -e "s#-flto##g" \
+          -e "s#-march=native##g" \
+          -e "s#-mtune=native##g" \
+          -e "s#-mfma##g" \
           MAD/src/Makefile
 
     - name: Stage MAD-NG headers
@@ -114,6 +119,22 @@ jobs:
           echo "Missing MAD/lib/luajit/src/libluajit.a after LuaJIT staging" >&2
           exit 1
         fi
+
+    - name: Rebuild macOS static dependencies
+      run: |
+        gcc_prefix="$(brew --prefix gcc)"
+        gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
+        gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
+        gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
+        toolshim="${RUNNER_TEMP}/gcc-shim"
+        mkdir -p "${toolshim}"
+        ln -sf "${gcc_bin}" "${toolshim}/gcc"
+        ln -sf "${gxx_bin}" "${toolshim}/g++"
+        ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
+        PATH="${toolshim}:${PATH}" \
+          JOBS="$(sysctl -n hw.ncpu)" \
+          CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib \
+          ./tools/build_madng_deps_macos.sh
 
     - name: Compile MAD-NG
       working-directory: MAD/src
