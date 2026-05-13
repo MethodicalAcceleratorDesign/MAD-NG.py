@@ -93,7 +93,8 @@ jobs:
         fi
 
         # Remove 'bg' commands from Makefile entirely (convert to sequential execution)
-        sed -i.bak -e 's#^bg \(.*\) \([^ ]*\)$#\1 > \2#g' Makefile || true
+        # Handle tabs/spaces at line start and between arguments
+        sed -i.bak -E 's/^[[:space:]]*bg[[:space:]]+(.+)[[:space:]]+([^ ]+)$/\1 > \2/' Makefile || true
 
         # Patch template syntax errors in mad_dynmap.cpp for GitHub Actions runner.
         # Adding 'typename' fixes C++ standard compliance without changing functionality.

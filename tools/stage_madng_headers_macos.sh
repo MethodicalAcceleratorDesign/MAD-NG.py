@@ -109,9 +109,16 @@ main() {
     # Last resort: the MAD-patch fork generates luajit.h during build.
     if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
       echo "luajit.h not in repo — generating via make..."
-      make -C "${local_dir}/src" luajit.h 2>/dev/null \
-        || make -C "${local_dir}" 2>/dev/null \
-        || true
+      ( cd "${local_dir}/src"
+        make luajit.h 2>/dev/null || true
+      )
+      if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
+        # macOS: try building minilua and running it manually if make target fails
+        make -C "${local_dir}/src" host/minilua 2>/dev/null || true
+        if [[ -x "${local_dir}/src/host/minilua" ]]; then
+          "${local_dir}/src/host/minilua" "${local_dir}/src/genversion.lua" > "${local_dir}/src/luajit.h" 2>/dev/null || true
+        fi
+      fi
     fi
   fi
 
@@ -129,7 +136,7 @@ main() {
     ( cd "${local_dir}"
       git fetch --all --tags
       git checkout "${NLOPT_REF}"
-      git pull --ff-only || true
+      git pull --ff-only 2>/dev/null || true
     )
   fi
 
