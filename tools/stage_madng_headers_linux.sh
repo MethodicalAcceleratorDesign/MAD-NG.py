@@ -96,7 +96,7 @@ rebuild_lfs() {
     git fetch --all --tags
     git pull --ff-only || true
     make clean || true
-    make lfs.a
+    make AR=ar lfs.a
     mkdir -p "${BIN_DIR}"
     cp -f liblfs.a "${BIN_DIR}/liblfs.a"
   )
@@ -123,10 +123,10 @@ rebuild_lpeg() {
   (
     cd "${dir}"
     cp -f makefile makefile.mad.bak
-    sed -i \
-      -e "s|^#\\?LUADIR\\s*=.*|LUADIR = ${luajit_inc}|" \
-      -e "s|^#\\?LUALIB\\s*=.*|LUALIB = ${luajit_lib}|" \
-      -e "s|^COPT\\s*=.*|COPT = -O3|" \
+    sed -i -E \
+      -e "s|^[#[:space:]]*LUADIR[[:space:]]*=.*|LUADIR = ${luajit_inc}|" \
+      -e "s|^[#[:space:]]*LUALIB[[:space:]]*=.*|LUALIB = ${luajit_lib}|" \
+      -e "s|^COPT[[:space:]]*=.*|COPT = -O3|" \
       makefile
     if ! grep -qE '^[[:space:]]*lpeg\.a:' makefile; then
       awk '
@@ -144,10 +144,9 @@ rebuild_lpeg() {
     sed -i \
       -e 's/^\(linux:\).*/\1 lpeg.a/' \
       -e 's/^\(macosx:\).*/\1 lpeg.a/' \
-      -e 's/^clean:.*/& liblpeg.a/' \
       makefile || true
     make clean || true
-    make linux
+    make AR=ar linux
     mkdir -p "${BIN_DIR}"
     cp -f liblpeg.a "${BIN_DIR}/liblpeg.a"
   )
