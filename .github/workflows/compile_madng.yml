@@ -107,6 +107,14 @@ jobs:
         chmod +x MAD/tools/stage_madng_headers_macos.sh
         (cd MAD && ./tools/stage_madng_headers_macos.sh)
 
+        mkdir -p MAD/bin/macosx
+        if [ -f MAD/lib/luajit/src/libluajit.a ]; then
+          cp -f MAD/lib/luajit/src/libluajit.a MAD/bin/macosx/libluajit.a
+        else
+          echo "Missing MAD/lib/luajit/src/libluajit.a after LuaJIT staging" >&2
+          exit 1
+        fi
+
     - name: Compile MAD-NG
       working-directory: MAD/src
       run: |
