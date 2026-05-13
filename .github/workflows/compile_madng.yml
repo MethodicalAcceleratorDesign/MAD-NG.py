@@ -53,6 +53,9 @@ jobs:
             -e "s#^CXX[[:space:]]*=[[:space:]]*g\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
             -e "s#^CXX[[:space:]]*=[[:space:]]*clang\\+\\+#CXX=${brew_prefix_llvm}/bin/clang++#g" \
             -e "s#-fdiagnostics-all-candidates##g" \
+            -e "s#-march=native##g" \
+            -e "s#-mtune=native##g" \
+            -e "s#-mfma##g" \
             MAD/src/Makefile
         fi
 
@@ -82,26 +85,27 @@ jobs:
         # Absolute include paths — relative ones break when make spawns sub-processes.
         LIB="$(cd ../lib && pwd)"
         LIB_INCLUDES="-I${LIB}/luajit/src -I${LIB}/nlopt/src/api -I${LIB}/fftw3/api -I${LIB}/nfft3/include"
+        COMMON_CFLAGS="${LIB_INCLUDES}"
 
         if [ "$RUNNER_OS" = "Linux" ]; then
           export CC=gcc CXX=g++
-          export CPPFLAGS="${LIB_INCLUDES}"
+          # MAD-NG Makefiles typically use CFLAGS for include paths.
+          export CFLAGS="${COMMON_CFLAGS}"
+          export CXXFLAGS="${COMMON_CFLAGS}"
         elif [ "$RUNNER_OS" = "macOS" ]; then
           llvm="$(brew --prefix llvm)"
           export PATH="${llvm}/bin:${PATH}"
           export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
-          export CPPFLAGS="${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
+          export CFLAGS="${COMMON_CFLAGS} -I$(brew --prefix libomp)/include"
+          export CXXFLAGS="${CFLAGS}"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
-          # Avoid x86_64-specific tuning flags on arm64.
-          export CFLAGS="-O3 -ftree-vectorize -fPIC -flto"
-          export CXXFLAGS="-O3 -ftree-vectorize -fPIC -flto"
         fi
 
         JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
         make -j"${JOBS}" SHELL=/bin/bash \
           CC="${CC}" CXX="${CXX}" \
-          CPPFLAGS="${CPPFLAGS:-}" LDFLAGS="${LDFLAGS:-}" \
-          CFLAGS="${CFLAGS:-}" CXXFLAGS="${CXXFLAGS:-}"
+          CFLAGS="${CFLAGS:-}" CXXFLAGS="${CXXFLAGS:-}" \
+          LDFLAGS="${LDFLAGS:-}"
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
