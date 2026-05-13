@@ -26,13 +26,14 @@ jobs:
       with:
         repository: MethodicalAcceleratorDesign/MAD-NG
         path: MAD
+        submodules: recursive
 
     - name: Select Makefile
       run: |
         if [ "$RUNNER_OS" = "Linux" ]; then
-          cp MAD/src/makefile.lxplus MAD/src/Makefile
+          cp MAD/src/Makefile.lxplus MAD/src/Makefile
         elif [ "$RUNNER_OS" = "macOS" ]; then
-          cp MAD/src/makefile.macos MAD/src/Makefile
+          cp MAD/src/Makefile.macos MAD/src/Makefile
         else
           echo "Unsupported OS: $RUNNER_OS"
           exit 1
