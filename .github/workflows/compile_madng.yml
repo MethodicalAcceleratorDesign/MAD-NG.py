@@ -54,16 +54,6 @@ jobs:
             gcc_libdir="$(gcc -print-libgcc-file-name | xargs dirname)"
             export LDOPTIONS="-no-pie -L${gcc_libdir}"
 
-            if [ -f mad_dynmap.cpp ]; then
-              sed -i.bak \
-                -e '"'"'s/M::MT/typename M::MT/g'"'"' \
-                -e '"'"'s/M::MP/typename M::MP/g'"'"' \
-                -e '"'"'s/M::T/typename M::T/g'"'"' \
-                -e '"'"'s/M::P/typename M::P/g'"'"' \
-                -e '"'"'s/M::R/typename M::R/g'"'"' \
-                mad_dynmap.cpp || true
-            fi
-
             make SHELL=/bin/bash \
               CC="${CC}" CXX="${CXX}" \
               LDOPTIONS="${LDOPTIONS:-}"
