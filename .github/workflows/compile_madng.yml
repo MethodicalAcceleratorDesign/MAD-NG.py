@@ -79,13 +79,17 @@ jobs:
         chmod +x "${RUNNER_TEMP}/madng-bin/bg"
         export PATH="${RUNNER_TEMP}/madng-bin:${PATH}"
 
+        # Include paths the Makefile expects to find in ../lib relative to src/.
+        LIB_INCLUDES="-I../lib/luajit/src -I../lib/nlopt/src/api -I../lib/fftw3/api -I../lib/nfft3/include"
+
         if [ "$RUNNER_OS" = "Linux" ]; then
           export CC=gcc CXX=g++
+          export CPPFLAGS="${LIB_INCLUDES}"
         elif [ "$RUNNER_OS" = "macOS" ]; then
           llvm="$(brew --prefix llvm)"
           export PATH="${llvm}/bin:${PATH}"
           export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
-          export CPPFLAGS="-I$(brew --prefix libomp)/include"
+          export CPPFLAGS="${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
           # Avoid x86_64-specific tuning flags on arm64.
           export CFLAGS="-O3 -ftree-vectorize -fPIC -flto"
