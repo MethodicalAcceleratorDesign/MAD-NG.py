@@ -75,21 +75,16 @@ jobs:
     - name: Compile MAD-NG
       working-directory: MAD/src
       run: |
-        # Absolute include paths.
-        LIB="$(cd ../lib && pwd)"
-        LIB_INCLUDES="-I${LIB}/luajit/src -I${LIB}/nlopt/src/api -I${LIB}/fftw3/api -I${LIB}/nfft3/include"
-
         if [ "$RUNNER_OS" = "Linux" ]; then
           export CC=gcc-11 CXX=g++-11
-          export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES}"
-          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 ${LIB_INCLUDES}"
         elif [ "$RUNNER_OS" = "macOS" ]; then
           llvm="$(brew --prefix llvm)"
+          libomp="$(brew --prefix libomp)"
           export PATH="${llvm}/bin:${PATH}"
           export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
-          export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
-          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
-          export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
+          export CCOPTIONS="-I${libomp}/include"
+          export CXXOPTIONS="-I${libomp}/include"
+          export LDOPTIONS="-L${libomp}/lib -lomp"
         fi
 
         # Remove MAD-NG's async "bg" helper from the Makefile for CI.
@@ -124,8 +119,8 @@ jobs:
 
         make SHELL=/bin/bash \
           CC="${CC}" CXX="${CXX}" \
-          CFLAGS="${CFLAGS:-}" CXXFLAGS="${CXXFLAGS:-}" \
-          LDFLAGS="${LDFLAGS:-}"
+          CCOPTIONS="${CCOPTIONS:-}" CXXOPTIONS="${CXXOPTIONS:-}" \
+          LDOPTIONS="${LDOPTIONS:-}"
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
