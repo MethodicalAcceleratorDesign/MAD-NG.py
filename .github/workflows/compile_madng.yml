@@ -26,21 +26,47 @@ jobs:
       with:
         repository: MethodicalAcceleratorDesign/MAD-NG
         path: MAD
+        submodules: recursive
 
     - name: Select Makefile
       run: |
         if [ "$RUNNER_OS" = "Linux" ]; then
-          cp MAD/src/makefile.lxplus MAD/src/Makefile
+          cp MAD/src/Makefile.lxplus MAD/src/Makefile
         elif [ "$RUNNER_OS" = "macOS" ]; then
-          cp MAD/src/makefile.macos MAD/src/Makefile
+          cp MAD/src/Makefile.macosx MAD/src/Makefile
         else
           echo "Unsupported OS: $RUNNER_OS"
           exit 1
         fi
 
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          gcc \
+          g++ \
+          make \
+
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew update
+        brew install llvm libomp
+
     - name: Compile MAD-NG
       working-directory: MAD/src
-      run: make -j
+
+      run: |
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          export PATH="$(brew --prefix llvm)/bin:$PATH"
+          export CC="$(brew --prefix llvm)/bin/clang"
+          export CXX="$(brew --prefix llvm)/bin/clang++"
+          export CPPFLAGS="-I$(brew --prefix libomp)/include"
+          export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
+        fi
+        make -j
 
     - name: Upload it
       uses: actions/upload-artifact@v7
