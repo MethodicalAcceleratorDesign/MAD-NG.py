@@ -75,23 +75,6 @@ jobs:
     - name: Compile MAD-NG
       working-directory: MAD/src
       run: |
-        # GitHub Actions has no job control/TTY. MAD-NG Makefiles use `bg ...`
-        # to parallelize some conversions; patch it to run synchronously.
-        sed -i.bak -e 's#^bg #./bg_shim #g' Makefile || true
-
-        printf '%s\n' \
-          '#!/usr/bin/env bash' \
-          'set -euo pipefail' \
-          '# expected: bg <script> <output>' \
-          'script="${1:-}"' \
-          'out="${2:-}"' \
-          'if [[ -z "${script}" || -z "${out}" ]]; then' \
-          '  exit 0' \
-          'fi' \
-          '"${script}" > "${out}"' \
-          > ./bg_shim
-        chmod +x ./bg_shim
-
         # Absolute include paths.
         LIB="$(cd ../lib && pwd)"
         LIB_INCLUDES="-I${LIB}/luajit/src -I${LIB}/nlopt/src/api -I${LIB}/fftw3/api -I${LIB}/nfft3/include"
@@ -109,6 +92,9 @@ jobs:
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
 
+        # Remove 'bg' commands from Makefile entirely (convert to sequential execution)
+        sed -i.bak -e 's#^bg \(.*\) \([^ ]*\)$#\1 > \2#g' Makefile || true
+
         # Patch template syntax errors in mad_dynmap.cpp for GitHub Actions runner.
         # Adding 'typename' fixes C++ standard compliance without changing functionality.
         # Only patches the cloned copy in CI, not upstream.
@@ -122,8 +108,7 @@ jobs:
             mad_dynmap.cpp || true
         fi
 
-        JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
-        make -j"${JOBS}" SHELL=/bin/bash \
+        make SHELL=/bin/bash \
           CC="${CC}" CXX="${CXX}" \
           CFLAGS="${CFLAGS:-}" CXXFLAGS="${CXXFLAGS:-}" \
           LDFLAGS="${LDFLAGS:-}"
