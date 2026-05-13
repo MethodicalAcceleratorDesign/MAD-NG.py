@@ -30,7 +30,7 @@ jobs:
           bash -lc '
             dnf install -y \
               gcc gcc-c++ gcc-gfortran make git \
-              libstdc++-static libquadmath-devel \
+              libquadmath-devel \
               diffutils findutils sed which tar gzip
 
             cp MAD/src/Makefile.lxplus MAD/src/Makefile
