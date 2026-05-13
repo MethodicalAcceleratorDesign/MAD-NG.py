@@ -99,13 +99,13 @@ jobs:
         if [ "$RUNNER_OS" = "Linux" ]; then
           export CC=gcc CXX=g++
           export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES}"
-          export CXXFLAGS="${CXXFLAGS:-} ${LIB_INCLUDES}"
+          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 -fpermissive ${LIB_INCLUDES}"
         elif [ "$RUNNER_OS" = "macOS" ]; then
           llvm="$(brew --prefix llvm)"
           export PATH="${llvm}/bin:${PATH}"
           export CC="${llvm}/bin/clang" CXX="${llvm}/bin/clang++"
           export CFLAGS="${CFLAGS:-} ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
-          export CXXFLAGS="${CXXFLAGS:-} ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
+          export CXXFLAGS="${CXXFLAGS:-} -std=c++17 -fpermissive ${LIB_INCLUDES} -I$(brew --prefix libomp)/include"
           export LDFLAGS="-L$(brew --prefix libomp)/lib -lomp"
         fi
 
