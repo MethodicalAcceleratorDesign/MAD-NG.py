@@ -15,12 +15,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB_DIR="${ROOT}/lib"
-BIN_DIR="${ROOT}/bin/linux"
-
 LUAJIT_REF="${LUAJIT_REF:-mad-patch}"
 LUAJIT_REPO="${LUAJIT_REPO:-https://github.com/MethodicalAcceleratorDesign/LuaJIT.git}"
-LFS_REPO="${LFS_REPO:-https://github.com/MethodicalAcceleratorDesign/luafilesystem.git}"
-LPEG_VERSION="${LPEG_VERSION:-1.1.0}"
 
 NLOPT_REF="${NLOPT_REF:-v2.7.1}"
 NLOPT_REPO="${NLOPT_REPO:-https://github.com/stevengj/nlopt.git}"
@@ -84,73 +80,8 @@ stage_file_copy_or_link() {
   esac
 }
 
-rebuild_lfs() {
-  echo "Rebuilding LuaFileSystem against rebuilt LuaJIT"
-  need_cmd git
-  local dir="${LIB_DIR}/lfs"
-  if [[ ! -d "${dir}/.git" ]]; then
-    git clone "${LFS_REPO}" "${dir}"
-  fi
-  (
-    cd "${dir}"
-    git fetch --all --tags
-    git pull --ff-only || true
-    make clean || true
-    make AR=ar lfs.a
-    mkdir -p "${BIN_DIR}"
-    cp -f liblfs.a "${BIN_DIR}/liblfs.a"
-  )
-}
-
-rebuild_lpeg() {
-  echo "Rebuilding LPeg against rebuilt LuaJIT"
-  need_cmd tar
-  local tar_name="lpeg-${LPEG_VERSION}.tar.gz"
-  local tar_path="${LIB_DIR}/${tar_name}"
-  local src_dir="${LIB_DIR}/lpeg-${LPEG_VERSION}"
-  local dir="${LIB_DIR}/lpeg"
-  local luajit_inc="${LIB_DIR}/luajit/include/luajit-2.1"
-  local luajit_lib="${LIB_DIR}/luajit/lib/libluajit-5.1.a"
-
-  if [[ ! -d "${src_dir}" ]]; then
-    fetch_tarball "http://www.inf.puc-rio.br/~roberto/lpeg/${tar_name}" "${tar_path}"
-    ( cd "${LIB_DIR}" && tar xzf "${tar_name}" )
-  fi
-  if [[ ! -e "${dir}" ]]; then
-    ln -s "lpeg-${LPEG_VERSION}" "${dir}"
-  fi
-
-  (
-    cd "${dir}"
-    cp -f makefile makefile.mad.bak
-    sed -i -E \
-      -e "s|^[#[:space:]]*LUADIR[[:space:]]*=.*|LUADIR = ${luajit_inc}|" \
-      -e "s|^[#[:space:]]*LUALIB[[:space:]]*=.*|LUALIB = ${luajit_lib}|" \
-      -e "s|^COPT[[:space:]]*=.*|COPT = -O3|" \
-      makefile
-    if ! grep -qE '^[[:space:]]*liblpeg\.a:' makefile; then
-      awk '
-        BEGIN{done=0}
-        {print}
-        (!done && $0 ~ /^lpeg\.so:/){
-          print ""
-          print "liblpeg.a: $(FILES)"
-          print "\tenv $(AR) -r $@ $(FILES)"
-          print ""
-          done=1
-        }
-      ' makefile > makefile.mad.tmp && mv makefile.mad.tmp makefile
-    fi
-    make clean || true
-    make AR=ar LUADIR="${luajit_inc}" LUALIB="${luajit_lib}" liblpeg.a
-    mkdir -p "${BIN_DIR}"
-    cp -f liblpeg.a "${BIN_DIR}/liblpeg.a"
-  )
-}
-
 main() {
   mkdir -p "${LIB_DIR}"
-  local rebuilt_luajit=0
 
   # LuaJIT headers -> lib/luajit/src/*
   if [[ -n "${LUAJIT_SRC_DIR}" ]]; then
@@ -185,13 +116,7 @@ main() {
         "${mk}" amalg PREFIX="$(pwd)"
         "${mk}" install PREFIX="$(pwd)"
       )
-      rebuilt_luajit=1
     fi
-  fi
-
-  if [[ "${rebuilt_luajit}" -eq 1 ]]; then
-    rebuild_lfs
-    rebuild_lpeg
   fi
 
   # NLOpt headers -> lib/nlopt/src/api/nlopt.h
