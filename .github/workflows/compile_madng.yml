@@ -32,7 +32,7 @@ jobs:
 
             dnf install -y \
               gcc gcc-c++ gcc-gfortran make cmake git \
-              libquadmath-devel \
+              libquadmath-devel libstdc++-static \
               diffutils findutils sed which tar gzip
 
             cp MAD/src/Makefile.lxplus MAD/src/Makefile
@@ -49,7 +49,10 @@ jobs:
 
             cd MAD/src
             export CC=gcc CXX=g++
-            export LDOPTIONS="-no-pie"
+            # GCC keeps libgfortran.a/libquadmath.a in its private lib dir;
+            # add it so -Wl,-Bstatic can find them.
+            gcc_libdir="$(gcc -print-libgcc-file-name | xargs dirname)"
+            export LDOPTIONS="-no-pie -L${gcc_libdir}"
 
             if [ -f mad_dynmap.cpp ]; then
               sed -i.bak \
