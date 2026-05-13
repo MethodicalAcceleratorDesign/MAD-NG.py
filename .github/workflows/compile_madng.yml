@@ -28,6 +28,8 @@ jobs:
           -w /work \
           rockylinux:9 \
           bash -lc '
+            set -euo pipefail
+
             dnf install -y \
               gcc gcc-c++ gcc-gfortran make git \
               libquadmath-devel \
@@ -40,6 +42,7 @@ jobs:
               -e '"'"'s#-fdiagnostics-all-candidates##g'"'"' \
               MAD/src/Makefile || true
 
+            mkdir -p MAD/tools
             cp -f tools/build_madng_deps_linux.sh MAD/tools/
             chmod +x MAD/tools/build_madng_deps_linux.sh
             (cd MAD && JOBS="$(nproc)" CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib ./tools/build_madng_deps_linux.sh)
