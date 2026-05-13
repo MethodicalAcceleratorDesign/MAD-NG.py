@@ -32,7 +32,7 @@ jobs:
           sudo apt-get install -y build-essential gcc-11 g++-11
         elif [ "$RUNNER_OS" = "macOS" ]; then
           brew update
-          brew install llvm libomp
+          brew install llvm libomp make
         fi
 
     - name: Select Makefile

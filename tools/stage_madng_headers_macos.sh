@@ -34,6 +34,14 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1" >&2; exit 1; }
 }
 
+pick_make() {
+  if command -v gmake >/dev/null 2>&1; then
+    echo "gmake"
+  else
+    echo "make"
+  fi
+}
+
 fetch_tarball() {
   local url="$1"
   local out="$2"
@@ -109,12 +117,14 @@ main() {
     # Last resort: the MAD-patch fork generates luajit.h during build.
     if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
       echo "luajit.h not in repo — generating via make..."
+      mk="$(pick_make)"
       ( cd "${local_dir}/src"
-        make luajit.h 2>/dev/null || true
+        "${mk}" luajit.h 2>/dev/null || true
       )
       if [[ ! -e "${local_dir}/src/luajit.h" ]]; then
         # macOS: try building minilua and running it manually if make target fails
-        make -C "${local_dir}/src" host/minilua 2>/dev/null || true
+        mk="$(pick_make)"
+        "${mk}" -C "${local_dir}/src" host/minilua 2>/dev/null || true
         if [[ -x "${local_dir}/src/host/minilua" ]]; then
           "${local_dir}/src/host/minilua" "${local_dir}/src/genversion.lua" > "${local_dir}/src/luajit.h" 2>/dev/null || true
         fi
