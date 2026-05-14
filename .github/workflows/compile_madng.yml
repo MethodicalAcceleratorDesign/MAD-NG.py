@@ -172,11 +172,11 @@ jobs:
         ln -s lpeg-1.1.0 lpeg
         cd lpeg
         # Apply README.lpeg edits.
-        sed -i.bak \
-          -e 's#^#\\?LUADIR[[:space:]]*=.*#LUADIR = ../luajit/include/luajit-2.1#g' \
+        sed -i.bak -E \
+          -e 's#^#?LUADIR[[:space:]]*=.*#LUADIR = ../luajit/include/luajit-2.1#g' \
           -e 's#^LUALIB[[:space:]]*=.*#LUALIB = ../luajit/lib/libluajit-5.1.a#g' \
           -e 's#^COPT[[:space:]]*=.*#COPT = -O3 -DNDEBUG#g' \
-          makefile || true
+          makefile
         rm -f makefile.bak || true
         make clean || true
         make macosx
