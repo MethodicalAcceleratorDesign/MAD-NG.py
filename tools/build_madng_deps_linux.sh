@@ -277,7 +277,8 @@ build_nlopt() {
     rm -rf build
     mkdir -p build
     cd build
-    cmake -DBUILD_SHARED_LIBS=OFF -DNLOPT_CXX=OFF -DCMAKE_C_COMPILER="${CC}" ..
+    cmake -DBUILD_SHARED_LIBS=OFF -DNLOPT_CXX=OFF -DCMAKE_C_COMPILER="${CC}" \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
     make -j"${JOBS}"
     cp -f libnlopt.a "${BIN_DIR}/libnlopt.a"
   )
