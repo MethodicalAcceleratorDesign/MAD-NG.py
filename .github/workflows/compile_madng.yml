@@ -73,7 +73,7 @@ jobs:
         name: mad-Linux
         path: MAD/src/mad
 
-  build-macos-arm64:
+  build-macos-x86_64:
     runs-on: macos-14
     defaults:
       run:
@@ -92,24 +92,31 @@ jobs:
 
     - name: Install build tools
       run: |
-        brew update
-        brew install gcc@13 make cmake automake autoconf libtool pkg-config curl
+        arch -x86_64 /usr/local/bin/brew update
+        arch -x86_64 /usr/local/bin/brew install gcc@12 make cmake automake autoconf libtool pkg-config curl
 
     - name: Prepare compiler shims
       run: |
         set -euo pipefail
 
-        gcc_prefix="$(brew --prefix gcc@13)"
+        gcc_prefix="$(arch -x86_64 /usr/local/bin/brew --prefix gcc@12)"
         toolshim="${RUNNER_TEMP}/gcc-shim"
         mkdir -p "${toolshim}"
 
-        ln -sf "${gcc_prefix}/bin/gcc-13" "${toolshim}/gcc"
-        ln -sf "${gcc_prefix}/bin/g++-13" "${toolshim}/g++"
-        ln -sf "${gcc_prefix}/bin/gfortran-13" "${toolshim}/gfortran"
+        ln -sf "${gcc_prefix}/bin/gcc-12" "${toolshim}/gcc"
+        ln -sf "${gcc_prefix}/bin/g++-12" "${toolshim}/g++"
+        ln -sf "${gcc_prefix}/bin/gfortran-12" "${toolshim}/gfortran"
+        ln -sf "/usr/local/bin/make" "${toolshim}/make"
+        ln -sf "/usr/local/bin/cmake" "${toolshim}/cmake"
+        ln -sf "/usr/local/bin/pkg-config" "${toolshim}/pkg-config"
+        ln -sf "/usr/local/bin/libtool" "${toolshim}/libtool"
+        ln -sf "/usr/local/bin/ar" "${toolshim}/ar"
+        ln -sf "/usr/local/bin/ranlib" "${toolshim}/ranlib"
 
         {
           echo "${toolshim}"
-          echo "$(brew --prefix)/bin"
+          echo "/usr/local/bin"
+          echo "$(arch -x86_64 /usr/local/bin/brew --prefix)/bin"
         } >> "${GITHUB_PATH}"
 
     - name: Select MAD-NG macOS Makefile
@@ -149,6 +156,16 @@ jobs:
         export OS=macosx
         export MACOSX_DEPLOYMENT_TARGET=11
         export JOBS="$(sysctl -n hw.ncpu)"
+        export CC=gcc
+        export CXX=g++
+        export FC=gfortran
+        export AR=ar
+        export RANLIB=ranlib
+        export CFLAGS="-arch x86_64"
+        export CXXFLAGS="-arch x86_64"
+        export FFLAGS="-arch x86_64"
+        export FCFLAGS="-arch x86_64"
+        export LDFLAGS="-arch x86_64"
 
         mkdir -p MAD/bin/macosx
 
@@ -275,5 +292,5 @@ jobs:
     - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
-        name: mad-macOS-ARM
+        name: mad-macOS-x86_64
         path: MAD/src/mad
