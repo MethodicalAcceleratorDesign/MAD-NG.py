@@ -71,7 +71,7 @@ jobs:
           path: MAD/src/mad
 
   build-macos-x86_64:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     defaults:
       run:
         shell: bash
@@ -103,15 +103,16 @@ jobs:
           ln -sf "${gcc_prefix}/bin/gcc-12" "${toolshim}/gcc"
           ln -sf "${gcc_prefix}/bin/g++-12" "${toolshim}/g++"
           ln -sf "${gcc_prefix}/bin/gfortran-12" "${toolshim}/gfortran"
-          ln -sf "$(brew --prefix)/bin/make" "${toolshim}/make"
-          ln -sf "$(brew --prefix)/bin/cmake" "${toolshim}/cmake"
-          ln -sf "$(brew --prefix)/bin/pkg-config" "${toolshim}/pkg-config"
-          ln -sf "$(brew --prefix)/bin/libtool" "${toolshim}/libtool"
-          ln -sf "$(brew --prefix)/bin/ar" "${toolshim}/ar" || true
-          ln -sf "$(brew --prefix)/bin/ranlib" "${toolshim}/ranlib" || true
+          ln -sf "/usr/local/bin/make" "${toolshim}/make"
+          ln -sf "/usr/local/bin/cmake" "${toolshim}/cmake"
+          ln -sf "/usr/local/bin/pkg-config" "${toolshim}/pkg-config"
+          ln -sf "/usr/local/bin/libtool" "${toolshim}/libtool"
+          ln -sf "/usr/local/bin/ar" "${toolshim}/ar"
+          ln -sf "/usr/local/bin/ranlib" "${toolshim}/ranlib"
 
           {
             echo "${toolshim}"
+            echo "/usr/local/bin"
             echo "$(brew --prefix)/bin"
           } >> "${GITHUB_PATH}"
 
@@ -120,6 +121,7 @@ jobs:
           cp MAD/src/Makefile.macosx MAD/src/Makefile
           python3 - <<'PY'
           from pathlib import Path
+
           path = Path("MAD/src/Makefile")
           text = path.read_text()
           replacements = [
@@ -194,6 +196,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+
           path = Path("makefile")
           text = path.read_text()
           text = re.sub(r"^LUADIR[ \t]*=.*$", "LUADIR = ../luajit/include/luajit-2.1", text, flags=re.MULTILINE)
@@ -216,6 +219,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+
           path = Path("make.inc")
           text = path.read_text()
           for key in ("CFLAGS", "FFLAGS", "FFLAGS_NOOPT"):
@@ -231,7 +235,7 @@ jobs:
 
           echo "== FFTW3 (README.fftw3) =="
           rm -rf fftw3 fftw-3.3.10 fftw-3.3.10.tar.gz
-          curl -fsSL -o fftw-3.3.10.tar.gz https://www.fftw.org/fftw-3.3.10.tar.gz
+          curl -fsSL -o fftw-3.3.10.tar.gz ftp://ftp.fftw.org/pub/fftw/fftw-3.3.10.tar.gz
           tar xvzf fftw-3.3.10.tar.gz
           ln -s fftw-3.3.10 fftw3
           cd fftw3
@@ -270,8 +274,6 @@ jobs:
       - name: Compile MAD-NG
         working-directory: MAD/src
         run: |
-          set -euo pipefail
-
           echo "== Toolchain =="
           which gcc
           gcc --version
@@ -281,9 +283,6 @@ jobs:
           gfortran --version
 
           make SHELL=/bin/bash CC=gcc CXX=g++ FC=gfortran
-
-          file mad
-          otool -L mad || true
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
