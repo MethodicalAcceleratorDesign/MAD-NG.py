@@ -151,7 +151,7 @@ jobs:
         path: MAD/src/mad
 
   build-macos-arm:
-    runs-on: macos-15-arm64
+    runs-on: macos-latest
     defaults:
       run:
         shell: bash
