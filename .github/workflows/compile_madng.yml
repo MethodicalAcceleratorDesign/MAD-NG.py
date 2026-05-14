@@ -71,85 +71,6 @@ jobs:
         name: mad-Linux
         path: MAD/src/mad
 
-  build-macos:
-    runs-on: macos-15-intel
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-    - name: Checkout current repo
-      uses: actions/checkout@v4
-
-    - name: Clone MAD-NG
-      uses: actions/checkout@v4
-      with:
-        repository: MethodicalAcceleratorDesign/MAD-NG
-        path: MAD
-        submodules: recursive
-
-    - name: Install dependencies
-      run: |
-        brew update
-        brew install gcc make cmake automake libtool pkg-config
-
-    - name: Select Makefile
-      run: |
-        cp MAD/src/Makefile.macosx MAD/src/Makefile
-        sed -i.bak \
-          -e "s#-fdiagnostics-all-candidates##g" \
-          -e "s#-flto##g" \
-          -e "s#-march=native##g" \
-          -e "s#-mtune=native##g" \
-          -e "s#-mfma##g" \
-          MAD/src/Makefile
-
-    - name: Rebuild macOS static dependencies
-      run: |
-        gcc_prefix="$(brew --prefix gcc)"
-        gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
-        gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
-        gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
-        toolshim="${RUNNER_TEMP}/gcc-shim"
-        mkdir -p "${toolshim}"
-        ln -sf "${gcc_bin}" "${toolshim}/gcc"
-        ln -sf "${gxx_bin}" "${toolshim}/g++"
-        ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
-        brew_bin="$(brew --prefix)/bin"
-        PATH="${toolshim}:${brew_bin}:${PATH}" \
-          JOBS="$(sysctl -n hw.ncpu)" \
-          CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib \
-          ./tools/build_madng_deps_macos.sh
-
-    - name: Stage MAD-NG headers
-      run: |
-        mkdir -p MAD/tools
-        cp -f tools/stage_madng_headers_macos.sh MAD/tools/
-        chmod +x MAD/tools/stage_madng_headers_macos.sh
-        (cd MAD && ./tools/stage_madng_headers_macos.sh)
-
-    - name: Compile MAD-NG
-      working-directory: MAD/src
-      run: |
-        gcc_prefix="$(brew --prefix gcc)"
-        gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
-        gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
-        gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
-        toolshim="${RUNNER_TEMP}/gcc-shim"
-        mkdir -p "${toolshim}"
-        ln -sf "${gcc_bin}" "${toolshim}/gcc"
-        ln -sf "${gxx_bin}" "${toolshim}/g++"
-        ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
-        export PATH="${toolshim}:${PATH}"
-
-        make SHELL=/bin/bash
-
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: mad-macOS
-        path: MAD/src/mad
-
   build-macos-arm:
     runs-on: macos-latest
     defaults:
@@ -176,6 +97,9 @@ jobs:
       run: |
         cp MAD/src/Makefile.macosx MAD/src/Makefile
         sed -i.bak \
+          -e "s#^CC[[:space:]]*:=.*#CC       := gcc#g" \
+          -e "s#^CXX[[:space:]]*:=.*#CXX      := g++#g" \
+          -e "s#^FC[[:space:]]*:=.*#FC       := gfortran#g" \
           -e "s#-fdiagnostics-all-candidates##g" \
           -e "s#-flto##g" \
           -e "s#-march=native##g" \
@@ -189,6 +113,7 @@ jobs:
         gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
         gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
         gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
+        test -n "${gcc_bin}" && test -n "${gxx_bin}" && test -n "${gfortran_bin}"
         toolshim="${RUNNER_TEMP}/gcc-shim"
         mkdir -p "${toolshim}"
         ln -sf "${gcc_bin}" "${toolshim}/gcc"
@@ -214,14 +139,17 @@ jobs:
         gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
         gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
         gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
+        test -n "${gcc_bin}" && test -n "${gxx_bin}" && test -n "${gfortran_bin}"
         toolshim="${RUNNER_TEMP}/gcc-shim"
         mkdir -p "${toolshim}"
         ln -sf "${gcc_bin}" "${toolshim}/gcc"
         ln -sf "${gxx_bin}" "${toolshim}/g++"
         ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
-        export PATH="${toolshim}:${PATH}"
+        export PATH="${toolshim}:$(brew --prefix)/bin:${PATH}"
 
-        make SHELL=/bin/bash
+        which gcc
+        gcc --version
+        make SHELL=/bin/bash CC=gcc CXX=g++ FC=gfortran
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
