@@ -215,8 +215,10 @@ jobs:
         path.write_text(text)
         PY
         make clean || true
-        make -j"${JOBS}" lib
-        cp -f liblapack.a librefblas.a ../../bin/macosx/
+        make -j"${JOBS}" blaslib
+        make -j"${JOBS}" lapacklib
+        cp -f librefblas.a ../../bin/macosx/
+        cp -f liblapack.a ../../bin/macosx/
         cd ..
 
         echo "== FFTW3 (README.fftw3) =="
