@@ -138,7 +138,8 @@ jobs:
 
         mkdir -p MAD/bin/macosx
 
-        cd MAD/my_lib
+        # MAD-NG repo vendors third-party deps under MAD/lib (checked out with submodules).
+        cd MAD/lib
 
         echo "== LuaJIT (README.luajit) =="
         cd luajit
