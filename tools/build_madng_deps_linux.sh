@@ -40,7 +40,7 @@ LFS_REPO="${LFS_REPO:-https://github.com/MethodicalAcceleratorDesign/luafilesyst
 LPEG_VERSION="${LPEG_VERSION:-1.1.0}"
 FFTW_VERSION="${FFTW_VERSION:-3.3.10}"
 NFFT_VERSION="${NFFT_VERSION:-3.5.3}"
-NLOPT_REF="${NLOPT_REF:-v2.7.1}"
+NLOPT_REF="${NLOPT_REF:-v2.9.1}"
 LAPACK_REF="${LAPACK_REF:-v3.12.1}"
 
 prompt_default() {
