@@ -171,6 +171,13 @@ jobs:
         tar xvzf lpeg-1.1.0.tar.gz
         ln -s lpeg-1.1.0 lpeg
         cd lpeg
+        # Apply README.lpeg edits.
+        sed -i.bak \
+          -e 's#^#\\?LUADIR[[:space:]]*=.*#LUADIR = ../luajit/include/luajit-2.1#g' \
+          -e 's#^LUALIB[[:space:]]*=.*#LUALIB = ../luajit/lib/libluajit-5.1.a#g' \
+          -e 's#^COPT[[:space:]]*=.*#COPT = -O3 -DNDEBUG#g' \
+          makefile || true
+        rm -f makefile.bak || true
         make clean || true
         make macosx
         cp -f liblpeg.a ../../bin/macosx/
@@ -181,6 +188,13 @@ jobs:
         git clone https://github.com/Reference-LAPACK/lapack lapack
         cd lapack
         cp -f make.inc.example make.inc
+        # Apply README.lapack edits: add -fPIC to CFLAGS/FFLAGS/FFLAGS_NOOPT.
+        sed -i.bak -E \
+          -e 's#^(CFLAGS[[:space:]]*=[[:space:]]*)#\\1-fPIC #g' \
+          -e 's#^(FFLAGS[[:space:]]*=[[:space:]]*)#\\1-fPIC #g' \
+          -e 's#^(FFLAGS_NOOPT[[:space:]]*=[[:space:]]*)#\\1-fPIC #g' \
+          make.inc || true
+        rm -f make.inc.bak || true
         make clean || true
         make -j"${JOBS}" lib
         cp -f liblapack.a librefblas.a ../../bin/macosx/
@@ -200,7 +214,8 @@ jobs:
 
         echo "== NFFT3 (README.nfft3) =="
         rm -rf nfft3 nfft-3.5.3 nfft-3.5.3.tar.gz
-        curl -fsSL -o nfft-3.5.3.tar.gz http://www.nfft.org/download/nfft-3.5.3.tar.gz
+        # README.nfft3 points to nfft.org; the upstream host also serves the tarball from TU Chemnitz.
+        curl -fsSL -o nfft-3.5.3.tar.gz https://www-user.tu-chemnitz.de/~potts/nfft/download/nfft-3.5.3.tar.gz
         tar xvzf nfft-3.5.3.tar.gz
         ln -s nfft-3.5.3 nfft3
         cd nfft3
