@@ -104,13 +104,6 @@ jobs:
           -e "s#-mfma##g" \
           MAD/src/Makefile
 
-    - name: Stage MAD-NG headers
-      run: |
-        mkdir -p MAD/tools
-        cp -f tools/stage_madng_headers_macos.sh MAD/tools/
-        chmod +x MAD/tools/stage_madng_headers_macos.sh
-        (cd MAD && ./tools/stage_madng_headers_macos.sh)
-
     - name: Rebuild macOS static dependencies
       run: |
         gcc_prefix="$(brew --prefix gcc)"
@@ -127,6 +120,13 @@ jobs:
           JOBS="$(sysctl -n hw.ncpu)" \
           CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib \
           ./tools/build_madng_deps_macos.sh
+
+    - name: Stage MAD-NG headers
+      run: |
+        mkdir -p MAD/tools
+        cp -f tools/stage_madng_headers_macos.sh MAD/tools/
+        chmod +x MAD/tools/stage_madng_headers_macos.sh
+        (cd MAD && ./tools/stage_madng_headers_macos.sh)
 
     - name: Compile MAD-NG
       working-directory: MAD/src
