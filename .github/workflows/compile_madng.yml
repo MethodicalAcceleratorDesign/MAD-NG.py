@@ -1,7 +1,9 @@
 name: Make a MAD-NG Binary
 
 on:
+  push:
   workflow_dispatch:
+
 
 jobs:
   build-linux:
@@ -192,7 +194,9 @@ jobs:
         path.write_text(text)
         PY
         make clean || true
-        make macosx
+        make -j"${JOBS}" CC="${CC:-gcc}" LUADIR="../luajit/include/luajit-2.1" lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
+        ar -r liblpeg.a lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
+        ranlib liblpeg.a
         cp -f liblpeg.a ../../bin/macosx/
         cd ..
 
