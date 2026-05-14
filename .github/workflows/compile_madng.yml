@@ -113,16 +113,24 @@ jobs:
     - name: Select MAD-NG macOS Makefile
       run: |
         cp MAD/src/Makefile.macosx MAD/src/Makefile
-        sed -i.bak \
-          -e "s#^CC[[:space:]]*:=.*#CC       := gcc#g" \
-          -e "s#^CXX[[:space:]]*:=.*#CXX      := g++#g" \
-          -e "s#^FC[[:space:]]*:=.*#FC       := gfortran#g" \
-          -e "s#-fdiagnostics-all-candidates##g" \
-          -e "s#-flto##g" \
-          -e "s#-march=native##g" \
-          -e "s#-mtune=native##g" \
-          -e "s#-mfma##g" \
-          MAD/src/Makefile
+        python3 - <<'PY'
+        from pathlib import Path
+        path = Path("MAD/src/Makefile")
+        text = path.read_text()
+        replacements = [
+            ("CC       := gcc-11", "CC       := gcc"),
+            ("CXX      := g++-11", "CXX      := g++"),
+            ("FC       := gfortran-11", "FC       := gfortran"),
+            ("-fdiagnostics-all-candidates", ""),
+            ("-flto", ""),
+            ("-march=native", ""),
+            ("-mtune=native", ""),
+            ("-mfma", ""),
+        ]
+        for old, new in replacements:
+            text = text.replace(old, new)
+        path.write_text(text)
+        PY
 
     - name: Build MAD-NG dependencies (README order)
       run: |
@@ -173,12 +181,16 @@ jobs:
         tar xvzf lpeg-1.1.0.tar.gz
         ln -s lpeg-1.1.0 lpeg
         cd lpeg
-        sed -i.bak -E \
-          -e 's#^#?LUADIR[[:space:]]*=.*#LUADIR = ../luajit/include/luajit-2.1#g' \
-          -e 's#^LUALIB[[:space:]]*=.*#LUALIB = ../luajit/lib/libluajit-5.1.a#g' \
-          -e 's#^COPT[[:space:]]*=.*#COPT = -O3 -DNDEBUG#g' \
-          makefile
-        rm -f makefile.bak || true
+        python3 - <<'PY'
+        from pathlib import Path
+        import re
+        path = Path("makefile")
+        text = path.read_text()
+        text = re.sub(r"^LUADIR[ \t]*=.*$", "LUADIR = ../luajit/include/luajit-2.1", text, flags=re.MULTILINE)
+        text = re.sub(r"^LUALIB[ \t]*=.*$", "LUALIB = ../luajit/lib/libluajit-5.1.a", text, flags=re.MULTILINE)
+        text = re.sub(r"^COPT[ \t]*=.*$", "COPT = -O3 -DNDEBUG", text, flags=re.MULTILINE)
+        path.write_text(text)
+        PY
         make clean || true
         make macosx
         cp -f liblpeg.a ../../bin/macosx/
@@ -189,12 +201,15 @@ jobs:
         git clone https://github.com/Reference-LAPACK/lapack lapack
         cd lapack
         cp -f make.inc.example make.inc
-        sed -i.bak -E \
-          -e 's#^(CFLAGS[[:space:]]*=[[:space:]]*)#\\1-fPIC #g' \
-          -e 's#^(FFLAGS[[:space:]]*=[[:space:]]*)#\\1-fPIC #g' \
-          -e 's#^(FFLAGS_NOOPT[[:space:]]*=[[:space:]]*)#\\1-fPIC #g' \
-          make.inc
-        rm -f make.inc.bak || true
+        python3 - <<'PY'
+        from pathlib import Path
+        import re
+        path = Path("make.inc")
+        text = path.read_text()
+        for key in ("CFLAGS", "FFLAGS", "FFLAGS_NOOPT"):
+            text = re.sub(rf"^({key}[ \t]*=[ \t]*)(?!-fPIC\b)", r"\1-fPIC ", text, flags=re.MULTILINE)
+        path.write_text(text)
+        PY
         make clean || true
         make -j"${JOBS}" lib
         cp -f liblapack.a librefblas.a ../../bin/macosx/
