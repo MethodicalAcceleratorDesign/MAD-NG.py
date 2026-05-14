@@ -145,14 +145,11 @@ jobs:
         ls -la
 
         echo "== LuaJIT (README.luajit) =="
-        if [[ -d "luajit" ]]; then
-          cd luajit
-        elif [[ -d "LuaJIT" ]]; then
-          cd LuaJIT
-        else
-          echo "LuaJIT directory not found under MAD/lib"
-          exit 1
-        fi
+        rm -rf luajit
+        git clone https://github.com/MethodicalAcceleratorDesign/LuaJIT.git luajit
+        cd luajit
+        git checkout mad-patch
+        git pull
         make clean
         make -j"${JOBS}" amalg PREFIX="$(pwd)"
         make install PREFIX="$(pwd)"
@@ -160,6 +157,8 @@ jobs:
         cd ..
 
         echo "== LFS (README.lfs) =="
+        rm -rf lfs
+        git clone https://github.com/MethodicalAcceleratorDesign/luafilesystem.git lfs
         cd lfs
         make clean || true
         make lfs.a
@@ -167,6 +166,10 @@ jobs:
         cd ..
 
         echo "== LPEG (README.lpeg) =="
+        rm -rf lpeg lpeg-1.1.0 lpeg-1.1.0.tar.gz
+        curl -fsSL -o lpeg-1.1.0.tar.gz http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz
+        tar xvzf lpeg-1.1.0.tar.gz
+        ln -s lpeg-1.1.0 lpeg
         cd lpeg
         make clean || true
         make macosx
@@ -174,6 +177,8 @@ jobs:
         cd ..
 
         echo "== LAPACK (README.lapack) =="
+        rm -rf lapack
+        git clone https://github.com/Reference-LAPACK/lapack lapack
         cd lapack
         cp -f make.inc.example make.inc
         make clean || true
@@ -182,6 +187,10 @@ jobs:
         cd ..
 
         echo "== FFTW3 (README.fftw3) =="
+        rm -rf fftw3 fftw-3.3.10 fftw-3.3.10.tar.gz
+        curl -fsSL -o fftw-3.3.10.tar.gz ftp://ftp.fftw.org/pub/fftw/fftw-3.3.10.tar.gz
+        tar xvzf fftw-3.3.10.tar.gz
+        ln -s fftw-3.3.10 fftw3
         cd fftw3
         make clean || true
         ./configure --disable-shared
@@ -190,6 +199,10 @@ jobs:
         cd ..
 
         echo "== NFFT3 (README.nfft3) =="
+        rm -rf nfft3 nfft-3.5.3 nfft-3.5.3.tar.gz
+        curl -fsSL -o nfft-3.5.3.tar.gz http://www.nfft.org/download/nfft-3.5.3.tar.gz
+        tar xvzf nfft-3.5.3.tar.gz
+        ln -s nfft-3.5.3 nfft3
         cd nfft3
         make clean || true
         ./configure --enable-all --disable-shared \
@@ -201,6 +214,8 @@ jobs:
         cd ..
 
         echo "== NLOPT (README.nlopt) =="
+        rm -rf nlopt
+        git clone https://github.com/stevengj/nlopt nlopt
         cd nlopt
         rm -rf build
         mkdir -p build
