@@ -124,6 +124,14 @@ jobs:
         ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
         export PATH="${toolshim}:$(brew --prefix)/bin:${PATH}"
 
+        echo "== Toolchain =="
+        which gcc
+        gcc --version
+        which g++
+        g++ --version
+        which gfortran
+        gfortran --version
+
         export OS=macosx
         export MACOSX_DEPLOYMENT_TARGET=11
         export JOBS="$(sysctl -n hw.ncpu)"
@@ -206,8 +214,13 @@ jobs:
         ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
         export PATH="${toolshim}:$(brew --prefix)/bin:${PATH}"
 
+        echo "== Toolchain =="
         which gcc
         gcc --version
+        which g++
+        g++ --version
+        which gfortran
+        gfortran --version
         make SHELL=/bin/bash CC=gcc CXX=g++ FC=gfortran
 
     - name: Upload binary
