@@ -34,7 +34,8 @@ jobs:
             dnf config-manager --enable crb
             dnf install -y \
               gcc gcc-c++ gcc-gfortran make cmake git \
-              libquadmath-devel libstdc++-static \
+              libquadmath-devel libquadmath-static \
+              libgfortran-static libstdc++-static \
               diffutils findutils sed which tar gzip
 
             cp MAD/src/Makefile.lxplus MAD/src/Makefile
