@@ -4,7 +4,6 @@ on:
   push:
   workflow_dispatch:
 
-
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
@@ -13,65 +12,63 @@ jobs:
         shell: bash
 
     steps:
-    - name: Checkout current repo
-      uses: actions/checkout@v4
+      - name: Checkout current repo
+        uses: actions/checkout@v4
 
-    - name: Clone MAD-NG
-      uses: actions/checkout@v4
-      with:
-        repository: MethodicalAcceleratorDesign/MAD-NG
-        path: MAD
-        submodules: recursive
+      - name: Clone MAD-NG
+        uses: actions/checkout@v4
+        with:
+          repository: MethodicalAcceleratorDesign/MAD-NG
+          path: MAD
+          submodules: recursive
 
-    - name: Build MAD-NG in Rocky Linux 9
-      run: |
-        docker run --rm \
-          -v "${GITHUB_WORKSPACE}:/work" \
-          -w /work \
-          rockylinux:9 \
-          bash -lc '
-            set -euo pipefail
+      - name: Build MAD-NG in Rocky Linux 9
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            rockylinux:9 \
+            bash -lc '
+              set -euo pipefail
 
-            dnf install -y dnf-plugins-core
-            dnf config-manager --enable crb
-            dnf install -y \
-              gcc gcc-c++ gcc-gfortran make cmake git \
-              libquadmath-devel libquadmath-static \
-              libgfortran-static libstdc++-static \
-              diffutils findutils sed which tar gzip
+              dnf install -y dnf-plugins-core
+              dnf config-manager --enable crb
+              dnf install -y \
+                gcc gcc-c++ gcc-gfortran make cmake git \
+                libquadmath-devel libquadmath-static \
+                libgfortran-static libstdc++-static \
+                diffutils findutils sed which tar gzip
 
-            cp MAD/src/Makefile.lxplus MAD/src/Makefile
-            sed -i \
-              -e '"'"'s#^CC[[:space:]]*=.*#CC=gcc#g'"'"' \
-              -e '"'"'s#^CXX[[:space:]]*=.*#CXX=g++#g'"'"' \
-              -e '"'"'s#-fdiagnostics-all-candidates##g'"'"' \
-              MAD/src/Makefile || true
+              cp MAD/src/Makefile.lxplus MAD/src/Makefile
+              sed -i \
+                -e '"'"'s#^CC[[:space:]]*=.*#CC=gcc#g'"'"' \
+                -e '"'"'s#^CXX[[:space:]]*=.*#CXX=g++#g'"'"' \
+                -e '"'"'s#-fdiagnostics-all-candidates##g'"'"' \
+                MAD/src/Makefile || true
 
-            mkdir -p MAD/tools
-            cp -f tools/build_madng_deps_linux.sh MAD/tools/
-            chmod +x MAD/tools/build_madng_deps_linux.sh
-            (cd MAD && JOBS="$(nproc)" CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib ./tools/build_madng_deps_linux.sh)
+              mkdir -p MAD/tools
+              cp -f tools/build_madng_deps_linux.sh MAD/tools/
+              chmod +x MAD/tools/build_madng_deps_linux.sh
+              (cd MAD && JOBS="$(nproc)" CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib ./tools/build_madng_deps_linux.sh)
 
-            cd MAD/src
-            export CC=gcc CXX=g++
-            # LIBRARY_PATH makes GCC prepend -L at the START of the ld invocation,
-            # before -lgfortran/-lquadmath are seen (unlike LDOPTIONS which comes after).
-            gcc_libdir="$(gcc -print-libgcc-file-name | xargs dirname)"
-            export LIBRARY_PATH="${gcc_libdir}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
-            export LDOPTIONS="-no-pie"
+              cd MAD/src
+              export CC=gcc CXX=g++
+              gcc_libdir="$(gcc -print-libgcc-file-name | xargs dirname)"
+              export LIBRARY_PATH="${gcc_libdir}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+              export LDOPTIONS="-no-pie"
 
-            make SHELL=/bin/bash \
-              CC="${CC}" CXX="${CXX}" \
-              LDOPTIONS="${LDOPTIONS:-}"
+              make SHELL=/bin/bash \
+                CC="${CC}" CXX="${CXX}" \
+                LDOPTIONS="${LDOPTIONS:-}"
 
-            chmod 755 mad
-          '
+              chmod 755 mad
+            '
 
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: mad-Linux
-        path: MAD/src/mad
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mad-Linux
+          path: MAD/src/mad
 
   build-macos-x86_64:
     runs-on: macos-14-large
@@ -80,388 +77,216 @@ jobs:
         shell: bash
 
     steps:
-    - name: Checkout current repo
-      uses: actions/checkout@v4
+      - name: Checkout current repo
+        uses: actions/checkout@v4
 
-    - name: Clone MAD-NG
-      uses: actions/checkout@v4
-      with:
-        repository: MethodicalAcceleratorDesign/MAD-NG
-        path: MAD
-        submodules: recursive
+      - name: Clone MAD-NG
+        uses: actions/checkout@v4
+        with:
+          repository: MethodicalAcceleratorDesign/MAD-NG
+          path: MAD
+          submodules: recursive
 
-    - name: Install build tools
-      run: |
-        brew update
-        brew install gcc@12 make cmake automake autoconf libtool pkg-config curl
+      - name: Install build tools
+        run: |
+          brew update
+          brew install gcc@12 make cmake automake autoconf libtool pkg-config curl
 
-    - name: Prepare compiler shims
-      run: |
-        set -euo pipefail
+      - name: Prepare compiler shims
+        run: |
+          set -euo pipefail
 
-        gcc_prefix="$(brew --prefix gcc@12)"
-        toolshim="${RUNNER_TEMP}/gcc-shim"
-        mkdir -p "${toolshim}"
+          gcc_prefix="$(brew --prefix gcc@12)"
+          toolshim="${RUNNER_TEMP}/gcc-shim"
+          mkdir -p "${toolshim}"
 
-        ln -sf "${gcc_prefix}/bin/gcc-12" "${toolshim}/gcc"
-        ln -sf "${gcc_prefix}/bin/g++-12" "${toolshim}/g++"
-        ln -sf "${gcc_prefix}/bin/gfortran-12" "${toolshim}/gfortran"
+          ln -sf "${gcc_prefix}/bin/gcc-12" "${toolshim}/gcc"
+          ln -sf "${gcc_prefix}/bin/g++-12" "${toolshim}/g++"
+          ln -sf "${gcc_prefix}/bin/gfortran-12" "${toolshim}/gfortran"
+          ln -sf "$(brew --prefix)/bin/make" "${toolshim}/make"
+          ln -sf "$(brew --prefix)/bin/cmake" "${toolshim}/cmake"
+          ln -sf "$(brew --prefix)/bin/pkg-config" "${toolshim}/pkg-config"
+          ln -sf "$(brew --prefix)/bin/libtool" "${toolshim}/libtool"
+          ln -sf "$(brew --prefix)/bin/ar" "${toolshim}/ar" || true
+          ln -sf "$(brew --prefix)/bin/ranlib" "${toolshim}/ranlib" || true
 
-        {
-          echo "${toolshim}"
-          echo "$(brew --prefix)/bin"
-        } >> "${GITHUB_PATH}"
+          {
+            echo "${toolshim}"
+            echo "$(brew --prefix)/bin"
+          } >> "${GITHUB_PATH}"
 
-    - name: Select MAD-NG macOS Makefile
-      run: |
-        cp MAD/src/Makefile.macosx MAD/src/Makefile
-        python3 - <<'PY'
-        from pathlib import Path
+      - name: Select MAD-NG macOS Makefile
+        run: |
+          cp MAD/src/Makefile.macosx MAD/src/Makefile
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("MAD/src/Makefile")
+          text = path.read_text()
+          replacements = [
+              ("CC       := gcc-11", "CC       := gcc"),
+              ("CXX      := g++-11", "CXX      := g++"),
+              ("FC       := gfortran-11", "FC       := gfortran"),
+              ("-fdiagnostics-all-candidates", ""),
+              ("-flto", ""),
+              ("-march=native", ""),
+              ("-mtune=native", ""),
+              ("-mfma", ""),
+          ]
+          for old, new in replacements:
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
 
-        path = Path("MAD/src/Makefile")
-        text = path.read_text()
+      - name: Build MAD-NG dependencies (README order)
+        run: |
+          set -euo pipefail
 
-        replacements = [
-            ("CC       := gcc-11", "CC       := gcc"),
-            ("CXX      := g++-11", "CXX      := g++"),
-            ("FC       := gfortran-11", "FC       := gfortran"),
-            ("-fdiagnostics-all-candidates", ""),
-            ("-flto", ""),
-            ("-march=native", ""),
-            ("-mtune=native", ""),
-            ("-mfma", ""),
-        ]
+          echo "== Toolchain =="
+          which gcc
+          gcc --version
+          which g++
+          g++ --version
+          which gfortran
+          gfortran --version
 
-        for old, new in replacements:
-            text = text.replace(old, new)
+          export OS=macosx
+          export MACOSX_DEPLOYMENT_TARGET=11
+          export JOBS="$(sysctl -n hw.ncpu)"
+          export CC=gcc
+          export CXX=g++
+          export FC=gfortran
+          export AR=ar
+          export RANLIB=ranlib
 
-        path.write_text(text)
-        PY
+          mkdir -p MAD/bin/macosx
 
-    - name: Build MAD-NG dependencies
-      run: |
-        set -euo pipefail
+          cd MAD/lib
+          echo "== MAD/lib contents (before download) =="
+          ls -la
 
-        export OS=macosx
-        export MACOSX_DEPLOYMENT_TARGET=11
-        export JOBS="$(sysctl -n hw.ncpu)"
-        export CC=gcc
-        export CXX=g++
-        export FC=gfortran
-        export AR=ar
-        export RANLIB=ranlib
+          echo "== LuaJIT (README.luajit) =="
+          rm -rf luajit
+          git clone https://github.com/MethodicalAcceleratorDesign/LuaJIT.git luajit
+          cd luajit
+          git checkout mad-patch
+          git pull
+          make clean
+          make -j"${JOBS}" amalg PREFIX="$(pwd)"
+          make install PREFIX="$(pwd)"
+          cp -f src/libluajit.a ../../bin/macosx/
+          cd ..
 
-        mkdir -p MAD/tools
-        cp -f tools/build_madng_deps_linux.sh MAD/tools/ || true
+          echo "== LFS (README.lfs) =="
+          rm -rf lfs
+          git clone https://github.com/MethodicalAcceleratorDesign/luafilesystem.git lfs
+          cd lfs
+          make clean || true
+          make lfs.a
+          cp -f liblfs.a ../../bin/macosx/
+          cd ..
 
-        mkdir -p MAD/bin/macosx
+          echo "== LPEG (README.lpeg) =="
+          rm -rf lpeg lpeg-1.1.0 lpeg-1.1.0.tar.gz
+          curl -fsSL -o lpeg-1.1.0.tar.gz http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz
+          tar xvzf lpeg-1.1.0.tar.gz
+          ln -s lpeg-1.1.0 lpeg
+          cd lpeg
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path("makefile")
+          text = path.read_text()
+          text = re.sub(r"^LUADIR[ \t]*=.*$", "LUADIR = ../luajit/include/luajit-2.1", text, flags=re.MULTILINE)
+          text = re.sub(r"^LUALIB[ \t]*=.*$", "LUALIB = ../luajit/lib/libluajit-5.1.a", text, flags=re.MULTILINE)
+          text = re.sub(r"^COPT[ \t]*=.*$", "COPT = -O3 -DNDEBUG", text, flags=re.MULTILINE)
+          path.write_text(text)
+          PY
+          make clean || true
+          make -j"${JOBS}" CC="${CC:-gcc}" LUADIR="../luajit/include/luajit-2.1" lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
+          ar -r liblpeg.a lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
+          ranlib liblpeg.a
+          cp -f liblpeg.a ../../bin/macosx/
+          cd ..
 
-        cd MAD/lib
+          echo "== LAPACK (README.lapack) =="
+          rm -rf lapack
+          git clone https://github.com/Reference-LAPACK/lapack lapack
+          cd lapack
+          cp -f make.inc.example make.inc
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path("make.inc")
+          text = path.read_text()
+          for key in ("CFLAGS", "FFLAGS", "FFLAGS_NOOPT"):
+              text = re.sub(rf"^({key}[ \t]*=[ \t]*)(?!-fPIC\b)", r"\1-fPIC ", text, flags=re.MULTILINE)
+          path.write_text(text)
+          PY
+          make clean || true
+          make -j"${JOBS}" blaslib
+          make -j"${JOBS}" lapacklib
+          cp -f librefblas.a ../../bin/macosx/
+          cp -f liblapack.a ../../bin/macosx/
+          cd ..
 
-        rm -rf luajit
-        git clone https://github.com/MethodicalAcceleratorDesign/LuaJIT.git luajit
-        cd luajit
-        git checkout mad-patch
-        make clean || true
-        make -j"${JOBS}" amalg PREFIX="$(pwd)"
-        make install PREFIX="$(pwd)"
-        cp -f src/libluajit.a ../../bin/macosx/
-        cd ..
+          echo "== FFTW3 (README.fftw3) =="
+          rm -rf fftw3 fftw-3.3.10 fftw-3.3.10.tar.gz
+          curl -fsSL -o fftw-3.3.10.tar.gz https://www.fftw.org/fftw-3.3.10.tar.gz
+          tar xvzf fftw-3.3.10.tar.gz
+          ln -s fftw-3.3.10 fftw3
+          cd fftw3
+          make clean || true
+          ./configure --disable-shared
+          make -j"${JOBS}"
+          cp -f .libs/libfftw3.a ../../bin/macosx/
+          cd ..
 
-        rm -rf lfs
-        git clone https://github.com/MethodicalAcceleratorDesign/luafilesystem.git lfs
-        cd lfs
-        make clean || true
-        make lfs.a
-        cp -f liblfs.a ../../bin/macosx/
-        cd ..
+          echo "== NFFT3 (README.nfft3) =="
+          rm -rf nfft3 nfft-3.5.3 nfft-3.5.3.tar.gz
+          curl -fsSL -o nfft-3.5.3.tar.gz https://www-user.tu-chemnitz.de/~potts/nfft/download/nfft-3.5.3.tar.gz
+          tar xvzf nfft-3.5.3.tar.gz
+          ln -s nfft-3.5.3 nfft3
+          cd nfft3
+          make clean || true
+          ./configure --enable-all --disable-shared \
+            --with-fftw3="$(pwd)"/../fftw3 \
+            --with-fftw3-libdir="$(pwd)"/../fftw3/.libs \
+            --with-fftw3-includedir="$(pwd)"/../fftw3/api
+          make -j"${JOBS}"
+          cp -f .libs/libnfft3.a ../../bin/macosx/
+          cd ..
 
-        rm -rf lpeg lpeg-1.1.0 lpeg-1.1.0.tar.gz
-        curl -fsSL -o lpeg-1.1.0.tar.gz http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz
-        tar xzf lpeg-1.1.0.tar.gz
-        ln -s lpeg-1.1.0 lpeg
-        cd lpeg
-        python3 - <<'PY'
-        from pathlib import Path
-        import re
+          echo "== NLOPT (README.nlopt) =="
+          rm -rf nlopt
+          git clone https://github.com/stevengj/nlopt nlopt
+          cd nlopt
+          rm -rf build
+          mkdir -p build
+          cd build
+          cmake -DBUILD_SHARED_LIBS=OFF -DNLOPT_CXX=OFF ..
+          make -j"${JOBS}"
+          cp -f libnlopt.a ../../../bin/macosx/
 
-        path = Path("makefile")
-        text = path.read_text()
-        text = re.sub(r"^LUADIR[ \t]*=.*$", "LUADIR = ../luajit/include/luajit-2.1", text, flags=re.MULTILINE)
-        text = re.sub(r"^LUALIB[ \t]*=.*$", "LUALIB = ../luajit/lib/libluajit-5.1.a", text, flags=re.MULTILINE)
-        text = re.sub(r"^COPT[ \t]*=.*$", "COPT = -O3 -DNDEBUG", text, flags=re.MULTILINE)
-        path.write_text(text)
-        PY
-        make clean || true
-        make -j"${JOBS}" CC=gcc LUADIR="../luajit/include/luajit-2.1" \
-          lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
-        ar -r liblpeg.a lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
-        ranlib liblpeg.a
-        cp -f liblpeg.a ../../bin/macosx/
-        cd ..
+      - name: Compile MAD-NG
+        working-directory: MAD/src
+        run: |
+          set -euo pipefail
 
-        rm -rf lapack
-        git clone https://github.com/Reference-LAPACK/lapack lapack
-        cd lapack
-        cp -f make.inc.example make.inc
-        python3 - <<'PY'
-        from pathlib import Path
-        import re
+          echo "== Toolchain =="
+          which gcc
+          gcc --version
+          which g++
+          g++ --version
+          which gfortran
+          gfortran --version
 
-        path = Path("make.inc")
-        text = path.read_text()
-        for key in ("CFLAGS", "FFLAGS", "FFLAGS_NOOPT"):
-            text = re.sub(rf"^({key}[ \t]*=[ \t]*)(?!-fPIC\b)", r"\1-fPIC ", text, flags=re.MULTILINE)
-        path.write_text(text)
-        PY
-        make clean || true
-        make -j"${JOBS}" blaslib
-        make -j"${JOBS}" lapacklib
-        cp -f librefblas.a ../../bin/macosx/
-        cp -f liblapack.a ../../bin/macosx/
-        cd ..
+          make SHELL=/bin/bash CC=gcc CXX=g++ FC=gfortran
 
-        rm -rf fftw3 fftw-3.3.10 fftw-3.3.10.tar.gz
-        curl -fsSL -o fftw-3.3.10.tar.gz https://www.fftw.org/fftw-3.3.10.tar.gz
-        tar xzf fftw-3.3.10.tar.gz
-        ln -s fftw-3.3.10 fftw3
-        cd fftw3
-        make clean || true
-        ./configure --disable-shared
-        make -j"${JOBS}"
-        cp -f .libs/libfftw3.a ../../bin/macosx/
-        cd ..
+          file mad
+          otool -L mad || true
 
-        rm -rf nfft3 nfft-3.5.3 nfft-3.5.3.tar.gz
-        curl -fsSL -o nfft-3.5.3.tar.gz https://www-user.tu-chemnitz.de/~potts/nfft/download/nfft-3.5.3.tar.gz
-        tar xzf nfft-3.5.3.tar.gz
-        ln -s nfft-3.5.3 nfft3
-        cd nfft3
-        make clean || true
-        ./configure --enable-all --disable-shared \
-          --with-fftw3="$(pwd)/../fftw3" \
-          --with-fftw3-libdir="$(pwd)/../fftw3/.libs" \
-          --with-fftw3-includedir="$(pwd)/../fftw3/api"
-        make -j"${JOBS}"
-        cp -f .libs/libnfft3.a ../../bin/macosx/
-        cd ..
-
-        rm -rf nlopt
-        git clone https://github.com/stevengj/nlopt nlopt
-        cd nlopt
-        mkdir -p build
-        cd build
-        cmake -DBUILD_SHARED_LIBS=OFF -DNLOPT_CXX=OFF ..
-        make -j"${JOBS}"
-        cp -f libnlopt.a ../../../bin/macosx/
-
-    - name: Compile MAD-NG
-      working-directory: MAD/src
-      run: |
-        set -euo pipefail
-
-        which gcc
-        gcc --version
-        which g++
-        g++ --version
-        which gfortran
-        gfortran --version
-
-        make SHELL=/bin/bash CC=gcc CXX=g++ FC=gfortran
-
-        file mad
-        otool -L mad || true
-
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: mad-macOS-x86_64
-        path: MAD/src/mad
-        ln -sf "/usr/local/bin/make" "${toolshim}/make"
-        ln -sf "/usr/local/bin/cmake" "${toolshim}/cmake"
-        ln -sf "/usr/local/bin/pkg-config" "${toolshim}/pkg-config"
-        ln -sf "/usr/local/bin/libtool" "${toolshim}/libtool"
-        ln -sf "/usr/local/bin/ar" "${toolshim}/ar"
-        ln -sf "/usr/local/bin/ranlib" "${toolshim}/ranlib"
-
-        {
-          echo "${toolshim}"
-          echo "/usr/local/bin"
-          echo "$(arch -x86_64 /usr/local/bin/brew --prefix)/bin"
-        } >> "${GITHUB_PATH}"
-
-    - name: Select MAD-NG macOS Makefile
-      run: |
-        cp MAD/src/Makefile.macosx MAD/src/Makefile
-        python3 - <<'PY'
-        from pathlib import Path
-        path = Path("MAD/src/Makefile")
-        text = path.read_text()
-        replacements = [
-            ("CC       := gcc-11", "CC       := gcc"),
-            ("CXX      := g++-11", "CXX      := g++"),
-            ("FC       := gfortran-11", "FC       := gfortran"),
-            ("-fdiagnostics-all-candidates", ""),
-            ("-flto", ""),
-            ("-march=native", ""),
-            ("-mtune=native", ""),
-            ("-mfma", ""),
-        ]
-        for old, new in replacements:
-            text = text.replace(old, new)
-        path.write_text(text)
-        PY
-
-    - name: Build MAD-NG dependencies (README order)
-      run: |
-        set -euo pipefail
-
-        echo "== Toolchain =="
-        which gcc
-        gcc --version
-        which g++
-        g++ --version
-        which gfortran
-        gfortran --version
-
-        export OS=macosx
-        export MACOSX_DEPLOYMENT_TARGET=11
-        export JOBS="$(sysctl -n hw.ncpu)"
-        export CC=gcc
-        export CXX=g++
-        export FC=gfortran
-        export AR=ar
-        export RANLIB=ranlib
-        export CFLAGS="-arch x86_64"
-        export CXXFLAGS="-arch x86_64"
-        export FFLAGS="-arch x86_64"
-        export FCFLAGS="-arch x86_64"
-        export LDFLAGS="-arch x86_64"
-
-        mkdir -p MAD/bin/macosx
-
-        cd MAD/lib
-        echo "== MAD/lib contents (before download) =="
-        ls -la
-
-        echo "== LuaJIT (README.luajit) =="
-        rm -rf luajit
-        git clone https://github.com/MethodicalAcceleratorDesign/LuaJIT.git luajit
-        cd luajit
-        git checkout mad-patch
-        git pull
-        make clean
-        make -j"${JOBS}" amalg PREFIX="$(pwd)"
-        make install PREFIX="$(pwd)"
-        cp -f src/libluajit.a ../../bin/macosx/
-        cd ..
-
-        echo "== LFS (README.lfs) =="
-        rm -rf lfs
-        git clone https://github.com/MethodicalAcceleratorDesign/luafilesystem.git lfs
-        cd lfs
-        make clean || true
-        make lfs.a
-        cp -f liblfs.a ../../bin/macosx/
-        cd ..
-
-        echo "== LPEG (README.lpeg) =="
-        rm -rf lpeg lpeg-1.1.0 lpeg-1.1.0.tar.gz
-        curl -fsSL -o lpeg-1.1.0.tar.gz http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz
-        tar xvzf lpeg-1.1.0.tar.gz
-        ln -s lpeg-1.1.0 lpeg
-        cd lpeg
-        python3 - <<'PY'
-        from pathlib import Path
-        import re
-        path = Path("makefile")
-        text = path.read_text()
-        text = re.sub(r"^LUADIR[ \t]*=.*$", "LUADIR = ../luajit/include/luajit-2.1", text, flags=re.MULTILINE)
-        text = re.sub(r"^LUALIB[ \t]*=.*$", "LUALIB = ../luajit/lib/libluajit-5.1.a", text, flags=re.MULTILINE)
-        text = re.sub(r"^COPT[ \t]*=.*$", "COPT = -O3 -DNDEBUG", text, flags=re.MULTILINE)
-        path.write_text(text)
-        PY
-        make clean || true
-        make -j"${JOBS}" CC="${CC:-gcc}" LUADIR="../luajit/include/luajit-2.1" lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
-        ar -r liblpeg.a lpvm.o lpcap.o lptree.o lpcode.o lpprint.o lpcset.o
-        ranlib liblpeg.a
-        cp -f liblpeg.a ../../bin/macosx/
-        cd ..
-
-        echo "== LAPACK (README.lapack) =="
-        rm -rf lapack
-        git clone https://github.com/Reference-LAPACK/lapack lapack
-        cd lapack
-        cp -f make.inc.example make.inc
-        python3 - <<'PY'
-        from pathlib import Path
-        import re
-        path = Path("make.inc")
-        text = path.read_text()
-        for key in ("CFLAGS", "FFLAGS", "FFLAGS_NOOPT"):
-            text = re.sub(rf"^({key}[ \t]*=[ \t]*)(?!-fPIC\b)", r"\1-fPIC ", text, flags=re.MULTILINE)
-        path.write_text(text)
-        PY
-        make clean || true
-        make -j"${JOBS}" blaslib
-        make -j"${JOBS}" lapacklib
-        cp -f librefblas.a ../../bin/macosx/
-        cp -f liblapack.a ../../bin/macosx/
-        cd ..
-
-        echo "== FFTW3 (README.fftw3) =="
-        rm -rf fftw3 fftw-3.3.10 fftw-3.3.10.tar.gz
-        curl -fsSL -o fftw-3.3.10.tar.gz ftp://ftp.fftw.org/pub/fftw/fftw-3.3.10.tar.gz
-        tar xvzf fftw-3.3.10.tar.gz
-        ln -s fftw-3.3.10 fftw3
-        cd fftw3
-        make clean || true
-        ./configure --disable-shared
-        make -j"${JOBS}"
-        cp -f .libs/libfftw3.a ../../bin/macosx/
-        cd ..
-
-        echo "== NFFT3 (README.nfft3) =="
-        rm -rf nfft3 nfft-3.5.3 nfft-3.5.3.tar.gz
-        curl -fsSL -o nfft-3.5.3.tar.gz https://www-user.tu-chemnitz.de/~potts/nfft/download/nfft-3.5.3.tar.gz
-        tar xvzf nfft-3.5.3.tar.gz
-        ln -s nfft-3.5.3 nfft3
-        cd nfft3
-        make clean || true
-        ./configure --enable-all --disable-shared \
-          --with-fftw3="$(pwd)"/../fftw3 \
-          --with-fftw3-libdir="$(pwd)"/../fftw3/.libs \
-          --with-fftw3-includedir="$(pwd)"/../fftw3/api
-        make -j"${JOBS}"
-        cp -f .libs/libnfft3.a ../../bin/macosx/
-        cd ..
-
-        echo "== NLOPT (README.nlopt) =="
-        rm -rf nlopt
-        git clone https://github.com/stevengj/nlopt nlopt
-        cd nlopt
-        rm -rf build
-        mkdir -p build
-        cd build
-        cmake -DBUILD_SHARED_LIBS=OFF -DNLOPT_CXX=OFF ..
-        make -j"${JOBS}"
-        cp -f libnlopt.a ../../../bin/macosx/
-
-    - name: Compile MAD-NG
-      working-directory: MAD/src
-      run: |
-        echo "== Toolchain =="
-        which gcc
-        gcc --version
-        which g++
-        g++ --version
-        which gfortran
-        gfortran --version
-
-        make SHELL=/bin/bash CC=gcc CXX=g++ FC=gfortran
-
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: mad-macOS-x86_64
-        path: MAD/src/mad
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mad-macOS-x86_64
+          path: MAD/src/mad
