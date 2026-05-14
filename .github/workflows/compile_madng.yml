@@ -91,7 +91,8 @@ jobs:
     - name: Install dependencies
       run: |
         brew update
-        brew install gcc make cmake automake libtool pkg-config
+        # Pin GCC major to avoid runner drift.
+        brew install gcc@13 make cmake automake libtool pkg-config
 
     - name: Select Makefile
       run: |
@@ -111,11 +112,11 @@ jobs:
       run: |
         set -euo pipefail
 
-        gcc_prefix="$(brew --prefix gcc)"
-        gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
-        gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
-        gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
-        test -n "${gcc_bin}" && test -n "${gxx_bin}" && test -n "${gfortran_bin}"
+        gcc_prefix="$(brew --prefix gcc@13)"
+        gcc_bin="${gcc_prefix}/bin/gcc-13"
+        gxx_bin="${gcc_prefix}/bin/g++-13"
+        gfortran_bin="${gcc_prefix}/bin/gfortran-13"
+        test -x "${gcc_bin}" && test -x "${gxx_bin}" && test -x "${gfortran_bin}"
 
         toolshim="${RUNNER_TEMP}/gcc-shim"
         mkdir -p "${toolshim}"
@@ -140,9 +141,18 @@ jobs:
 
         # MAD-NG repo vendors third-party deps under MAD/lib (checked out with submodules).
         cd MAD/lib
+        echo "== MAD/lib contents =="
+        ls -la
 
         echo "== LuaJIT (README.luajit) =="
-        cd luajit
+        if [[ -d "luajit" ]]; then
+          cd luajit
+        elif [[ -d "LuaJIT" ]]; then
+          cd LuaJIT
+        else
+          echo "LuaJIT directory not found under MAD/lib"
+          exit 1
+        fi
         make clean
         make -j"${JOBS}" amalg PREFIX="$(pwd)"
         make install PREFIX="$(pwd)"
@@ -203,11 +213,11 @@ jobs:
     - name: Compile MAD-NG
       working-directory: MAD/src
       run: |
-        gcc_prefix="$(brew --prefix gcc)"
-        gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
-        gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
-        gfortran_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gfortran-*' | sort | tail -n1)"
-        test -n "${gcc_bin}" && test -n "${gxx_bin}" && test -n "${gfortran_bin}"
+        gcc_prefix="$(brew --prefix gcc@13)"
+        gcc_bin="${gcc_prefix}/bin/gcc-13"
+        gxx_bin="${gcc_prefix}/bin/g++-13"
+        gfortran_bin="${gcc_prefix}/bin/gfortran-13"
+        test -x "${gcc_bin}" && test -x "${gxx_bin}" && test -x "${gfortran_bin}"
         toolshim="${RUNNER_TEMP}/gcc-shim"
         mkdir -p "${toolshim}"
         ln -sf "${gcc_bin}" "${toolshim}/gcc"
