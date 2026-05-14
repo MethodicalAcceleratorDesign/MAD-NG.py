@@ -71,7 +71,7 @@ jobs:
           path: MAD/src/mad
 
   build-macos-x86_64:
-    runs-on: macos-14-large
+    runs-on: macos-13
     defaults:
       run:
         shell: bash
