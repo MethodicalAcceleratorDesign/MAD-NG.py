@@ -113,6 +113,10 @@ jobs:
 
     - name: Rebuild macOS static dependencies
       run: |
+        mkdir -p MAD/tools
+        cp -f tools/build_madng_deps_macos.sh MAD/tools/
+        chmod +x MAD/tools/build_madng_deps_macos.sh
+
         gcc_prefix="$(brew --prefix gcc)"
         gcc_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'gcc-*' ! -name 'gcc-ar*' ! -name 'gcc-nm*' ! -name 'gcc-ranlib*' | sort | tail -n1)"
         gxx_bin="$(find "${gcc_prefix}/bin" -maxdepth 1 -type f -name 'g++-*' | sort | tail -n1)"
@@ -123,10 +127,13 @@ jobs:
         ln -sf "${gxx_bin}" "${toolshim}/g++"
         ln -sf "${gfortran_bin}" "${toolshim}/gfortran"
         brew_bin="$(brew --prefix)/bin"
-        PATH="${toolshim}:${brew_bin}:${PATH}" \
-          JOBS="$(sysctl -n hw.ncpu)" \
-          CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib \
-          ./tools/build_madng_deps_macos.sh
+        (
+          cd MAD
+          PATH="${toolshim}:${brew_bin}:${PATH}" \
+            JOBS="$(sysctl -n hw.ncpu)" \
+            CC=gcc CXX=g++ FC=gfortran AR=ar RANLIB=ranlib \
+            ./tools/build_madng_deps_macos.sh
+        )
 
     - name: Compile MAD-NG
       working-directory: MAD/src
