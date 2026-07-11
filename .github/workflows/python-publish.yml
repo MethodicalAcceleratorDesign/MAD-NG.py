@@ -19,7 +19,7 @@ jobs:
   # Set the repository variable PYMADNG_BUILD_MADNG_FROM_SOURCE to "false"
   # to temporarily restore the legacy pre-built binary download path below.
   compile-madng:
-    if: ${{ vars.PYMADNG_BUILD_MADNG_FROM_SOURCE != 'false' }}
+    if: False
     uses: ./.github/workflows/compile_madng.yml
 
   deploy:
