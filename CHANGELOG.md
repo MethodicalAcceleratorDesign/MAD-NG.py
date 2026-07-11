@@ -1,3 +1,9 @@
+0.9.5 (2026/07/11) \
+Update pymadng version
+
+0.9.4 (2026/07/10) \
+Update MAD-NG version
+
 0.9.3 (2026/05/12) \
 Update MAD-NG version
 
