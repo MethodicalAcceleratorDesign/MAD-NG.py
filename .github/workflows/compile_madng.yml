@@ -3,6 +3,8 @@ name: Make a MAD-NG Binary
 on:
   push:
   workflow_dispatch:
+  # Allow release workflows to build and consume these exact binaries.
+  workflow_call:
 
 jobs:
   build-linux:

@@ -16,7 +16,15 @@ permissions:
   contents: read
 
 jobs:
+  # Set the repository variable PYMADNG_BUILD_MADNG_FROM_SOURCE to "false"
+  # to temporarily restore the legacy pre-built binary download path below.
+  compile-madng:
+    if: ${{ vars.PYMADNG_BUILD_MADNG_FROM_SOURCE != 'false' }}
+    uses: ./.github/workflows/compile_madng.yml
+
   deploy:
+    needs: compile-madng
+    if: ${{ always() && (needs.compile-madng.result == 'success' || needs.compile-madng.result == 'skipped') }}
     runs-on: ubuntu-latest
     # Specifying a GitHub environment is optional, but strongly encouraged
     environment: release
@@ -34,11 +42,30 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install build
-    - name: Get MAD Binaries
+    - name: Download compiled Linux MAD-NG
+      if: ${{ vars.PYMADNG_BUILD_MADNG_FROM_SOURCE != 'false' }}
+      uses: actions/download-artifact@v5
+      with:
+        name: mad-Linux
+        path: build/mad-Linux
+    - name: Download compiled macOS MAD-NG
+      if: ${{ vars.PYMADNG_BUILD_MADNG_FROM_SOURCE != 'false' }}
+      uses: actions/download-artifact@v5
+      with:
+        name: mad-macOS-x86_64
+        path: build/mad-Darwin
+    - name: Add compiled MAD-NG binaries to the package
+      if: ${{ vars.PYMADNG_BUILD_MADNG_FROM_SOURCE != 'false' }}
       run: |
-        mkdir src/pymadng/bin
-        curl https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.13 -o src/pymadng/bin/mad_Linux
-        curl https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.13 -o src/pymadng/bin/mad_Darwin
+        mkdir -p src/pymadng/bin
+        install -m 755 build/mad-Linux/mad src/pymadng/bin/mad_Linux
+        install -m 755 build/mad-Darwin/mad src/pymadng/bin/mad_Darwin
+    - name: Download pre-built MAD-NG binaries (legacy fallback)
+      if: ${{ vars.PYMADNG_BUILD_MADNG_FROM_SOURCE == 'false' }}
+      run: |
+        mkdir -p src/pymadng/bin
+        curl --fail --location https://madx.web.cern.ch/releases/madng/1.1/mad-linux-1.1.13 -o src/pymadng/bin/mad_Linux
+        curl --fail --location https://madx.web.cern.ch/releases/madng/1.1/mad-macos-1.1.13 -o src/pymadng/bin/mad_Darwin
         chmod +x src/pymadng/bin/mad_Linux src/pymadng/bin/mad_Darwin
     - name: Build package
       run: python -m build
