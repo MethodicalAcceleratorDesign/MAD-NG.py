@@ -1,66 +1,41 @@
-# MAD-NG dependency build scripts
+# Building MAD-NG dependencies
 
-These scripts download/build the third-party **static** libraries MAD-NG expects, and copy the resulting `*.a` files into the OS-specific `bin/` directory (matching the historical layout in `my_lib/`).
+This directory contains the Linux dependency builder used by the MAD-NG
+compile workflow. It builds static third-party libraries from source; it does
+not build or publish `pymadng` itself.
 
-## Linux
+## Release route
 
-```bash
-chmod +x tools/build_madng_deps_linux.sh
-./tools/build_madng_deps_linux.sh
-```
+Publishing a GitHub release runs these workflows in order:
 
-Outputs into `bin/linux/`:
+1. `python-publish.yml` calls `compile_madng.yml`.
+2. The Linux job copies this script into the checked-out MAD-NG source and runs
+   it. The macOS job builds its dependencies directly in the workflow.
+3. Both jobs compile MAD-NG and upload a `mad` artifact.
+4. The publish job installs the artifacts as
+   `src/pymadng/bin/mad_Linux` and `src/pymadng/bin/mad_Darwin`, builds the
+   Python distributions, and publishes them to PyPI.
 
-- `libluajit.a`
-- `liblfs.a`
-- `liblpeg.a`
-- `liblapack.a`
-- `librefblas.a`
-- `libfftw3.a`
-- `libnfft3.a`
-- `libnlopt.a`
+To temporarily use the old pre-built-download route, set the GitHub repository
+variable `PYMADNG_BUILD_MADNG_FROM_SOURCE` to `false`. Delete the variable, or
+set it to any other value, to compile from source again.
 
-## macOS
+## Manual Linux route
 
-Prereqs (typical Homebrew setup):
-
-```bash
-brew install cmake gcc make automake libtool pkg-config
-```
-
-Then:
+Run the script from the root of a MAD-NG checkout:
 
 ```bash
-chmod +x tools/build_madng_deps_macos.sh
-./tools/build_madng_deps_macos.sh
+JOBS="$(nproc)" CC=gcc CXX=g++ FC=gfortran \
+  AR=ar RANLIB=ranlib ./tools/build_madng_deps_linux.sh
 ```
 
-Outputs into `bin/macosx/` (same filenames as Linux).
+If an option is omitted, the script prompts for it and suggests a default.
+It downloads sources into `lib/` and writes these archives to `bin/linux/`:
 
-## “Fill in the necessary things”
+- `libluajit.a`, `liblfs.a`, `liblpeg.a`
+- `liblapack.a`, `librefblas.a`
+- `libfftw3.a`, `libnfft3.a`, `libnlopt.a`
 
-All knobs can be supplied as environment variables (no prompts), or left unset to be prompted:
-
-- Build tools: `JOBS`, `CC`, `CXX`, `FC`, `AR`, `RANLIB`
-- LuaJIT: `LUAJIT_REPO`, `LUAJIT_REF`
-- LuaFileSystem: `LFS_REPO`, `LFS_REF`
-- Versions/refs: `LPEG_VERSION`, `FFTW_VERSION`, `NFFT_VERSION`, `NLOPT_REF`, `LAPACK_REF`
-- macOS only: `MACOSX_DEPLOYMENT_TARGET`
-
-Example (Linux):
-
-```bash
-JOBS=16 CC=clang FC=gfortran LUAJIT_REF=mad-patch ./tools/build_madng_deps_linux.sh
-```
-
-## Header-only staging (no rebuild)
-
-If you already have `*.a` archives in `bin/linux` or `bin/macosx`, but your build
-fails on missing headers (e.g. `lua.h`, `fftw3.h`, `nlopt.h`), use:
-
-- `tools/stage_madng_headers_linux.sh`
-- `tools/stage_madng_headers_macos.sh`
-
-They populate `lib/luajit`, `lib/nlopt`, `lib/fftw3`, `lib/nfft3` with the
-expected header layout (by cloning/downloading sources, or by symlinking from
-your provided include directories).
+Source versions and repositories can be overridden with `LUAJIT_REPO`,
+`LUAJIT_REF`, `LFS_REPO`, `LFS_REF`, `LPEG_VERSION`, `FFTW_VERSION`,
+`NFFT_VERSION`, `NLOPT_REF`, and `LAPACK_REF`.
