@@ -1,3 +1,6 @@
+0.9.6 (2026/07/11) \
+Added way to compile on pull request and new release. 
+
 0.9.5 (2026/07/11) \
 Update pymadng version
 
