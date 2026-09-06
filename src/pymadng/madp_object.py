@@ -109,7 +109,10 @@ class MAD:
         if not ipython_use_jedi:  # Stop jedi running getattr on my classes...
             try:
                 ipython = get_ipython()  # type: ignore
-                if ipython.__class__.__name__ == "TerminalInteractiveShell":
+                # Applies to both the terminal shell (TerminalInteractiveShell) and
+                # Jupyter notebooks/lab/qtconsole (ZMQInteractiveShell), which both
+                # expose a jedi-backed Completer; other shells are left untouched.
+                if hasattr(ipython, "Completer"):
                     ipython.Completer.use_jedi = False
             except NameError:
                 pass
@@ -307,6 +310,7 @@ _last = {}
         Import classes or functions from a specific MAD-NG module.
 
         If no specific names are provided, imports all available members from the module.
+        This is not recommended for large modules due to potential namespace pollution.
 
         Args:
             module (str): The module name in MAD-NG.
@@ -314,7 +318,7 @@ _last = {}
         """
         script = ""
         if varnames == ():
-            varnames = [x.strip("()") for x in dir(self.__get_MadRef(module))]
+            varnames = tuple([x.strip("()") for x in dir(self.__get_MadRef(module))])
         for classname in varnames:
             script += f"""{classname} = {module}.{classname}\n"""
         self.__process.send(script)
@@ -331,9 +335,7 @@ _last = {}
         """
         path: Path = Path(path).resolve()
         if varnames == ():
-            self.__process.send(
-                f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
-            )
+            self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
         else:
             # The parent/stem is necessary, otherwise the file will not be found
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)
@@ -466,7 +468,7 @@ _last = {}
     def __dir__(self) -> Iterable[str]:
         py_objs = [x for x in super().__dir__() if x[0] != "_"]
         py_objs.extend(self.globals())
-        py_objs.extend(dir(self.recv_vars("_G", shallow_copy=True)))
+        py_objs.extend(dir(self.__process.protected_variable_retrieval("_G", shallow_copy=True)))
         return py_objs
 
     def globals(self) -> list[str]:

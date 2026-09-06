@@ -30,6 +30,7 @@ mad.send("""
 local is_number, is_string, is_function, is_table in MAD.typeid
 
 expr = {} -- list of deferred expressions
+seen = {} -- tables already visited, to avoid infinite recursion on cycles (e.g. parent backrefs)
 
 function reg_expr(k,v) -- collect deferred expressions
   if is_number(v) or is_string(v) then
@@ -37,6 +38,8 @@ function reg_expr(k,v) -- collect deferred expressions
   elseif is_function(v) then -- deferred expressions are functions
     expr[#expr+1] = v
   elseif is_table(v) then
+    if seen[v] then return end
+    seen[v] = true
     for kk, vv in pairs(v) do reg_expr(kk,vv) end -- recursive call
   else
     print(k, v, type(v)) -- unexpected for MAD-X, just for debug
