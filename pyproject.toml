@@ -39,6 +39,7 @@ version = {attr = "pymadng.__version__"}
 
 [project.optional-dependencies]
 tfs = ["tfs-pandas>3.0.0"]
+jupyter = ["ipykernel", "nbclient", "nbformat", "matplotlib"] # (examples/ex-jupyter)
 
 # ----- Dev Tools Configuration ----- #
 

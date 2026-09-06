@@ -1,0 +1,29 @@
+! Equivalent MAD-NG script for examples/ex-ps-twiss/ex-ps-twiss.py
+local beam, survey, twiss   in MAD
+local melmcol               in MAD.gphys
+
+local psbeam = beam { particle = 'proton', pc = 2.794987 }
+MADX.BEAM  = psbeam
+MADX.BRHO  = psbeam.brho
+MADX:load('ps_unset_vars.mad')
+MADX:load('ps_mu.seq')
+MADX:load('ps_ss.seq')
+MADX:load('ps_fb_lhc.str')
+
+local ps in MADX
+ps.beam = psbeam
+local srv, mflw = survey { sequence = ps }
+
+srv:write('PS_survey_py.tfs',
+    {"name", "kind", "s", "l", "angle", "x", "y", "z", "theta"})
+
+local mtbl = twiss { sequence = ps, method = 6, nslice = 3, cmap = false }
+
+-- Add element properties as columns
+melmcol(mtbl,
+    {"angle", "tilt", "k0l", "k1l", "k2l", "k3l", "k4l", "k5l", "k6l", "k0sl",
+     "k1sl", "k2sl", "k3sl", "k4sl", "k5sl", "k6sl", "ksl", "hkick", "vkick"})
+
+mtbl:write('PS_twiss_py.tfs',
+    {"name", "kind", "s", "x", "px", "beta11", "alfa11", "beta22", "alfa22", "dx",
+     "dpx", "mu1", "mu2", "l", "angle", "k0l", "k1l", "k2l", "k3l", "hkick", "vkick"})
