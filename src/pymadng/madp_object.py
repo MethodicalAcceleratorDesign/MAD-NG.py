@@ -128,7 +128,7 @@ class MAD:
             "track",
             "match",
         ]
-        self.load("MAD", *modules_to_import)
+        self.import_module("MAD", *modules_to_import)
         self.__MAD_version__ = self.MAD.env.version
 
         # Send a function to MAD-NG to create a list in the return or a single value
@@ -302,7 +302,7 @@ _last = {}
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    def load(self, module: str, *varnames: str):
+    def import_module(self, module: str, *varnames: str):
         """
         Import classes or functions from a specific MAD-NG module.
 
@@ -319,7 +319,7 @@ _last = {}
             script += f"""{classname} = {module}.{classname}\n"""
         self.__process.send(script)
 
-    def loadfile(self, path: str | Path, *varnames: str):
+    def import_file(self, path: str | Path, *varnames: str):
         """
         Load and execute a .mad file in the MAD-NG environment.
 
@@ -327,13 +327,11 @@ _last = {}
 
         Args:
             path (str | Path): File path for the .mad file.
-            *vars (str): Optional names to bind to specific elements from the file.
+            *varnames (str): Optional names to bind to specific elements from the file.
         """
         path: Path = Path(path).resolve()
         if varnames == ():
-            self.__process.send(
-                f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
-            )
+            self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
         else:
             # The parent/stem is necessary, otherwise the file will not be found
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)
@@ -342,6 +340,69 @@ _last = {}
             for var in varnames:
                 script += f"{var} = __req.{var}\n"
             self.__process.send(script)
+
+    def load(
+        self,
+        ld: str | MadRef,
+        source: str | None = None,
+        mode: str | None = None,
+        env: MadRef | None = None,
+    ) -> MadLastRef | tuple[None, str]:
+        """
+        Call MAD-NG's ``load (ld [, source [, mode [, env]]])``.
+
+        Args:
+            ld (str | MadRef): Lua chunk as a string, or a reference to a reader function.
+            source (str, optional): Chunk name used in error messages.
+            mode (str, optional): ``"t"`` (text), ``"b"`` (binary) or ``"bt"``.
+            env (MadRef, optional): Environment of the loaded chunk (default: MAD-NG's global environment).
+
+        Returns:
+            MadLastRef: Callable reference to the compiled chunk, or ``(None, message)`` on a compile error.
+        """
+        return self.__load_call("load", ld, source, mode, env)
+
+    def loadfile(
+        self,
+        filename: str | Path,
+        mode: str | None = None,
+        env: MadRef | None = None,
+    ) -> MadLastRef | tuple[None, str]:
+        """
+        Call MAD-NG's ``loadfile ([filename [, mode [, env]]])``.
+
+        Unlike Lua, ``filename`` is required, as the standard input of MAD-NG is the pipe from Python.
+
+        Args:
+            filename (str | Path): File to compile (relative paths are relative to the working directory).
+            mode (str, optional): ``"t"`` (text), ``"b"`` (binary) or ``"bt"``.
+            env (MadRef, optional): Environment of the loaded chunk (default: MAD-NG's global environment).
+
+        Returns:
+            MadLastRef: Callable reference to the compiled chunk, or ``(None, message)`` if it cannot be loaded.
+        """
+        return self.__load_call("loadfile", str(filename), mode, env)
+
+    def __load_call(self, func: str, *args: str | MadRef | None) -> MadLastRef | tuple[None, str]:
+        args = list(args)
+        while args[-1] is None:  # An explicit trailing nil would replace the default environment
+            args.pop()
+        exprs, to_send = [], []
+        for arg in args:
+            if arg is None:
+                exprs.append("nil")
+            elif isinstance(arg, str):
+                exprs.append(f"{self.py_name}:recv()")
+                to_send.append(arg)
+            else:
+                exprs.append(arg._name)
+        chunk, err = self.__get_MadReflast(), self.__get_MadReflast()
+        self.__process.send(f"{chunk._name}, {err._name} = {func}({', '.join(exprs)})")
+        for value in to_send:
+            self.__process.send(value)
+        if chunk.eval() is None:
+            return None, err.eval()
+        return chunk
 
     # ----------------------- Make the class work with dict and dot access ------------------------#
     def __getattr__(self, item):
