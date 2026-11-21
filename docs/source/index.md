@@ -1,6 +1,6 @@
 # PyMAD-NG
 
-PyMAD-NG drives [MAD-NG](https://madx.web.cern.ch/releases/madng/html/) (Methodical Accelerator Design - Next Generation) from Python. It starts a MAD-NG process, sends it commands and data through pipes, and returns the results as Python values, NumPy arrays and Pandas DataFrames.
+PyMAD-NG runs [MAD-NG](https://madx.web.cern.ch/releases/madng/html/) (Methodical Accelerator Design - Next Generation) as a subprocess and controls it from Python. MAD-NG does all the computation. PyMAD-NG sends it code and data through pipes and brings back the results you ask for.
 
 ```python
 from pymadng import MAD
@@ -12,10 +12,10 @@ with MAD() as mad:
     print(df[["name", "s", "beta11"]].head())
 ```
 
-- **Two APIs**: Python calls such as `mad.twiss(...)`, or MAD-NG code sent as strings with `mad.send(...)`.
-- **Tables as DataFrames**: `mad.tbl.to_df()` gives a `pandas.DataFrame`, or a `TfsDataFrame` when `tfs-pandas` is installed.
-- **MAD-X sequences**: `MADX:load` reads MAD-X files into MAD-NG.
-- **Jupyter**: MAD-NG output appears in the notebook cell ({doc}`jupyter`).
+- **MAD-NG does the work**: you need to know MAD-NG; its [manual](https://madx.web.cern.ch/releases/madng/html/) describes every function used here.
+- **Communication is explicit**: MAD-NG returns data only when told to send it, so each {meth}`mad.send(...) <pymadng.MAD.send>` that expects an answer needs a matching {meth}`mad.recv() <pymadng.MAD.recv>` ({doc}`communication`).
+- **Results stay in MAD-NG**: many results are references to MAD-NG objects. Use `.eval()` or `.to_df()` to get Python values ({doc}`references`).
+- **Python calls are shortcuts**: `mad.twiss(...)` runs the MAD-NG function of the same name, and {meth}`mad.send(...) <pymadng.MAD.send>` runs any MAD-NG code you write.
 
 ```{toctree}
 :maxdepth: 2
@@ -42,6 +42,7 @@ load-and-import
 jupyter
 workflows
 troubleshooting
+ai-agents
 ```
 
 ```{toctree}

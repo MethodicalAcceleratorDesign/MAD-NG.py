@@ -10,11 +10,6 @@ This section explains the internal architecture of PyMAD-NG, outlining how Pytho
 Understanding the architecture will help advanced users contribute to development, extend functionality, and debug issues more effectively.
 ```
 
-```{contents}
-:depth: 2
-:local:
-```
-
 ---
 
 ## High-Level Overview
@@ -47,41 +42,41 @@ This is implemented using `os.pipe()` and `select.select()` to manage reads and 
 
 ### Communication Protocol
 
-- Commands are sent as strings to MAD-NG (e.g., `mad.send("a = 1 + 2")`)
-- Responses are requested explicitly via `{func}`MAD.recv`
+- Commands are sent as strings to MAD-NG (e.g., {meth}`mad.send("a = 1 + 2") <pymadng.MAD.send>`)
+- Responses are requested explicitly via {func}`MAD.recv`
 - Data can be sent and received in binary or string formats, depending on the type
 
 ---
 
 ## Core Components
 
-### {class}`MAD` Class ({class}`madp_object`)
+### `MAD` class (`madp_object` module)
 
 - Main interface for users
 - Automatically loads common MAD-NG modules (e.g. `twiss`, `element`, `sequence`)
 - Handles naming of Python process in MAD-NG via `py_name`
 - Configures subprocess behaviour (debug mode, stdout redirection)
 
-### {class}`madp_pymad.MadProcess`
+### `madp_pymad.MadProcess`
 
 - Manages low-level pipe setup and subprocess launch
 - Provides `send`, `recv`, and `close` methods
 - Serialises and deserialises Python <-> MAD data
 
-### {class}`madp_classes`
+### `madp_classes`
 
 - Wraps MAD-NG references returned to Python
 - Allows chained method calls like `mad.math.sin(1)`
 - Supports `.eval()` to convert a MAD value into a native Python object
 - Implements `__getattr__`, `__getitem__`, `__call__` to emulate Lua table behaviour
 
-### {class}`madp_last`
+### `madp_last`
 
 - Implements `_last[]` variable management for symbolic return values
 - Ensures unique temporary variable usage
 - Used in constructing expression chains
 
-### {class}`madp_strings`
+### `madp_strings`
 
 - Contains helpers for quoting strings for MAD-NG consumption
 - Supports quote-conversion for use in file writing and table exporting
@@ -101,7 +96,7 @@ PyMAD-NG supports a wide range of Python-native and NumPy types, which are autom
 | `numpy.ndarray`       | matrix, cmatrix | binary            |
 | `range`, `np.geomspace`     | range types     | encoded structure |
 
-Conversion is handled by {func}`MAD.send` and `{func}`MAD.recv`, both methods on the {class}`MAD` class.
+Conversion is handled by {func}`MAD.send` and {func}`MAD.recv`, both methods on the {class}`MAD` class.
 
 ---
 
@@ -111,7 +106,7 @@ Because MAD-NG entities are only known at runtime, PyMAD-NG uses dynamic attribu
 
 - Tab completion (`dir(mad)`) only works for preloaded or cached attributes
 - Use {func}`MAD.globals()` to list current MAD-NG global variables
-- {class}`madp_classes.high_level_MadRef` objects will not show introspectable properties until evaluated
+- {class}`pymadng.madp_classes.MadRef` objects will not show introspectable properties until evaluated
 
 ---
 
@@ -131,8 +126,8 @@ All sends are "protected" by default:
 | ---------------------------------------------- | ---------------------------------------------------------- |
 | {class}`MAD` class                      | Main interface and environment for interacting with MAD-NG |
 | {class}`madp_pymad.MadProcess`         | Launches and communicates with MAD-NG subprocess           |
-| {class}`madp_classes.high_level_MadRef` | Wraps MAD objects for Pythonic access                      |
-| {class}`madp_last`                       | Tracks temporary intermediate results from MAD-NG          |
+| {class}`pymadng.madp_classes.MadRef` | Wraps MAD objects for Pythonic access                      |
+| {mod}`madp_last`                         | Tracks temporary intermediate results from MAD-NG          |
 | Type dispatch                                  | Maps Python objects to MAD-NG-compatible messages          |
 
 This modular, pipe-based architecture ensures PyMAD-NG remains flexible, efficient, and closely integrated with MAD-NG’s scripting model.

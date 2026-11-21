@@ -1,10 +1,6 @@
 LHC Example
 ===========
 
-.. contents::
-   :local:
-   :depth: 2
-
 The file :ref:`ex-lhc-couplingLocal/ex-lhc-couplingLocal.py <ex-lhc>` contains an example of loading the required files to use and run the LHC, while including a method to receive and plot intermediate results of a match.
 
 Loading the LHC

@@ -6,11 +6,6 @@
 
 This page provides a reference-style overview of functions, libraries, and patterns available through a {class}`MAD()` instance. It complements the API reference by highlighting common tools and objects exposed in the high-level interface for scripting and interacting with MAD-NG.
 
-```{contents}
-:depth: 2
-:local:
-```
-
 ---
 
 ## Top-Level Objects in `pymadng`

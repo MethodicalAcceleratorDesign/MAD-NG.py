@@ -14,8 +14,8 @@ mad = MAD()
 
 Four rules explain most of the behaviour:
 
-1. `mad.send("...")` sends code or data into the running MAD-NG process.
-2. `mad.recv()` only succeeds after MAD-NG has been told to `py:send(...)` something back ({doc}`communication`).
+1. {meth}`mad.send("...") <pymadng.MAD.send>` sends code or data into the running MAD-NG process.
+2. {meth}`mad.recv() <pymadng.MAD.recv>` only succeeds after MAD-NG has been told to `py:send(...)` something back ({doc}`communication`).
 3. Objects such as `mad.seq`, `mad.twiss(...)` or `mad.math.sin(1)` are usually references into MAD-NG, not copies ({doc}`references`).
 4. `mad["x"] = 5` sets a variable in MAD-NG; `mad.x = 5` only sets an attribute of the Python object.
 

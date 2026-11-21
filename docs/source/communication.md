@@ -1,3 +1,7 @@
+```{eval-rst}
+.. currentmodule:: pymadng
+```
+
 # Communication with MAD-NG
 
 ## Protocol Overview
@@ -8,7 +12,7 @@ Key points:
 
 - Data is sent through FIFO pipes (first-in, first-out).
 - Commands are sent as MAD-NG script strings (Lua-like).
-- Data is retrieved via `{func}`MAD.recv`()` after explicit instruction to send it.
+- Data is retrieved via {func}`MAD.recv()` after explicit instruction to send it.
 - MAD-NG stdout is redirected to Python, but not intercepted.
 
 ```{tip}
@@ -81,10 +85,10 @@ The following types can be sent from Python to MAD-NG:
   - {func}`MAD.send`
 * - `start, stop, size` as float, int
   - `range`, `logrange`
-  - `mad.send_range()`, `mad.send_logrange()`
+  - {meth}`MAD.send_range`, {meth}`MAD.send_logrange`
 * - Complex structures (e.g., TPSA, CTPSA)
   - `TPSA`, `CTPSA`
-  - `mad.send_tpsa()`, `mad.send_cpx_tpsa()`
+  - {meth}`MAD.send_tpsa`, {meth}`MAD.send_cpx_tpsa`
 ```
 
 For full compatibility, see the {mod}`pymadng.MAD` documentation.
@@ -97,7 +101,7 @@ High-level MAD objects are often returned as references rather than copied Pytho
 
 ## Converting TFS Tables to DataFrames
 
-If you use {func}`twiss` or {func}`survey`, MAD-NG returns an `mtable`, which can be converted to a Pandas or TFS-style DataFrame:
+If you use `twiss` or `survey`, MAD-NG returns an `mtable`, which can be converted to a Pandas or TFS-style DataFrame:
 
 ```python
 mtbl = mad.twiss(...)
@@ -107,7 +111,7 @@ df = mtbl.to_df()  # Either DataFrame or TfsDataFrame
 If the object is not an `mtable`, a `TypeError` will be raised.
 
 ```{note}
-`tfs-pandas` (if installed) will enhance the output with headers and metadata.
+`tfs-pandas` (if installed) will add the headers and metadata correctly to the output.
 ```
 
 See:
@@ -189,10 +193,6 @@ mad = MAD(num_temp_vars=10)
 See {meth}`pymadng.MAD.__init__` for all configuration options, and {doc}`jupyter` for `ipython_use_jedi`.
 
 ---
-
-```{eval-rst}
-.. currentmodule:: pymadng
-```
 
 ## Summary
 

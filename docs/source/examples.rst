@@ -1,10 +1,6 @@
 List of Examples
 ================
 
-.. contents::
-   :local:
-   :depth: 2
-
 FODO Cell Example
 -----------------
 

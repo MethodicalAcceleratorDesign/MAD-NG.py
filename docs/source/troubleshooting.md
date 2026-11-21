@@ -6,7 +6,7 @@
 
 ## A script hangs
 
-Python is waiting for MAD-NG, and MAD-NG is waiting for Python. Check each `mad.recv()` has a `py:send(...)` before it, and each `py:recv()` has a `mad.send(data)` after it. The rules and an example are in {doc}`communication`.
+Python is waiting for MAD-NG, and MAD-NG is waiting for Python. Check each {meth}`mad.recv() <pymadng.MAD.recv>` has a `py:send(...)` before it, and each `py:recv()` has a {meth}`mad.send(data) <pymadng.MAD.send>` after it. The rules and an example are in {doc}`communication`.
 
 ## Read the output of MAD-NG
 
@@ -50,7 +50,7 @@ assert mad.recv() == 1
 
 ## End the session
 
-Use a context manager so the MAD-NG process ends with the block, or call `mad.close()`:
+Use a context manager so the MAD-NG process ends with the block, or call {meth}`mad.close() <pymadng.MAD.close>`:
 
 ```python
 with MAD() as mad:

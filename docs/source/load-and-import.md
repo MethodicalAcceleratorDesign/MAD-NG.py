@@ -57,5 +57,5 @@ Before 0.10.0, `load` imported a module and `loadfile` imported a file. Those ca
 
 | 0.9                                  | 0.10.0                                         |
 |--------------------------------------|------------------------------------------------|
-| `mad.load("MADX", "lhcb1")`          | `mad.import_module("MADX", "lhcb1")`           |
-| `mad.loadfile("setup.mad", "knob")`  | `mad.import_file("setup.mad", "knob")`         |
+| `mad.load("MADX", "lhcb1")`          | {meth}`mad.import_module("MADX", "lhcb1") <pymadng.MAD.import_module>` |
+| `mad.loadfile("setup.mad", "knob")`  | {meth}`mad.import_file("setup.mad", "knob") <pymadng.MAD.import_file>` |

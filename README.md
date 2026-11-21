@@ -46,6 +46,12 @@ If anything seems unclear:
 
 ---
 
+## 🤖 AI Agents
+
+[`skills/pymadng`](skills/pymadng) is a skill for AI coding agents (Claude Code and similar) that write PyMAD-NG code. See the [docs](https://pymadng.readthedocs.io/en/latest/ai-agents.html) for how to install it.
+
+---
+
 ## 📚 Documentation
 
 Full documentation and example breakdowns are hosted at:
