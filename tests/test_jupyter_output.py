@@ -70,5 +70,7 @@ def test_example_notebook_runs(tmp_path, monkeypatch):
         for out in cell.get("outputs", [])
         if out.output_type == "stream" and out.name == "stdout"
     )
-    assert "running twiss..." in stdout
+    # Not "running twiss...": MAD-NG prints it after the cell that sent it has finished, and
+    # nbclient drops output that arrives between two cells (a notebook front end shows it)
+    assert "loading the fodo sequence..." in stdout
     assert "done" in stdout
