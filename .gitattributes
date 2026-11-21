@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+# data copied from MAD-X, left as they are
+*.seq -text

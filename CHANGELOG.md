@@ -2,7 +2,8 @@
 `MAD.load` and `MAD.loadfile` now call MAD-NG's `load (ld [, source [, mode [, env]]])` and `loadfile ([filename [, mode [, env]]])` (fixes #26). They return a callable reference to the compiled chunk, or `(None, message)` on failure. \
 Breaking: the previous behaviour is renamed to `MAD.import_module(module, *names)` and `MAD.import_file(path, *names)`. \
 The tests now use pytest (`pip install pymadng[test]`, then `pytest`). \
-The MAD-NG build (`tools/build_madng.sh`, `compile_madng.yml`) supports Linux and macOS arm64, runs only on demand and tests the built binary. The PyPI package uses the released binaries.
+The MAD-NG build (`tools/build_madng.sh`, `compile_madng.yml`) supports Linux and macOS arm64, runs only on demand and tests the built binary. The PyPI package uses the released binaries. \
+Source files use LF line endings (`.gitattributes`).
 
 0.9.6 (2026/07/11) \
 Added way to compile on pull request and new release. 
