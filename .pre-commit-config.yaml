@@ -1,0 +1,23 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+      - id: trailing-whitespace
+        exclude: \.patch$
+      - id: check-added-large-files
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.13.0
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v9.3.3
+    hooks:
+      - id: cspell
+        language_version: system
+        args: [--no-progress, --no-summary]
+        files: ^(README\.md|CHANGELOG\.md|docs/source/.*\.(md|rst))$

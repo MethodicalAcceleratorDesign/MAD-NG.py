@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import math
+import shutil
 import sys
 
 import numpy as np
@@ -112,6 +113,20 @@ def test_recv_vars():
         assert b == 2.5
         assert c == "test"
         assert d.eval() == [1, 2, 3]
+
+
+def test_recv_vars_private_name_raises():
+    with (
+        MAD(stdout="/dev/null", redirect_stderr=True) as mad,
+        pytest.raises(ValueError, match="private variables"),
+    ):
+        mad.recv_vars("__secret")
+
+
+def test_unresponsive_executable_raises_oserror():
+    true = shutil.which("true")
+    with pytest.raises(OSError, match=f"Could not start {true} process"):
+        MAD(mad_path=true, stdout="/dev/null", redirect_stderr=True)
 
 
 def test_quote_strings():

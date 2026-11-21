@@ -111,7 +111,7 @@ and manually check for failures.
 
 ---
 
-## 5. Debugging Subprocess Behavior
+## 5. Debugging Subprocess Behaviour
 
 ### 5.1 Starting MAD-NG
 
