@@ -92,7 +92,7 @@ See [Setting Variables in MAD-NG](#setting-variables-in-mad-ng) for more details
 
 ## Importing MAD-NG Modules via PyMAD-NG
 
-You can load MAD-NG modules dynamically using the {func}`MAD.load` function.
+You can load MAD-NG modules dynamically using the {func}`MAD.import_module` function.
 This is useful for loading built-in modules that are not automatically available.
 
 ### Example:
@@ -100,8 +100,8 @@ This is useful for loading built-in modules that are not automatically available
 You can load modules directly from MAD-NG namespaces:
 
 ```python
-mad.load("MAD", "gphys")        # Load a module such as MAD.gphys
-mad.load("element", "quadrupole")  # Load a specific element type
+mad.import_module("MAD", "gphys")        # Load a module such as MAD.gphys
+mad.import_module("element", "quadrupole")  # Load a specific element type
 ```
 
 The first argument is the module path. Optional additional arguments allow importing specific submodules or functions.

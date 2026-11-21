@@ -121,12 +121,12 @@ MAD-X and MAD-NG models often consist of `.seq`, `.mad`, `.madx`, or `.str` file
 
 ```python
 mad.MADX.load("'lhc.seq'", "'lhc.mad'")
-mad.load("MADX", "lhcb1")
+mad.import_module("MADX", "lhcb1")
 ```
 
 Or load additional MAD-NG modules:
 ```python
-mad.load("MAD.gphys", "melmcol")
+mad.import_module("MAD.gphys", "melmcol")
 ```
 
 This loads extended libraries for magnet properties, tracking models, or optics algorithms.
@@ -167,7 +167,7 @@ This allows direct use of scientific computation tools in tandem with accelerato
 ## Managing Larger Workflows
 
 PyMAD-NG supports:
-- Loading full files with `mad.loadfile("mysetup.mad")`
+- Loading full files with `mad.import_file("mysetup.mad")`
 - Organising expressions using Python variables
 - Retaining command history using:
 
@@ -196,7 +196,7 @@ This ensures the MAD process is correctly shut down when finished.
 | File and Module Loading         | Import sequences, optics files, and Lua modules  |
 | Table Export                    | Write TFS files from MAD tables                  |
 | NumPy / Pandas Interoperability  | Pass data between Python and MAD-NG seamlessly   |
-| Project Structuring             | Use {func}`MAD.loadfile`, {func}`MAD.history`, and `with` block  |
+| Project Structuring             | Use {func}`MAD.import_file`, {func}`MAD.history`, and `with` block  |
 
 These tools are designed to give you complete control over your simulations while staying fast and maintainable.
 

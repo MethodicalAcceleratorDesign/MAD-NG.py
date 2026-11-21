@@ -15,7 +15,7 @@ with MAD(debug=False) as mad:
     mad.MADX.load("'ps_ss.seq'")
     mad.MADX.load("'ps_fb_lhc.str'")
 
-    mad.load("MADX", "ps")
+    mad.import_module("MADX", "ps")
     mad.ps.beam = mad.psbeam
     mad["srv", "mflw"] = mad.survey(sequence=mad.ps)
 
@@ -26,7 +26,7 @@ with MAD(debug=False) as mad:
 
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.ps, method=6, nslice=3)
 
-    mad.load("MAD.gphys", "melmcol")
+    mad.import_module("MAD.gphys", "melmcol")
     # Add element properties as columns
     # fmt: off
     mad.melmcol(mad.mtbl,

@@ -128,7 +128,7 @@ class MAD:
             "track",
             "match",
         ]
-        self.load("MAD", *modules_to_import)
+        self.import_module("MAD", *modules_to_import)
         self.__MAD_version__ = self.MAD.env.version
 
         # Send a function to MAD-NG to create a list in the return or a single value
@@ -302,7 +302,7 @@ _last = {}
 
     # -------------------------------------------------------------------------------------------------------------#
 
-    def load(self, module: str, *varnames: str):
+    def import_module(self, module: str, *varnames: str):
         """
         Import classes or functions from a specific MAD-NG module.
 
@@ -319,7 +319,7 @@ _last = {}
             script += f"""{classname} = {module}.{classname}\n"""
         self.__process.send(script)
 
-    def loadfile(self, path: str | Path, *varnames: str):
+    def import_file(self, path: str | Path, *varnames: str):
         """
         Load and execute a .mad file in the MAD-NG environment.
 
@@ -327,13 +327,11 @@ _last = {}
 
         Args:
             path (str | Path): File path for the .mad file.
-            *vars (str): Optional names to bind to specific elements from the file.
+            *varnames (str): Optional names to bind to specific elements from the file.
         """
         path: Path = Path(path).resolve()
         if varnames == ():
-            self.__process.send(
-                f"assert(loadfile('{path}', nil, {self.py_name}._env))()"
-            )
+            self.__process.send(f"assert(loadfile('{path}', nil, {self.py_name}._env))()")
         else:
             # The parent/stem is necessary, otherwise the file will not be found
             # This is thanks to the way the require function works in MAD-NG (how it searches for files)
