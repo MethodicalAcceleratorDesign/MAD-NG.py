@@ -464,7 +464,7 @@ _last = {}
     def __dir__(self) -> Iterable[str]:
         py_objs = [x for x in super().__dir__() if x[0] != "_"]
         py_objs.extend(self.globals())
-        py_objs.extend(dir(self.recv_vars("_G", shallow_copy=True)))
+        py_objs.extend(dir(self.__process.protected_variable_retrieval("_G", shallow_copy=True)))
         return py_objs
 
     def globals(self) -> list[str]:
