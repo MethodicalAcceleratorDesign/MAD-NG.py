@@ -69,16 +69,13 @@ class MadProcess:
             self.stdout_file = self.stdout_file_path.open("w")
             stdout = self.stdout_file
 
-        # Convert stdout to a file descriptor
-        try:
-            stdout_fileno: int = stdout.fileno()
-        except AttributeError as e:
+        if not callable(getattr(stdout, "write", None)):
             raise TypeError(
-                "Stdout must be a file name, file descriptor, or an object with the fileno method"
-            ) from e
+                "Stdout must be a file name, file descriptor, or an object with a write method"
+            )
 
         # Redirect stderr to stdout, if specified
-        stderr = stdout if redirect_stderr else sys.stderr.fileno()
+        stderr_target = stdout if redirect_stderr else sys.stderr
 
         # Create a chunk of code to start the process
         lua_debug_flag = "true" if debug else "false"
@@ -89,23 +86,27 @@ class MadProcess:
         if threading.current_thread() is threading.main_thread():
             self._setup_signal_handler()
 
-        # Start the process
+        # Start the process. stdout/stderr are always piped back through Python
+        # rather than handed to the subprocess as raw file descriptors - essential
+        # for jupyter notebooks
         self.process = subprocess.Popen(
             [str(mad_path), "-q", "-e", startup_chunk],
             bufsize=0,
             stdin=mad_read,  # Set the stdin of MAD to the read end of the pipe
-            stdout=stdout_fileno,  # Forward stdout
-            stderr=stderr,  # Forward stderr
-            pass_fds=[
-                mad_write,
-                stdout_fileno,
-                sys.stderr.fileno(),
-            ],  # Don't close these (python closes all fds by default)
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT if redirect_stderr else subprocess.PIPE,
+            pass_fds=[mad_write],  # Don't close this (python closes all fds by default)
         )
 
         # Close the ends of the pipes that are not used by the process
         os.close(mad_write)
         os.close(mad_read)
+
+        # Forward synchronously from the blocked send/recv thread.
+        # ipykernel uses thread-local state to attribute output to the current cell.
+        self._piped_outputs: list[tuple[Any, TextIO]] = [(self.process.stdout, stdout)]
+        if not redirect_stderr:
+            self._piped_outputs.append((self.process.stderr, stderr_target))
 
         # Create a global variable dictionary for the exec function (could be extended to include more variables)
         self.python_exec_context = {"np": np}
@@ -150,6 +151,32 @@ class MadProcess:
 
         signal.signal(signal.SIGINT, delete_process)
 
+    def _drain_piped_outputs(self, timeout: float = 0.0) -> None:
+        """Forward MAD-NG's piped stdout/stderr to the specified output streams.
+
+        A pipe at EOF (the subprocess closed its end) reads as b"" forever and
+        `select` keeps reporting it ready, so it is dropped from
+        `_piped_outputs` once that happens, to avoid spinning on it.
+        """
+        wait = timeout
+        while self._piped_outputs:
+            piped_fds = [pipe.fileno() for pipe, _ in self._piped_outputs]
+            ready, _, _ = select.select(piped_fds, [], [], wait)
+            if not ready:
+                return
+            for pipe, dest in list(self._piped_outputs):
+                if pipe.fileno() not in ready:
+                    continue
+                chunk = os.read(pipe.fileno(), 65536)
+                if not chunk:
+                    self._piped_outputs.remove((pipe, dest))
+                    pipe.close()
+                    continue
+                with suppress(Exception):
+                    dest.write(chunk.decode(errors="replace"))
+                    dest.flush()
+            wait = 0.0
+
     def send_range(self, start: float, stop: float, size: int) -> None:
         """Send a linear range (numpy array) to MAD-NG.
 
@@ -188,6 +215,7 @@ class MadProcess:
         Accepts several types (str, int, float, ndarray, bool, list, dict, NoneType) and sends them using the appropriate serialization.
         Returns self to allow method chaining.
         """
+        self._drain_piped_outputs()
         try:
             typ = type_str[get_typestr(data)]
             self.mad_input_stream.write(typ.encode("utf-8"))
@@ -254,6 +282,7 @@ class MadProcess:
             Any: The value received from MAD-NG, which can be of various types (str, int, float, ndarray, bool, list, dict).
         """
         typ = self.mad_read_stream.read(4).decode("utf-8")
+        self._drain_piped_outputs()  # Read out any output from MAD-NG before returning the value
         self.varname = varname  # For mad reference
         return type_fun[typ]["recv"](self)  # type: ignore
 
@@ -339,6 +368,10 @@ class MadProcess:
                 # If terminate fails, escalate to kill
                 self.process.kill()
                 self.process.wait()
+
+        self._drain_piped_outputs(timeout=1.0)
+        for pipe, _ in self._piped_outputs:
+            pipe.close()
 
         # Close the debug file if it exists
         with suppress(AttributeError):

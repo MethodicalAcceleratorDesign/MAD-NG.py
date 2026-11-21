@@ -1,5 +1,18 @@
+0.10.0 (2026/09/06) \
+Major behaviour change: MAD-NG's stdout/stderr are now always piped back through Python.
+This means the output has to be captured and manually handled on each send and receive
+command. Due to the deliberate asynchronous design of the PyMAD-NG interface, this
+means that the output may be delayed and not appear immediately after MAD-NG sends it.
+The reason for this change was to support environments where stdout/stderr are not real
+OS file descriptors, such as Jupyter notebooks. \
+Bump MAD-NG to 1.1.15. \
+Fixed a stack overflow in the `ex-recv-lhc` deferred-expressions example (hit a
+recursive call). \
+Fixed an incorrect range-construction snippet in the `ex-LowLevel` example. \
+Added `examples/ex-jupyter` and automated notebook execution tests.
+
 0.9.6 (2026/07/11) \
-Added way to compile on pull request and new release. 
+Added way to compile on pull request and new release.
 
 0.9.5 (2026/07/11) \
 Update pymadng version
