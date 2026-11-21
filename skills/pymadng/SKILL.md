@@ -21,7 +21,7 @@ with MAD(stdout="/abs/path/mad.log") as mad:     # context manager closes the pr
     q1 = mad.recv_vars("tws.q1")          # one name -> scalar, several -> tuple
     mad.send("py:send(MADX.lhcb1['MQ.12R1.B1'].k1)"); k1 = mad.recv()
     mad["seq['QF'].k1"] = 0.31            # assignment by Lua expression
-    mad.load("MAD", "damap", "matrix", "vector")   # import names into Lua globals
+    mad.import_module("MAD", "damap", "matrix", "vector")   # import names into Lua globals
 ```
 - `mad.send(str)` runs Lua; `mad.recv()` reads each `py:send(...)` (`py` = `mad.py_name`). Exactly one `recv` per `py:send`, or the pipe desyncs. `py:send(tbl, true)` sends a Lua table as a dict/list.
 - Bit-exact numbers: `mad.send(f"x = {mad.py_name}:recv()").send(value)` instead of formatting floats into strings. numpy arrays and lists go as MAD matrices/vectors.

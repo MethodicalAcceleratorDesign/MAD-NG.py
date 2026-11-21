@@ -11,7 +11,7 @@ A MAD-NG function can send data to Python while `match` runs, so Python can plot
 ```lua
 function twiss_and_send()
   local tbl, flow = twiss {sequence=seq}
-  py:send({tbl.s, tbl.beta11})
+  py:send({tbl.s, tbl.beta11}, true)
   return tbl, flow
 end
 ```
@@ -27,6 +27,7 @@ mad.match(
     maxcall=100,
 )
 
+mad.send("py:send(nil)")
 while (data := mad.recv()) is not None:
     update_plot(data)
 ```
@@ -62,7 +63,7 @@ mad.tbl.write("'results.tfs'", mad.quote_strings(["s", "beta11", "mu1"]))
 import numpy as np
 
 mad.send("my_array = py:recv()")
-mad.send(np.linspace(0, 1, 100))
+mad.send(np.linspace(0, 1, 100).reshape(-1, 1))
 ```
 
 The types that can be sent are listed in {doc}`communication`.

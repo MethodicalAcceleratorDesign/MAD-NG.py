@@ -2,7 +2,7 @@
 
 ## MAD(...)
 `MAD(mad_path=None, py_name="py", raise_on_madng_error=True, debug=False, stdout=None, redirect_stderr=False, num_temp_vars=8, ipython_use_jedi=False)`
-- Starts `mad` as a subprocess and imports `element sequence mtable twiss beta0 beam survey object track match` from `MAD` into Lua globals. Anything else: `mad.load("MAD", "damap", "matrix")` or `local x in MAD` inside a chunk.
+- Starts `mad` as a subprocess and imports `element sequence mtable twiss beta0 beam survey object track match` from `MAD` into Lua globals. Anything else: `mad.import_module("MAD", "damap", "matrix")` or `local x in MAD` inside a chunk.
 - `stdout=` path or file: MAD's prints and error tracebacks go there. `debug=True` records every sent chunk (`mad.history()`; empty otherwise) and logs the byte stream.
 - Use `with MAD() as mad:` or `mad.close()`. One process per thread/worker.
 
@@ -17,7 +17,7 @@
 | `mad.send_tpsa(monos_uint8_2d, coefs)` | a Lua **table** `{[i]=mono_string, [mono_string]=coef}`, not a TPSA |
 | `mad.send_range(a, b, n)`, `send_logrange` | MAD range objects |
 | `mad.evaluate_in_madx_environment("kqf = 0.3")` | `MADX:open_env() ... MADX:close_env()` |
-| `mad.loadfile("/abs/file.mad", "name")` | `require` the file and bind the named members |
+| `mad.import_file("/abs/file.mad", "name")` | `require` the file and bind the named members |
 Python → Lua types: `float`/`np.float64` → number (binary), `int` < 2³¹ → integer, `bool`, `None` → nil, `str` → string **when sent as data**, `list`/`tuple` → table (Python index 0 = Lua 1), `dict` → table, `complex`, 2D `float64`/`complex128`/`int32` arrays → matrix/cmatrix/imatrix (`(n,1)` = vector), `range` → irange. 1D arrays are rejected, **after** `name = py:recv()` was already sent: MAD is left waiting, the next chunk is consumed as the value and the session breaks (BrokenPipeError). Always `reshape(-1, 1)` first.
 
 ## Calling MAD functions/commands from Python
