@@ -62,34 +62,37 @@ class TestLoad(unittest.TestCase):
 
 
 class TestLuaLoad(unittest.TestCase):
-    """``MAD.load`` and ``MAD.loadfile`` follow Lua: ``load (ld [, source [, mode [, env]]])``."""
+    """``mad.load`` / ``mad.loadfile`` are MAD-NG's own functions: string arguments are Lua expressions."""
 
     def test_load_chunk_returns_callable(self):
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            chunk = mad.load("return 20 + 22")
+            chunk = mad.load("'return 20 + 22'")
             self.assertEqual(chunk().eval(), 42)
+
+    def test_load_chunk_from_mad_variable(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            mad.send("src = 'return 5'")
+            self.assertEqual(mad.load("src")().eval(), 5)
 
     def test_load_default_env_is_global(self):
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            mad.load("loaded_global = 5", "=chunk")()
+            mad.load("'loaded_global = 5'", "'=chunk'")()
             self.assertEqual(mad.loaded_global, 5)
 
     def test_load_syntax_error_returns_nil_and_message(self):
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            chunk, msg = mad.load("return +", "=mychunk")
-            self.assertIsNone(chunk)
-            self.assertTrue(msg.startswith("mychunk:1:"), msg)
+            result = mad.load("'return +'", "'=mychunk'").eval()
+            self.assertTrue(result[2].startswith("mychunk:1:"), result)
 
     def test_load_mode_binary_rejects_text(self):
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            chunk, msg = mad.load("return 1", "=chunk", "b")
-            self.assertIsNone(chunk)
-            self.assertEqual(msg, "attempt to load chunk with wrong mode")
+            result = mad.load("'return 1'", "'=chunk'", "'b'").eval()
+            self.assertEqual(result[2], "attempt to load chunk with wrong mode")
 
     def test_load_env(self):
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
             mad.send("custom_env = {seed = 1}")
-            mad.load("only_in_env = 7", "=chunk", "t", mad.custom_env)()
+            mad.load("'only_in_env = 7'", "'=chunk'", "'t'", "custom_env")()
             self.assertIsNone(mad.only_in_env)
             self.assertEqual(mad.custom_env.only_in_env, 7)
 
@@ -98,7 +101,7 @@ class TestLuaLoad(unittest.TestCase):
         test_file.write_text("loadfile_global = 11\nreturn 3\n")
         try:
             with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-                chunk = mad.loadfile(test_file)
+                chunk = mad.loadfile(f"'{test_file}'")
                 self.assertIsNone(mad.loadfile_global)  # compiled, not run
                 self.assertEqual(chunk().eval(), 3)
                 self.assertEqual(mad.loadfile_global, 11)
@@ -107,9 +110,8 @@ class TestLuaLoad(unittest.TestCase):
 
     def test_loadfile_missing_returns_nil_and_message(self):
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            chunk, msg = mad.loadfile("does_not_exist.mad")
-            self.assertIsNone(chunk)
-            self.assertIn("cannot open", msg)
+            result = mad.loadfile("'does_not_exist.mad'").eval()
+            self.assertIn("cannot open", result[2])
 
 
 if __name__ == "__main__":
