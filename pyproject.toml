@@ -39,8 +39,12 @@ version = {attr = "pymadng.__version__"}
 
 [project.optional-dependencies]
 tfs = ["tfs-pandas>3.0.0"]
+test = ["pytest>=8"]
 
 # ----- Dev Tools Configuration ----- #
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 exclude = [
