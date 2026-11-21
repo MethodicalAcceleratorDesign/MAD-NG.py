@@ -341,69 +341,6 @@ _last = {}
                 script += f"{var} = __req.{var}\n"
             self.__process.send(script)
 
-    def load(
-        self,
-        ld: str | MadRef,
-        source: str | None = None,
-        mode: str | None = None,
-        env: MadRef | None = None,
-    ) -> MadLastRef | tuple[None, str]:
-        """
-        Call MAD-NG's ``load (ld [, source [, mode [, env]]])``.
-
-        Args:
-            ld (str | MadRef): Lua chunk as a string, or a reference to a reader function.
-            source (str, optional): Chunk name used in error messages.
-            mode (str, optional): ``"t"`` (text), ``"b"`` (binary) or ``"bt"``.
-            env (MadRef, optional): Environment of the loaded chunk (default: MAD-NG's global environment).
-
-        Returns:
-            MadLastRef: Callable reference to the compiled chunk, or ``(None, message)`` on a compile error.
-        """
-        return self.__load_call("load", ld, source, mode, env)
-
-    def loadfile(
-        self,
-        filename: str | Path,
-        mode: str | None = None,
-        env: MadRef | None = None,
-    ) -> MadLastRef | tuple[None, str]:
-        """
-        Call MAD-NG's ``loadfile ([filename [, mode [, env]]])``.
-
-        Unlike Lua, ``filename`` is required, as the standard input of MAD-NG is the pipe from Python.
-
-        Args:
-            filename (str | Path): File to compile (relative paths are relative to the working directory).
-            mode (str, optional): ``"t"`` (text), ``"b"`` (binary) or ``"bt"``.
-            env (MadRef, optional): Environment of the loaded chunk (default: MAD-NG's global environment).
-
-        Returns:
-            MadLastRef: Callable reference to the compiled chunk, or ``(None, message)`` if it cannot be loaded.
-        """
-        return self.__load_call("loadfile", str(filename), mode, env)
-
-    def __load_call(self, func: str, *args: str | MadRef | None) -> MadLastRef | tuple[None, str]:
-        args = list(args)
-        while args[-1] is None:  # An explicit trailing nil would replace the default environment
-            args.pop()
-        exprs, to_send = [], []
-        for arg in args:
-            if arg is None:
-                exprs.append("nil")
-            elif isinstance(arg, str):
-                exprs.append(f"{self.py_name}:recv()")
-                to_send.append(arg)
-            else:
-                exprs.append(arg._name)
-        chunk, err = self.__get_MadReflast(), self.__get_MadReflast()
-        self.__process.send(f"{chunk._name}, {err._name} = {func}({', '.join(exprs)})")
-        for value in to_send:
-            self.__process.send(value)
-        if chunk.eval() is None:
-            return None, err.eval()
-        return chunk
-
     # ----------------------- Make the class work with dict and dot access ------------------------#
     def __getattr__(self, item):
         """

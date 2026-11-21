@@ -61,36 +61,40 @@ def test_globals():
         assert "c" in global_vars
 
 
-# MAD.load and MAD.loadfile follow Lua: load (ld [, source [, mode [, env]]])
+# mad.load / mad.loadfile are MAD-NG's own functions: string arguments are Lua expressions
 def test_lua_load_returns_callable():
     with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-        assert mad.load("return 20 + 22")().eval() == 42
+        assert mad.load("'return 20 + 22'")().eval() == 42
+
+
+def test_lua_load_chunk_from_mad_variable():
+    with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+        mad.send("src = 'return 5'")
+        assert mad.load("src")().eval() == 5
 
 
 def test_lua_load_default_env_is_global():
     with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-        mad.load("loaded_global = 5", "=chunk")()
+        mad.load("'loaded_global = 5'", "'=chunk'")()
         assert mad.loaded_global == 5
 
 
 def test_lua_load_syntax_error_returns_nil_and_message():
     with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-        chunk, msg = mad.load("return +", "=mychunk")
-        assert chunk is None
-        assert msg.startswith("mychunk:1:")
+        result = mad.load("'return +'", "'=mychunk'").eval()
+        assert result[2].startswith("mychunk:1:")
 
 
 def test_lua_load_mode_binary_rejects_text():
     with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-        chunk, msg = mad.load("return 1", "=chunk", "b")
-        assert chunk is None
-        assert msg == "attempt to load chunk with wrong mode"
+        result = mad.load("'return 1'", "'=chunk'", "'b'").eval()
+        assert result[2] == "attempt to load chunk with wrong mode"
 
 
 def test_lua_load_env():
     with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
         mad.send("custom_env = {seed = 1}")
-        mad.load("only_in_env = 7", "=chunk", "t", mad.custom_env)()
+        mad.load("'only_in_env = 7'", "'=chunk'", "'t'", "custom_env")()
         assert mad.only_in_env is None
         assert mad.custom_env.only_in_env == 7
 
@@ -99,7 +103,7 @@ def test_lua_loadfile(tmp_path):
     test_file = tmp_path / "test_loadfile.mad"
     test_file.write_text("loadfile_global = 11\nreturn 3\n")
     with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-        chunk = mad.loadfile(test_file)
+        chunk = mad.loadfile(f"'{test_file}'")
         assert mad.loadfile_global is None  # compiled, not run
         assert chunk().eval() == 3
         assert mad.loadfile_global == 11
@@ -107,6 +111,5 @@ def test_lua_loadfile(tmp_path):
 
 def test_lua_loadfile_missing_returns_nil_and_message():
     with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-        chunk, msg = mad.loadfile("does_not_exist.mad")
-        assert chunk is None
-        assert "cannot open" in msg
+        result = mad.loadfile("'does_not_exist.mad'").eval()
+        assert "cannot open" in result[2]
