@@ -109,7 +109,7 @@ class MAD:
         if not ipython_use_jedi:  # Stop jedi running getattr on my classes...
             try:
                 ipython = get_ipython()  # type: ignore
-                if ipython.__class__.__name__ == "TerminalInteractiveShell":
+                if hasattr(ipython, "Completer"):  # terminal and Jupyter shells
                     ipython.Completer.use_jedi = False
             except NameError:
                 pass

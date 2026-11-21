@@ -96,7 +96,7 @@ jobs:
           mkdir -p src/pymadng/bin
           install -m 755 built/mad src/pymadng/bin/${{ matrix.name }}
 
-      - run: python -m pip install -e .[tfs,test]
+      - run: python -m pip install -e .[tfs,test,jupyter]
 
       # test_logfile compares the log with the MAD-NG version of the released binary
       - run: python -m pytest --deselect tests/test_debug.py::test_logfile
