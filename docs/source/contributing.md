@@ -48,11 +48,12 @@ git checkout -b your-feature-name
 2. **Write Code**
 
 3. **Test Code**
-   - All tests are located in the `tests/` directory, currently `unittests` are used.
+   - All tests are located in the `tests/` directory, they are run with `pytest`.
 
 4. **Run Tests**
 ```bash
-python -m unittest tests/*.py
+pip install -e .[tfs,test]
+pytest
 ```
 
 5. **Submit a Pull Request**

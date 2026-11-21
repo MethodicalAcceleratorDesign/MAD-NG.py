@@ -1,6 +1,7 @@
 0.10.0 (2026/11/21) \
 `MAD.load` and `MAD.loadfile` now call MAD-NG's `load (ld [, source [, mode [, env]]])` and `loadfile ([filename [, mode [, env]]])` (fixes #26). They return a callable reference to the compiled chunk, or `(None, message)` on failure. \
-Breaking: the previous behaviour is renamed to `MAD.import_module(module, *names)` and `MAD.import_file(path, *names)`.
+Breaking: the previous behaviour is renamed to `MAD.import_module(module, *names)` and `MAD.import_file(path, *names)`. \
+The tests now use pytest (`pip install pymadng[test]`, then `pytest`).
 
 0.9.6 (2026/07/11) \
 Added way to compile on pull request and new release. 

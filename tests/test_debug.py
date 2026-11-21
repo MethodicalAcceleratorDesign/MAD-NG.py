@@ -1,73 +1,58 @@
 import time
-import unittest
 from pathlib import Path
+
+import pytest
 
 from pymadng import MAD
 
 inputs_folder = Path(__file__).parent / "inputs"
 
 
-class TestDebug(unittest.TestCase):
-    test_log1 = inputs_folder / "test.log"
+def test_logfile(tmp_path):
+    test_log1 = tmp_path / "test.log"
+    test_log2 = tmp_path / "test2.log"
+    example_log = inputs_folder / "example.log"
 
-    def test_logfile(self):
-        example_log = inputs_folder / "example.log"
-        test_log2 = inputs_folder / "test2.log"
+    with MAD(stdout=test_log1, debug=True, raise_on_madng_error=False):
+        pass
+    time.sleep(0.1)  # Wait for file to be written
+    assert test_log1.read_text() == example_log.read_text()
 
-        with MAD(stdout=self.test_log1, debug=True, raise_on_madng_error=False) as mad:
-            pass
-        time.sleep(0.1)  # Wait for file to be written
-        with self.test_log1.open() as f, example_log.open() as f2:
-            self.assertEqual(f.read(), f2.read())
+    with MAD(stdout=test_log2, debug=True) as mad:
+        mad.send("!This is a line that does nothing")
+        mad.send("print('hello world')")
 
-        with MAD(stdout=test_log2, debug=True) as mad:
-            mad.send("!This is a line that does nothing")
-            mad.send("print('hello world')")
+    text = test_log2.read_text()
+    assert "[!This is a line that does nothing]" in text
+    assert "hello world\n" in text
+    assert "[print('hello world')]" in text
 
-        with test_log2.open() as f:
-            text = f.read()
-            self.assertTrue("[!This is a line that does nothing]" in text)
-            self.assertTrue("hello world\n" in text)
-            self.assertTrue("[print('hello world')]" in text)
+    with MAD(stdout=test_log2, debug=False) as mad:
+        mad.send("!This is a line that does nothing")
+        mad.send("print('hello world')")
 
-        with MAD(stdout=test_log2, debug=False) as mad:
-            mad.send("!This is a line that does nothing")
-            mad.send("print('hello world')")
-
-        with test_log2.open() as f:
-            self.assertEqual(f.read(), "hello world\n")
-
-        self.test_log1.unlink()
-        test_log2.unlink()
-
-    def test_err(self):
-        # Run debug without stderr redirection
-        with (
-            self.test_log1.open("w") as f,
-            MAD(debug=True, stdout=f, raise_on_madng_error=False) as mad,
-        ):
-            mad.psend("a = nil/2")
-            # receive the error before closing the pipe
-            self.assertRaises(RuntimeError, mad.recv)
-        with self.test_log1.open() as f:
-            # Check command was sent
-            file_text = f.read()
-            self.assertTrue("[py:__err(true); a = nil/2; py:__err(false);]" in file_text)
-            # Check error was not in stdout
-            self.assertFalse("***pymad.run:" in file_text)
-
-        # Run debug with stderr redirection
-        with MAD(stdout=self.test_log1, redirect_stderr=True) as mad:
-            mad.psend("a = nil/2")
-            # receive the error before closing the pipe
-            self.assertRaises(RuntimeError, mad.recv)
-        with self.test_log1.open() as f:
-            # Check command was sent
-            file_text = f.read()
-            # Check error was in stdout
-            self.assertEqual("***pymad.run:", file_text[:13])
-        self.test_log1.unlink()
+    assert test_log2.read_text() == "hello world\n"
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_err(tmp_path):
+    test_log = tmp_path / "test.log"
+
+    # Run debug without stderr redirection
+    with (
+        test_log.open("w") as f,
+        MAD(debug=True, stdout=f, raise_on_madng_error=False) as mad,
+    ):
+        mad.psend("a = nil/2")
+        # receive the error before closing the pipe
+        with pytest.raises(RuntimeError):
+            mad.recv()
+    file_text = test_log.read_text()
+    assert "[py:__err(true); a = nil/2; py:__err(false);]" in file_text  # command was sent
+    assert "***pymad.run:" not in file_text  # error was not in stdout
+
+    # Run debug with stderr redirection
+    with MAD(stdout=test_log, redirect_stderr=True) as mad:
+        mad.psend("a = nil/2")
+        with pytest.raises(RuntimeError):
+            mad.recv()
+    assert test_log.read_text()[:13] == "***pymad.run:"  # error was in stdout
