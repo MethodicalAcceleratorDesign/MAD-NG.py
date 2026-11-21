@@ -43,6 +43,8 @@ mad.load("'x = 1'", "'=chunk'", "'t'", "custom_env")()   # source name, mode, en
 
 Without the inner quotes, MAD-NG receives `load(return 1 + 1)` and raises a syntax error.
 
+`loadfile` needs a filename: with none, MAD-NG reads its standard input, which is the pipe from Python, and blocks.
+
 A compiled chunk is a reference: call it to run it, and `.eval()` brings its result to Python. A chunk that does not compile returns `nil, message`, which `.eval()` gives as `{2: message}`:
 
 ```python
