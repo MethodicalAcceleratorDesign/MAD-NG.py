@@ -24,7 +24,7 @@ pip install pymadng
 Before diving into PyMAD-NG, we recommend you:
 
 1. Familiarise yourself with [MAD-NG](https://madx.web.cern.ch/releases/madng/html/) — understanding MAD-NG is essential.
-2. Read the [Quick Start Guide](https://pymadng.readthedocs.io/en/latest/quickstartguide.html) to see how to control MAD-NG from Python.
+2. Read the [Quick Start Guide](https://pymadng.readthedocs.io/en/latest/quickstart.html) to see how to control MAD-NG from Python.
 
 ### Explore Key Examples
 

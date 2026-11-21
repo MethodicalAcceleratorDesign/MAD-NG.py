@@ -1,10 +1,5 @@
 # Communication with MAD-NG
 
-```{contents}
-:depth: 2
-:local:
-```
-
 ## Protocol Overview
 
 PyMAD-NG communicates with MAD-NG using a **pipe-based protocol**, ensuring efficient, direct, two-way communication between the Python and MAD-NG processes.
@@ -151,65 +146,6 @@ If both sides are waiting to receive, the session will deadlock.
 
 ---
 
-## Scope: Local vs Global
-
-MAD-NG uses Lua-style scoping:
-
-- Variables declared with `local` are temporary.
-- Variables without `local` persist across {func}`MAD.send` calls.
-
-### Example:
-```python
-mad.send("""
-a = 10
-local b = 20
-print(a + b)
-""")
-
-mad.send("print(a + (b or 5))")  # b is nil → 10 + 5 = 15
-```
-
-```{tip}
-Use `local` to avoid polluting the global MAD-NG namespace.
-```
-
-### Python Assignment vs MAD Assignment
-
-This is worth stating explicitly because it is a common first-use mistake:
-
-```python
-mad["x"] = 5   # writes x inside MAD-NG
-mad.x = 5      # writes an attribute on the Python wrapper only
-```
-
-If you intend to create a MAD-NG variable, always use square-bracket assignment.
-
----
-
-## References and Materialising Values
-
-Many objects returned by the high-level interface are references to values living inside MAD-NG.
-
-```python
-ref = mad.math.sin(1)
-```
-
-To materialise a Python value, if it exists (rather than a reference), use the `eval()` method:
-
-```python
-value = ref.eval()
-```
-
-To materialise a table:
-
-```python
-df = mad.tbl.to_df()
-```
-
-This distinction is especially important when inspecting objects interactively, writing assertions in tests, or passing results into ordinary Python libraries.
-
----
-
 ## Executing Python Returned by MAD-NG
 
 {func}`MAD.recv_and_exec` executes Python code sent back from MAD-NG:
@@ -250,15 +186,7 @@ mad = MAD(debug=True)
 mad = MAD(num_temp_vars=10)
 ```
 
-### Output and completion in Jupyter and IPython:
-In a Jupyter notebook the output of MAD-NG appears under the cell that runs it. MAD-NG writes its output asynchronously, so a line can appear under the cell that follows when the first cell has already finished.
-
-Tab completion with jedi evaluates the objects it completes, and completing on a MAD-NG reference blocks until MAD-NG answers (3 s while a 3 s loop runs). `MAD()` therefore turns jedi off in every IPython shell, terminal and Jupyter. Completion of `mad.<name>` still works, but nested tables such as `mad.mytable.<name>` and other objects (for example a DataFrame) lose their completions for the rest of the session. To keep jedi:
-```python
-mad = MAD(ipython_use_jedi=True)
-```
-
-See {meth}`pymadng.MAD.__init__` for all configuration options.
+See {meth}`pymadng.MAD.__init__` for all configuration options, and {doc}`jupyter` for `ipython_use_jedi`.
 
 ---
 
@@ -268,10 +196,8 @@ See {meth}`pymadng.MAD.__init__` for all configuration options.
 
 ## Summary
 
-- Always match {func}`MAD.send` with {func}`MAD.recv` when data is expected.
-- Use `.to_df()` on MAD tables when you want a DataFrame.
-- Avoid deadlocks by receiving before sending again.
-- Manage scope using `local` wisely.
-- Use configuration flags to tailor behaviour.
+- Match every {func}`MAD.send` that expects an answer with a {func}`MAD.recv`, and never wait for MAD-NG while it waits for you.
+- Tell MAD-NG to `py:recv()` before sending it data, and to `py:send(...)` before you call `recv()`.
+- Messages are in order: the first one sent is the first one received.
 
-For more, see the {doc}`advanced_features`, {doc}`debugging`, and {doc}`function_reference` sections.
+Next: {doc}`references`, {doc}`troubleshooting` for hangs and errors.
