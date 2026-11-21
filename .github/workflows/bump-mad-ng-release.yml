@@ -73,8 +73,8 @@ jobs:
 
       - name: Update workflow files
         run: |
-          # Update both workflow files with the new MAD-NG version
-          for workflow in test-pymadng.yml python-publish.yml; do
+          # Update the workflow files with the new MAD-NG version
+          for workflow in test-pymadng.yml python-publish.yml pr-coverage.yml; do
             sed -i "s|releases/madng/${{ steps.current.outputs.major_minor }}/mad-linux-${{ steps.current.outputs.version }}|releases/madng/${{ inputs.major_minor }}/mad-linux-${{ inputs.new_version }}|g" ".github/workflows/$workflow"
             sed -i "s|releases/madng/${{ steps.current.outputs.major_minor }}/mad-macos-${{ steps.current.outputs.version }}|releases/madng/${{ inputs.major_minor }}/mad-macos-${{ inputs.new_version }}|g" ".github/workflows/$workflow"
             echo "Updated $workflow"

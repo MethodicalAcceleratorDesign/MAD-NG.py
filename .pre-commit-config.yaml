@@ -12,3 +12,10 @@ repos:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
+
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v9.3.3
+    hooks:
+      - id: cspell
+        args: [--no-progress, --no-summary]
+        files: ^(README\.md|CHANGELOG\.md|docs/source/.*\.(md|rst))$

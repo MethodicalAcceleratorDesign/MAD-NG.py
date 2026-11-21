@@ -135,7 +135,7 @@ except RuntimeError as e:
 Or it is possible to ignore the error and continue execution of the python script:
 
 ```python
-mad = MAD(raise_on_error=False)
+mad = MAD(raise_on_madng_error=False)
 mad.send("a = 1/'0'")
 assert mad.send("py:send(1)").recv() == 1
 ``` 
@@ -174,4 +174,3 @@ Now that PyMAD-NG is installed, you can move on to:
 
 - **[Quick Start Guide →](quickstartguide.md)** *(Learn the basics and run your first PyMAD-NG script)*  
 - **[API Reference →](reference.rst)** *(Explore the functions and classes available in PyMAD-NG)*
-
