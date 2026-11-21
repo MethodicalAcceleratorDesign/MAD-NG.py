@@ -24,6 +24,7 @@ words:
   - fmin
   - fodo
   - fodos
+  - furo
   - genindex
   - geomspace
   - getattr
@@ -56,8 +57,9 @@ words:
   - mtable
   - mtbl
   - multypes
-  - mytable
   - mysetup
+  - myst
+  - mytable
   - nbclient
   - ndarray
   - numpy

@@ -6,11 +6,6 @@
 
 This page provides a reference-style overview of functions, libraries, and patterns available through a {class}`MAD()` instance. It complements the API reference by highlighting common tools and objects exposed in the high-level interface for scripting and interacting with MAD-NG.
 
-```{contents}
-:depth: 2
-:local:
-```
-
 ---
 
 ## Top-Level Objects in `pymadng`
@@ -86,55 +81,9 @@ mad["seq"] = mad.sequence(...)       # Create a sequence
 mad.seq.beam = mad.beam(...)         # Attach a beam to the sequence
 mad["tbl", "flw"] = mad.twiss(sequence=mad.seq)  # Run a Twiss
 ```
-See [Setting Variables in MAD-NG](#setting-variables-in-mad-ng) for more details on how to set variables in MAD-NG and explanation of the code above.
+See {doc}`references` for how to set variables in MAD-NG.
 
 ---
-
-## Importing MAD-NG Modules via PyMAD-NG
-
-You can load MAD-NG modules dynamically using the {func}`MAD.import_module` function.
-This is useful for loading built-in modules that are not automatically available.
-
-### Example:
-
-You can load modules directly from MAD-NG namespaces:
-
-```python
-mad.import_module("MAD", "gphys")        # Load a module such as MAD.gphys
-mad.import_module("element", "quadrupole")  # Load a specific element type
-```
-
-The first argument is the module path. Optional additional arguments allow importing specific submodules or functions.
-
-Run a MAD-NG file in the same way with {func}`MAD.import_file`, which takes the path of the file and the names to import from what it returns:
-
-```python
-mad.import_file("ps_ring.mad", "ps")  # ps_ring.mad ends with: return { ps = PS }
-```
-
-## `load` and `loadfile`
-
-{func}`MAD.load` and {func}`MAD.loadfile` follow the Lua functions of the same name. They compile a chunk and return a reference to it without running it, or `(None, message)` when the chunk does not compile:
-
-```python
-chunk = mad.load("return 1 + 1")             # load (ld [, source [, mode [, env]]])
-chunk = mad.loadfile("setup.mad")            # loadfile (filename [, mode [, env]])
-chunk, err = mad.load("return +")            # (None, '[string "return +"]:1: unexpected symbol near <eof>')
-```
-
-`filename` is required, because the standard input of MAD-NG is the pipe from Python.
-
-### Moving from 0.9
-
-Before 0.10.0, `load` imported a module and `loadfile` imported a file. Those calls are now `import_module` and `import_file`:
-
-| 0.9                                  | 0.10.0                                         |
-|--------------------------------------|------------------------------------------------|
-| `mad.load("MADX", "lhcb1")`          | `mad.import_module("MADX", "lhcb1")`           |
-| `mad.loadfile("setup.mad", "knob")`  | `mad.import_file("setup.mad", "knob")`         |
-
----
-
 
 ## Core Communication Methods
 
@@ -149,52 +98,7 @@ These tools are essential for controlling the MAD subprocess directly.
 
 ---
 
-## Reference Objects and Evaluation
-
-(setting-variables-in-mad-ng)=
-### Setting Variables in MAD-NG
-
-To assign values in MAD-NG, always use square bracket syntax on the {class}`MAD` object. Dot syntax does not trigger assignment inside MAD-NG.
-
-```python
-mad["energy"] = 6500                 # Sets a global MAD-NG variable
-mad["tw"] = mad.twiss(...)           # Stores the result in MAD-NG
-```
-
-Using `mad.energy = 6500` only affects Python, not MAD-NG, and will not produce the expected behaviour.
-
-
-Functions like `mad.math.sin()` return reference objects that defer computation.
-You must call `.eval()` to obtain the actual value.
-
-```python
-r = mad.math.sin(1)
-print(r.eval())  # returns float result
-```
-
-References can be composed symbolically:
-```python
-expr = mad.math.sin(1) + mad.math.cos(1)
-print(expr.eval())
-```
-
----
-
-## Table Conversion
-
-MAD tables returned from `twiss()`, `survey()`, etc., can be converted into Pandas-style data frames:
-
-```python
-df = mad.tbl.to_df()
-```
-
-- If `tfs-pandas` is installed, a `TfsDataFrame` is returned (with headers).
-- Otherwise, a regular `pandas.DataFrame` is returned, with the headers in the attrs.
-
-Raises `TypeError` if called on a non-table object.
-
----
-
+For modules, files and `load`, see {doc}`load-and-import`; for references, assigning variables and tables, see {doc}`references` and {doc}`communication`.
 
 ## Listing Available Globals
 

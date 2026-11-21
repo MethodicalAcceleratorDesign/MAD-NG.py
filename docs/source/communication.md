@@ -1,9 +1,8 @@
-# Communication with MAD-NG
-
-```{contents}
-:depth: 2
-:local:
+```{eval-rst}
+.. currentmodule:: pymadng
 ```
+
+# Communication with MAD-NG
 
 ## Protocol Overview
 
@@ -13,7 +12,7 @@ Key points:
 
 - Data is sent through FIFO pipes (first-in, first-out).
 - Commands are sent as MAD-NG script strings (Lua-like).
-- Data is retrieved via `{func}`MAD.recv`()` after explicit instruction to send it.
+- Data is retrieved via {func}`MAD.recv()` after explicit instruction to send it.
 - MAD-NG stdout is redirected to Python, but not intercepted.
 
 ```{tip}
@@ -86,10 +85,10 @@ The following types can be sent from Python to MAD-NG:
   - {func}`MAD.send`
 * - `start, stop, size` as float, int
   - `range`, `logrange`
-  - `mad.send_range()`, `mad.send_logrange()`
+  - {meth}`MAD.send_range`, {meth}`MAD.send_logrange`
 * - Complex structures (e.g., TPSA, CTPSA)
   - `TPSA`, `CTPSA`
-  - `mad.send_tpsa()`, `mad.send_cpx_tpsa()`
+  - {meth}`MAD.send_tpsa`, {meth}`MAD.send_cpx_tpsa`
 ```
 
 For full compatibility, see the {mod}`pymadng.MAD` documentation.
@@ -102,7 +101,7 @@ High-level MAD objects are often returned as references rather than copied Pytho
 
 ## Converting TFS Tables to DataFrames
 
-If you use {func}`twiss` or {func}`survey`, MAD-NG returns an `mtable`, which can be converted to a Pandas or TFS-style DataFrame:
+If you use `twiss` or `survey`, MAD-NG returns an `mtable`, which can be converted to a Pandas or TFS-style DataFrame:
 
 ```python
 mtbl = mad.twiss(...)
@@ -112,7 +111,7 @@ df = mtbl.to_df()  # Either DataFrame or TfsDataFrame
 If the object is not an `mtable`, a `TypeError` will be raised.
 
 ```{note}
-`tfs-pandas` (if installed) will enhance the output with headers and metadata.
+`tfs-pandas` (if installed) will add the headers and metadata correctly to the output.
 ```
 
 See:
@@ -148,65 +147,6 @@ Before each operation, ask one question:
 - or "Is Python waiting for MAD-NG?"
 
 If both sides are waiting to receive, the session will deadlock.
-
----
-
-## Scope: Local vs Global
-
-MAD-NG uses Lua-style scoping:
-
-- Variables declared with `local` are temporary.
-- Variables without `local` persist across {func}`MAD.send` calls.
-
-### Example:
-```python
-mad.send("""
-a = 10
-local b = 20
-print(a + b)
-""")
-
-mad.send("print(a + (b or 5))")  # b is nil → 10 + 5 = 15
-```
-
-```{tip}
-Use `local` to avoid polluting the global MAD-NG namespace.
-```
-
-### Python Assignment vs MAD Assignment
-
-This is worth stating explicitly because it is a common first-use mistake:
-
-```python
-mad["x"] = 5   # writes x inside MAD-NG
-mad.x = 5      # writes an attribute on the Python wrapper only
-```
-
-If you intend to create a MAD-NG variable, always use square-bracket assignment.
-
----
-
-## References and Materialising Values
-
-Many objects returned by the high-level interface are references to values living inside MAD-NG.
-
-```python
-ref = mad.math.sin(1)
-```
-
-To materialise a Python value, if it exists (rather than a reference), use the `eval()` method:
-
-```python
-value = ref.eval()
-```
-
-To materialise a table:
-
-```python
-df = mad.tbl.to_df()
-```
-
-This distinction is especially important when inspecting objects interactively, writing assertions in tests, or passing results into ordinary Python libraries.
 
 ---
 
@@ -250,28 +190,14 @@ mad = MAD(debug=True)
 mad = MAD(num_temp_vars=10)
 ```
 
-### Output and completion in Jupyter and IPython:
-In a Jupyter notebook the output of MAD-NG appears under the cell that runs it. MAD-NG writes its output asynchronously, so a line can appear under the cell that follows when the first cell has already finished.
-
-Tab completion with jedi evaluates the objects it completes, and completing on a MAD-NG reference blocks until MAD-NG answers (3 s while a 3 s loop runs). `MAD()` therefore turns jedi off in every IPython shell, terminal and Jupyter. Completion of `mad.<name>` still works, but nested tables such as `mad.mytable.<name>` and other objects (for example a DataFrame) lose their completions for the rest of the session. To keep jedi:
-```python
-mad = MAD(ipython_use_jedi=True)
-```
-
-See {meth}`pymadng.MAD.__init__` for all configuration options.
+See {meth}`pymadng.MAD.__init__` for all configuration options, and {doc}`jupyter` for `ipython_use_jedi`.
 
 ---
 
-```{eval-rst}
-.. currentmodule:: pymadng
-```
-
 ## Summary
 
-- Always match {func}`MAD.send` with {func}`MAD.recv` when data is expected.
-- Use `.to_df()` on MAD tables when you want a DataFrame.
-- Avoid deadlocks by receiving before sending again.
-- Manage scope using `local` wisely.
-- Use configuration flags to tailor behaviour.
+- Match every {func}`MAD.send` that expects an answer with a {func}`MAD.recv`, and never wait for MAD-NG while it waits for you.
+- Tell MAD-NG to `py:recv()` before sending it data, and to `py:send(...)` before you call `recv()`.
+- Messages are in order: the first one sent is the first one received.
 
-For more, see the {doc}`advanced_features`, {doc}`debugging`, and {doc}`function_reference` sections.
+Next: {doc}`references`, {doc}`troubleshooting` for hangs and errors.
