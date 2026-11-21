@@ -52,6 +52,15 @@ def test_load(tmp_path):
         assert np.all(mad.res2 == np.matmul(A_MATRIX, C_MATRIX.conj()))
 
 
+def test_dir():
+    with MAD() as mad:
+        names = dir(mad)
+        assert "send" in names  # Python method
+        assert "twiss" in names  # MAD-NG global imported at start-up
+        mad.send_vars(my_variable=1)
+        assert "my_variable" in dir(mad)
+
+
 def test_globals():
     with MAD() as mad:
         mad.send_vars(a=1, b=2, c=3)

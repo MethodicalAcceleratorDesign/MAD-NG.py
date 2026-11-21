@@ -103,7 +103,7 @@ print("Nil/None", mad.recv() is None)
 
 # Receive ranges from MAD
 mad.send("""
-py:send(3..11..2)
+py:send(MAD.range(3, 11, 2))
 py:send(MAD.nrange(3.5, 21.4, 12))
 py:send(MAD.nlogrange(1, 20, 20))
 """)

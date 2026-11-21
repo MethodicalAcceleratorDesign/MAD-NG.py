@@ -15,7 +15,8 @@ with MAD(debug=False) as mad:
     mad.MADX.load("'ps_ss.seq'")
     mad.MADX.load("'ps_fb_lhc.str'")
 
-    mad.import_module("MADX", "ps")
+    # ps_ring.mad builds the ring from the sub-sequences loaded above (see the comment in the file)
+    mad.import_file("ps_ring.mad", "ps")
     mad.ps.beam = mad.psbeam
     mad["srv", "mflw"] = mad.survey(sequence=mad.ps)
 

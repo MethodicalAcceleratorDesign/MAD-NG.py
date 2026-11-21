@@ -1,3 +1,6 @@
+import shutil
+from pathlib import Path
+
 import pytest
 
 nbformat = pytest.importorskip("nbformat")
@@ -13,16 +16,22 @@ CELLS = [
 ]
 
 
-def run_notebook(cells, monkeypatch):
+def run_notebook(nb, monkeypatch, path=None):
     monkeypatch.delenv("PYTEST_CURRENT_TEST")  # ipykernel does not capture fds when it is set
-    nb = nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(c) for c in cells])
-    nbclient.NotebookClient(nb, timeout=60, kernel_name="python3").execute()
+    resources = {"metadata": {"path": str(path)}} if path else {}
+    nbclient.NotebookClient(nb, timeout=120, kernel_name="python3", resources=resources).execute()
     return nb
+
+
+def run_cells(cells, monkeypatch):
+    return run_notebook(
+        nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(c) for c in cells]), monkeypatch
+    )
 
 
 def test_mad_output_is_captured_by_the_kernel(monkeypatch):
     """ipykernel captures fd 1 and 2 into the running cell; MAD-NG must write to those fds."""
-    nb = run_notebook(CELLS, monkeypatch)
+    nb = run_cells(CELLS, monkeypatch)
 
     streams = {
         (out.name, out.text)
@@ -39,10 +48,27 @@ JEDI_CELL = "from pymadng import MAD\nmad = MAD({args})\nprint(get_ipython().Com
 
 
 def test_jedi_is_disabled(monkeypatch):
-    nb = run_notebook([JEDI_CELL.format(args="")], monkeypatch)
+    nb = run_cells([JEDI_CELL.format(args="")], monkeypatch)
     assert nb.cells[0].outputs[0].text == "False\n"
 
 
 def test_jedi_is_kept_when_requested(monkeypatch):
-    nb = run_notebook([JEDI_CELL.format(args="ipython_use_jedi=True")], monkeypatch)
+    nb = run_cells([JEDI_CELL.format(args="ipython_use_jedi=True")], monkeypatch)
     assert nb.cells[0].outputs[0].text == "True\n"
+
+
+def test_example_notebook_runs(tmp_path, monkeypatch):
+    pytest.importorskip("matplotlib")
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    source = Path(__file__).parent.parent / "examples" / "ex-jupyter"
+    folder = shutil.copytree(source, tmp_path / "ex-jupyter")
+    nb = run_notebook(nbformat.read(folder / "ex-jupyter.ipynb", as_version=4), monkeypatch, folder)
+
+    stdout = "".join(
+        out.text
+        for cell in nb.cells
+        for out in cell.get("outputs", [])
+        if out.output_type == "stream" and out.name == "stdout"
+    )
+    assert "running twiss..." in stdout
+    assert "done" in stdout
