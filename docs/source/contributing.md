@@ -122,6 +122,8 @@ Spell-check configuration lives in `cspell.config.yaml`.
 ## Documentation
 
 - Update or extend `.md` or `.rst` files as appropriate
+- Build the docs with warnings as errors, as CI does: `uv run --with sphinx --with furo --with myst-parser python -m sphinx -W -b html docs/source docs/_build`
+- The `python` blocks of `quickstart.md` are run by `tests/test_docs.py`; show a block without running it with ```` ```{code-block} python ````
 - Document new examples in the `examples/` directory
 - Ensure all new features are at least in the API reference
 
@@ -131,6 +133,6 @@ Spell-check configuration lives in `cspell.config.yaml`.
 
 - Open a GitHub Issue
 - Tag maintainers in your Pull Request
-- See the [Debugging Guide](debugging.md) or [Architecture Overview](architecture.md) for internals
+- See the [Troubleshooting](troubleshooting.md) or [Architecture Overview](architecture.md) for internals
 
 Thanks for contributing to PyMAD-NG!

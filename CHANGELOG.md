@@ -6,7 +6,7 @@ The MAD-NG build (`tools/build_madng.sh`, `compile_madng.yml`) supports Linux an
 Source files use LF line endings (`.gitattributes`). \
 In Jupyter, the output of MAD-NG now appears in the cell that produced it, and jedi is disabled as in the terminal (`ipython_use_jedi`). \
 `dir(mad)` no longer raises `ValueError`. The examples run in the tests, with a Jupyter example notebook. `ex-ps-twiss` builds the PS ring in `ps_ring.mad`, because MAD-NG 1.1.12 and later drop sub-sequences placed with `at`. \
-Development tools: ruff, pre-commit and cspell (`pip install pymadng[dev]`), a PR coverage workflow, and revised README, communication, installation, quickstart, function reference and contributing docs.
+Development tools: ruff, pre-commit and cspell (`pip install pymadng[dev]`), a PR coverage workflow, and restructured docs on the Furo theme (the quickstart is run by the tests, CI builds the docs with `sphinx -W`).
 
 0.9.6 (2026/07/11) \
 Added way to compile on pull request and new release.

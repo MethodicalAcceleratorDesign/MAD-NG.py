@@ -24,7 +24,7 @@ pip install pymadng
 Before diving into PyMAD-NG, we recommend you:
 
 1. Familiarise yourself with [MAD-NG](https://madx.web.cern.ch/releases/madng/html/) — understanding MAD-NG is essential.
-2. Read the [Quick Start Guide](https://pymadng.readthedocs.io/en/latest/quickstartguide.html) to see how to control MAD-NG from Python.
+2. Read the [Quick Start Guide](https://pymadng.readthedocs.io/en/latest/quickstart.html) to see how to control MAD-NG from Python.
 
 ### Explore Key Examples
 
@@ -43,6 +43,12 @@ If anything seems unclear:
 - Refer to the [API Reference](https://pymadng.readthedocs.io/en/latest/pymadng.html#module-pymadng)
 - Check the [MAD-NG Docs](https://madx.web.cern.ch/releases/madng/html/)
 - Or open an [issue](https://github.com/MethodicalAcceleratorDesign/MAD-NG.py/issues)
+
+---
+
+## 🤖 AI Agents
+
+[`skills/pymadng`](skills/pymadng) is a skill for AI coding agents (Claude Code and similar) that write PyMAD-NG code. See the [docs](https://pymadng.readthedocs.io/en/latest/ai-agents.html) for how to install it.
 
 ---
 
