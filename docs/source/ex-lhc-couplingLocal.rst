@@ -23,7 +23,7 @@ Receiving intermediate results
 
 The most complicated part of the example includes the following set of lines.
 
-From lines 4 - 8 below, we define a function that will be invoked during the optimisation process at each iteration. Within this function, we perform a twiss for the match function to use, while also sending some information on the twiss to python, on line 6. 
+From lines 4 - 8 below, we define a function that will be invoked during the optimisation process at each iteration. Within this function, we perform a twiss for the match function to use, while also sending some information on the twiss to python, on line 6.
 
 From lines 10 - 23, we run a match, with a **reference** to the match result returned to the variable ``match_rtrn``. Line 24 is a very important line, as this is something you place in the pipe to MAD-NG for MAD-NG to execute once the match is done. Lines 23 - 25 receive the first result returned during the match, so that we can start plotting the results.
 
@@ -99,6 +99,6 @@ Finally, on lines 40 and 41, we retrieve the results of the match from the varia
 ..     eval time method 4: 0.21885156631469727  sec
 
 .. .. code-block:: console
-    
+
 ..     time to retrieve every element name in lhcb1 sequence 0.024236202239990234 sec
 ..     time to retrieve every element name in lhcb2 sequence 0.0245511531829834 sec

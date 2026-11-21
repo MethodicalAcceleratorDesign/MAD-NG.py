@@ -9,7 +9,7 @@ In Jupyter, the output of MAD-NG now appears in the cell that produced it, and j
 Development tools: ruff, pre-commit and cspell (`pip install pymadng[dev]`), a PR coverage workflow, and revised README, communication, installation, quickstart, function reference and contributing docs.
 
 0.9.6 (2026/07/11) \
-Added way to compile on pull request and new release. 
+Added way to compile on pull request and new release.
 
 0.9.5 (2026/07/11) \
 Update pymadng version

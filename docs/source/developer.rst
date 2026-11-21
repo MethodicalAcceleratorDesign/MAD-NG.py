@@ -9,7 +9,7 @@ PyMAD-NG Low Level API (Able to be run independently of madp_object)
    :members:
    :undoc-members:
    :show-inheritance:
-   
+
 
 PyMAD-NG Reference Layer for Object Communication
 -------------------------------------------------
