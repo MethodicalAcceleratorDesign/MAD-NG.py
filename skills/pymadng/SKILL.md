@@ -77,5 +77,5 @@ mad["status", "fmin", "ncall"] = result                                  # unpac
 - `mad.send_vars(name=np.array(...))` with a 1-D array fails ("Matrix must be of two dimensions"): send `mad.send("v = py:recv()").send(arr.reshape(-1, 1))`.
 - `mad.send(...)` returns the MAD object: end a notebook cell with `;` to avoid printing it.
 - Start with `MAD(stdout=log, redirect_stderr=True)` so MAD-NG's messages (match tables, warnings) go to the log file; use one log per run (concurrent runs writing the same `mad.log` overwrite each other).
-- Lua `local` names do not survive between `mad.send` chunks: use globals or `mad.load("MAD", "twiss", "track", ...)`; `mad.load("MAD.element", "quadrupole", ...)` for element classes.
+- Lua `local` names do not survive between `mad.send` chunks: use globals or `mad.import_module("MAD", "twiss", "track", ...)`; `mad.import_module("MAD.element", "quadrupole", ...)` for element classes.
 - A MAD process started by `jupyter nbconvert` stays alive until the kernel is shut down: kill orphaned `ipykernel` / `mad_Linux` processes (by PID) after interrupted notebook runs.
