@@ -35,6 +35,11 @@ def is_private(varname):
     return bool(varname[0] == "_" and varname[:6] != "_last[")
 
 
+def _real_stream(stream, original):
+    # ipykernel's OutStream.fileno() returns a copy of the original fd, bypassing its capture
+    return original if type(stream).__name__ == "OutStream" else stream
+
+
 class MadProcess:
     def __init__(
         self,
@@ -63,7 +68,7 @@ class MadProcess:
 
         # Convert stdout to a TextIO object
         if stdout is None:
-            stdout = sys.stdout
+            stdout = _real_stream(sys.stdout, sys.__stdout__)
         elif isinstance(stdout, str | Path):
             self.stdout_file_path = Path(stdout)
             self.stdout_file = self.stdout_file_path.open("w")
@@ -78,7 +83,7 @@ class MadProcess:
             ) from e
 
         # Redirect stderr to stdout, if specified
-        stderr = stdout if redirect_stderr else sys.stderr.fileno()
+        stderr = stdout if redirect_stderr else _real_stream(sys.stderr, sys.__stderr__).fileno()
 
         # Create a chunk of code to start the process
         lua_debug_flag = "true" if debug else "false"
@@ -99,7 +104,7 @@ class MadProcess:
             pass_fds=[
                 mad_write,
                 stdout_fileno,
-                sys.stderr.fileno(),
+                _real_stream(sys.stderr, sys.__stderr__).fileno(),
             ],  # Don't close these (python closes all fds by default)
         )
 

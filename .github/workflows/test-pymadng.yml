@@ -39,7 +39,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .[tfs,test]
+        python -m pip install -e .[tfs,test,jupyter]
     - name: Test with python
       run: |
         python -m pytest
