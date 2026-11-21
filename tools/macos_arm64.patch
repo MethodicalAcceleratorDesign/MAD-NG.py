@@ -1,0 +1,170 @@
+diff --git a/src/Makefile.macosx b/src/Makefile.macosx
+index facc811b..dcf0b8ad 100644
+--- a/src/Makefile.macosx
++++ b/src/Makefile.macosx
+@@ -22,21 +22,42 @@ PRJ      := mad
+ NOT      := # $(wildcard *.mad help/*.mad)
+ 
+ # setup
+-CC       := gcc
+-CXX      := g++
+-FC       := gfortran
++# Use a single native toolchain for the executable and the static libraries.
++# Do not replace a compiler selected in the environment or on the make command
++# line.  GNU make defines CC=cc by default, so '?=' would not do that.
++ifeq ($(origin CC), default)
++CC := $(or $(firstword $(wildcard /opt/homebrew/bin/gcc-[0-9]*)),gcc)
++endif
++ifeq ($(origin CXX), default)
++CXX := $(or $(firstword $(wildcard /opt/homebrew/bin/g++-[0-9]*)),g++)
++endif
++ifeq ($(origin FC), default)
++FC := gfortran
++endif
+ DIR      := build
+-LIB      := ../lib
++# MAD's checked-in lib directory contains build notes; dependency source trees
++# are normally supplied with LIB or MAD_DEPS.  Keep the local build location as
++# a convenient default for a checkout rebuilt using lib/README.md.
++LIB      ?= $(if $(MAD_DEPS),$(MAD_DEPS),../lib)
++ifeq ($(wildcard $(LIB)/luajit/src/lua.h),)
++ifneq ($(wildcard /private/tmp/mad-deps/luajit/src/lua.h),)
++LIB      := /private/tmp/mad-deps
++endif
++endif
+ BIN      := ../bin/macosx
+ AR       := ar -ruv
+-LJ       := $(firstword $(wildcard ./mad $(LIB)/luajit/bin/luajit))
++LJ       := $(firstword $(wildcard ./mad $(LIB)/luajit/bin/luajit $(LIB)/luajit/src/luajit))
++ARCH     := $(shell uname -m)
++CPUFLAGS := $(if $(filter arm64 aarch64,$(ARCH)),-mcpu=native,-march=native -mtune=native)
++FFTW_DIR := $(firstword $(wildcard $(LIB)/fftw3 $(LIB)/fftw-3.3.10))
++NFFT_DIR := $(firstword $(wildcard $(LIB)/nfft3 $(LIB)/nfft-3.5.3))
+ 
+ # depend
+ DFLAGS   := -std=c11 -MM
+ 
+ # C
+ CFLAGS   := -std=c11 -W -Wall -Wextra -pedantic # -no-pie
+-CFLAGS   += -O3 -ftree-vectorize -fPIC -flto -march=native -mtune=native -mfma #-fopt-info
++CFLAGS   += -O3 -ftree-vectorize -fPIC -flto $(CPUFLAGS) #-fopt-info
+ CFLAGS   += -Waggregate-return -Wcast-align -Wdisabled-optimization \
+ 						-Wpointer-arith -Wsign-compare -Wwrite-strings \
+ 						-Wbad-function-cast -Wmissing-prototypes -Wnested-externs \
+@@ -48,7 +69,7 @@ CFLAGS   += -fno-math-errno
+ 
+ # C++
+ CXXFLAGS := -std=c++20 -W -Wall -Wextra -pedantic # -no-pie
+-CXXFLAGS += -O3 -ftree-vectorize -fPIC -flto -march=native -mtune=native -mfma #-fopt-info
++CXXFLAGS += -O3 -ftree-vectorize -fPIC -flto $(CPUFLAGS) #-fopt-info
+ CXXFLAGS += -Wcast-align -Wdisabled-optimization \
+ 						-Wpointer-arith -Wsign-compare -Wwrite-strings -Wunreachable-code \
+ 						$(CXXOPTIONS) -fopenmp #-DDEBUG
+@@ -58,26 +79,49 @@ CXXFLAGS += -fdiagnostics-all-candidates -fno-math-errno
+ 
+ # fortran
+ FFLAGS   := -std=f95 -W -Wall -Wextra -pedantic # -no-pie
+-FFLAGS   += -O3 -ftree-vectorize -fPIC -flto -march=native -mtune=native -mfma
++FFLAGS   += -O3 -ftree-vectorize -fPIC -flto $(CPUFLAGS)
+ 
+ # lua/mad
+ LFLAGS   :=
+ 
+ # linker
+-LDFLAGS  := -ld_classic #-Wl,-macosx_version_min,14
+-LDFLAGS  += -static-libgcc # disable ASLR: -Wl,-no_pie
++# `-ld_classic` was removed by current Xcode toolchains.  The system linker
++# handles arm64 Mach-O objects directly.
++LDFLAGS  := -static-libgcc # disable ASLR: -Wl,-no_pie
+ LDFLAGS  += $(BIN)/liblpeg.a   $(BIN)/liblfs.a     $(BIN)/libluajit.a \
+ 						$(BIN)/liblapack.a $(BIN)/librefblas.a \
+ 						$(BIN)/libnfft3.a  $(BIN)/libfftw3.a   \
+ 						$(BIN)/libnlopt.a \
+-						$(or $(wildcard $(shell gcc -print-file-name=libgfortran.a)),-lgfortran) \
+-						$(or $(wildcard $(shell gcc -print-file-name=libquadmath.a)),-lquadmath) \
+-						$(or $(wildcard $(shell gcc -print-file-name=libgomp.a))    ,-lgomp) \
+-						$(or $(wildcard $(shell gcc -print-file-name=libstdc++.a))  ,-lstdc++) \
++						$(or $(wildcard $(shell $(CC) -print-file-name=libgfortran.a)),-lgfortran) \
++						$(or $(wildcard $(shell $(CC) -print-file-name=libquadmath.a)),-lquadmath) \
++						$(or $(wildcard $(shell $(CC) -print-file-name=libgomp.a))    ,-lgomp) \
++						$(or $(wildcard $(shell $(CC) -print-file-name=libstdc++.a))  ,-lstdc++) \
+ 						$(LDOPTIONS)
+ 
++NATIVE_LIBS := $(BIN)/liblpeg.a   $(BIN)/liblfs.a     $(BIN)/libluajit.a \
++               $(BIN)/liblapack.a $(BIN)/librefblas.a \
++               $(BIN)/libnfft3.a  $(BIN)/libfftw3.a   $(BIN)/libnlopt.a
++
++# The MADLibs submodule currently also carries Intel archives.  Never let an
++# Apple Silicon build silently attempt to link them.
++ifneq ($(filter arm64 aarch64,$(ARCH)),)
++check-native-libs:
++	@for lib in $(NATIVE_LIBS); do \
++	  test -f $$lib || { echo "missing native dependency: $$lib"; exit 1; }; \
++	  lipo -archs $$lib | grep -qw arm64 || { \
++	    echo "$$lib is not an arm64 archive; rebuild it as described in ../lib/README.md"; exit 1; \
++	  }; \
++	done
++else
++check-native-libs:
++	@:
++endif
++
+ # files setup
+-ASRC     := $(wildcard *.lua *.mad help/*.mad *.c sse/*.c *.cpp *.f90) # all  sources
++# SSE/AVX intrinsics are x86-only.  ARM64 uses the portable implementations
++# (and can still be auto-vectorised by the compiler).
++SSESRC   := $(if $(filter arm64 aarch64,$(ARCH)),,$(wildcard sse/*.c))
++ASRC     := $(wildcard *.lua *.mad help/*.mad *.c *.cpp *.f90) $(SSESRC) # all sources
+ RSRC     := $(filter-out $(NOT),$(ASRC))                               # skip sources
+ CSRC     := $(filter %.c,$(RSRC))                                      # .c   sources
+ CXXSRC   := $(filter %.cpp,$(RSRC))                                    # .cpp sources
+@@ -101,7 +145,7 @@ DOIT     := $(shell mkdir -p $(DIR) $(DIR)/help $(DIR)/sse)
+ # files specific setup
+ $(DIR)/mad_main.o      : CFLAGS += -I$(LIB)/luajit/src
+ $(DIR)/mad_nlopt.o     : CFLAGS += -I$(LIB)/nlopt/src/api
+-$(DIR)/mad_fft.o       : CFLAGS += -I$(LIB)/fftw3/api -I$(LIB)/nfft3/include
++$(DIR)/mad_fft.o       : CFLAGS += -I$(FFTW_DIR)/api -I$(NFFT_DIR)/include
+ $(DIR)/mad_ctpsa.o     : mad_tpsa.c
+ $(DIR)/mad_ctpsa_ops.o : mad_tpsa_ops.c
+ $(DIR)/mad_ctpsa_fun.o : mad_tpsa_fun.c
+@@ -112,12 +156,17 @@ $(DIR)/mad_ctpsa_mops.o: mad_tpsa_mops.c
+ $(DIR)/mad_ctpsa_io.o  : mad_tpsa_io.c
+ 
+ # rules
+-$(PRJ): lib$(PRJ).a
++$(PRJ): lib$(PRJ).a | check-native-libs check-luajit
+ 	$(CC) $(CFLAGS) -o $@ -Wl,-force_load $< $(LDFLAGS)
+ 
+-lib$(PRJ).a: $(OBJ)
++lib$(PRJ).a: $(OBJ) | check-luajit
+ 	$(AR) $@ $(OBJ)
+ 
++check-luajit:
++	@test -n "$(LJ)" && test -x "$(LJ)" || { \
++	  echo "missing LuaJIT bytecode compiler; set LIB to the dependency source tree or install ./mad"; exit 1; \
++	}
++
+ $(DIR)/%.o: %.mad
+ 	$(LJ) $(LFLAGS) -bg $< $@
+ 
+@@ -138,7 +187,7 @@ $(DIR)/%.d: %.c %.cpp
+ 	@sed -i.bak -e 's,\($*\)\.o[ :]*,$(DIR)/\1.o $@ : ,g' $@
+ 	@rm $@.bak
+ 
+-.PHONY: libdep clean cleanbin cleanobj
++.PHONY: libdep clean cleanbin cleanobj check-native-libs check-luajit
+ 
+ libdep:
+ 	otool -L $(PRJ)
+diff --git a/src/mad_tpsa_io.c b/src/mad_tpsa_io.c
+index c04e573e..a91c58f7 100644
+--- a/src/mad_tpsa_io.c
++++ b/src/mad_tpsa_io.c
+@@ -18,6 +18,7 @@
+ */
+ 
+ #include <ctype.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
+ #include "mad_mem.h"
