@@ -31,15 +31,23 @@ mad.import_file("ps_ring.mad", "ps")   # ps_ring.mad ends with: return { ps = PS
 
 ## `load` and `loadfile`
 
-{func}`MAD.load` and {func}`MAD.loadfile` follow the Lua functions of the same name. They compile a chunk and return a reference to it without running it, or `(None, message)` when the chunk does not compile:
+`mad.load` and `mad.loadfile` are MAD-NG's own Lua functions, `load (ld [, source [, mode [, env]]])` and `loadfile (filename [, mode [, env]])`, with no Python wrapper. Like every string sent to MAD-NG, each string argument is a Lua expression, so a literal needs its own quotes and a MAD-NG variable is passed bare. This is what lets a chunk, a file name or an environment come from a variable already in MAD-NG:
 
 ```python
-chunk = mad.load("return 1 + 1")      # load (ld [, source [, mode [, env]]])
-chunk = mad.loadfile("setup.mad")     # loadfile (filename [, mode [, env]])
-chunk, err = mad.load("return +")     # (None, '[string "return +"]:1: unexpected symbol near <eof>')
+chunk = mad.load("'return 1 + 1'")        # quoted: the Lua string  return 1 + 1
+mad.send("src = 'return 2 + 2'")
+chunk = mad.load("src")                   # bare: the MAD-NG variable src
+chunk = mad.loadfile("'setup.mad'")
+mad.load("'x = 1'", "'=chunk'", "'t'", "custom_env")()   # source name, mode, env (a MAD-NG variable)
 ```
 
-`filename` is required, because the standard input of MAD-NG is the pipe from Python.
+Without the inner quotes, MAD-NG receives `load(return 1 + 1)` and raises a syntax error.
+
+A compiled chunk is a reference: call it to run it, and `.eval()` brings its result to Python. A chunk that does not compile returns `nil, message`, which `.eval()` gives as `{2: message}`:
+
+```python
+mad.load("'return +'").eval()    # {2: '[string "return +"]:1: unexpected symbol near <eof>'}
+```
 
 ## Moving from 0.9
 
