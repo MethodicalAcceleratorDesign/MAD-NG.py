@@ -4,10 +4,12 @@ nbformat = pytest.importorskip("nbformat")
 nbclient = pytest.importorskip("nbclient")
 pytest.importorskip("ipykernel")
 
+# ipykernel's fd reader thread sends output after the cell is idle if it lags; nbclient drops it
+DRAIN = "import time; time.sleep(0.5)"
 CELLS = [
     "from pymadng import MAD\nmad = MAD()",
-    "mad.send(\"print('stdout line from MAD-NG')\")\nmad.send('py:send(1)'); mad.recv()",
-    "mad.send(\"io.stderr:write('stderr line from MAD-NG\\\\n')\")\nmad.send('py:send(2)'); mad.recv()",
+    f"mad.send(\"print('stdout line from MAD-NG')\")\nmad.send('py:send(1)'); mad.recv()\n{DRAIN}",
+    f"mad.send(\"io.stderr:write('stderr line from MAD-NG\\\\n')\")\nmad.send('py:send(2)'); mad.recv()\n{DRAIN}",
 ]
 
 
