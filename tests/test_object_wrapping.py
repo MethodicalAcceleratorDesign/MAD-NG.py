@@ -17,7 +17,7 @@ from pymadng.madp_classes import MadLastRef, MadRef
 class TestGetSet(unittest.TestCase):
     def test_get(self):
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            mad.load("element", "quadrupole")
+            mad.import_module("element", "quadrupole")
             self.assertEqual(mad.asdfg, None)
             mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1}""")
             mad.send("""qf = quadrupole {qd = qd}""")
@@ -53,7 +53,7 @@ class TestGetSet(unittest.TestCase):
 
     def test_set(self):  # Need more?
         with MAD() as mad:
-            mad.load("element", "quadrupole")
+            mad.import_module("element", "quadrupole")
             mad.send("""qd = quadrupole {knl={0,  0.25}, l = 1} py:send(qd)""")
             mad["qd2"] = mad.recv("qd")
             self.assertEqual(mad.qd2._name, "qd2")
@@ -115,7 +115,7 @@ class TestGetSet(unittest.TestCase):
 class TestObjFun(unittest.TestCase):
     def test_call_obj(self):
         with MAD(py_name="python") as mad:
-            mad.load("element", "quadrupole", "sextupole")
+            mad.import_module("element", "quadrupole", "sextupole")
             qd = mad.quadrupole(knl=[0, 0.25], l=1)
             sd = mad.sextupole(knl=[0, 0.25, 0.5], l=1)
 
@@ -158,7 +158,7 @@ class TestObjFun(unittest.TestCase):
 
     def test_call_func(self):
         with MAD(py_name="python") as mad:
-            mad.load("element", "quadrupole")
+            mad.import_module("element", "quadrupole")
             mad["qd"] = mad.quadrupole(knl=[0, 0.25], l=1)
             mad.qd.select()
             mad["qdSelected"] = mad.qd.is_selected()
@@ -238,7 +238,7 @@ class TestObjFun(unittest.TestCase):
 class TestOps(unittest.TestCase):
     def test_matrix(self):
         with MAD(py_name="python") as mad:
-            mad.load("MAD", "matrix")
+            mad.import_module("MAD", "matrix")
             py_mat = np.arange(1, 101).reshape((10, 10))
 
             mad["mat"] = mad.matrix(10).seq(2) + 2
@@ -279,7 +279,7 @@ class TestOps(unittest.TestCase):
 class TestArgsAndKwargs(unittest.TestCase):
     def test_args(self):
         with MAD() as mad:
-            mad.load("MAD", "matrix", "cmatrix")
+            mad.import_module("MAD", "matrix", "cmatrix")
             mad["m1"] = mad.matrix(3).seq()
             mad["m2"] = mad.matrix(3).eye(2).mul(mad.m1)
             mad["m3"] = mad.matrix(3).seq().emul(mad.m1)
@@ -291,7 +291,7 @@ class TestArgsAndKwargs(unittest.TestCase):
 
     def test_kwargs(self):
         with MAD() as mad:
-            mad.load("element", "sextupole")
+            mad.import_module("element", "sextupole")
             mad["m1"] = mad.MAD.matrix(3).seq()
             sd = mad.sextupole(
                 knl=[0, 0.25j, 1 + 1j],
@@ -312,9 +312,9 @@ class TestArgsAndKwargs(unittest.TestCase):
 class TestDir(unittest.TestCase):
     def test_dir(self):
         with MAD(py_name="python") as mad:
-            mad.load("MAD", "gfunc", "element", "object")
-            mad.load("element", "quadrupole")
-            mad.load("gfunc", "functor")
+            mad.import_module("MAD", "gfunc", "element", "object")
+            mad.import_module("element", "quadrupole")
+            mad.import_module("gfunc", "functor")
             obj_dir = dir(mad.object)
             mad.send("my_obj = object {a1 = 2, a2 = functor(\\s->s.a1), a3 = \\s->s.a1}")
             obj_exp = sorted(["a1", "a2()", "a3"] + obj_dir)
@@ -331,7 +331,7 @@ class TestDir(unittest.TestCase):
 
     def test_dir_on_mad_object(self):
         with MAD(py_name="python") as mad:
-            mad.load("MAD", "object")
+            mad.import_module("MAD", "object")
             mad.send("my_obj = object {a = 1, b = 2, c = 3}")
             expected_dir = sorted(["a", "b", "c"] + dir(mad.object))
             self.assertGreater(len(expected_dir), 0)
@@ -339,7 +339,7 @@ class TestDir(unittest.TestCase):
 
     def test_dir_on_last_object(self):
         with MAD() as mad:
-            mad.load("MAD", "object")
+            mad.import_module("MAD", "object")
             mad.send("last_obj = __mklast__(object {x = 10, y = 20})")
             mad["last"] = mad._MAD__get_MadRef("last_obj")
             expected_dir = sorted(["x", "y"] + dir(mad.object))

@@ -36,7 +36,7 @@ with MAD() as mad:
 # If you prefer to use pythonic syntax, the following code is equivalent to the above (- some plotting)(+ writing to a file)
 with MAD() as mad:
     mad.MADX.load("'fodo.seq'", "'fodo.mad'")
-    mad.load("MADX", "seq")
+    mad.import_module("MADX", "seq")
     mad.seq.beam = mad.beam()
     mad["mtbl", "mflw"] = mad.twiss(sequence=mad.seq, implicit=True, nslice=10, save="'atbody'")
     cols = mad.quote_strings(["name", "s", "beta11", "beta22", "mu1", "mu2", "alfa11", "alfa22"])

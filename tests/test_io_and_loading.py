@@ -13,15 +13,15 @@ class TestLoad(unittest.TestCase):
 
     def test_load(self):
         with MAD() as mad:
-            mad.load("MAD", "matrix")
+            mad.import_module("MAD", "matrix")
             self.assertTrue(mad.send("py:send(matrix == MAD.matrix)").recv())
 
-            mad.load("MAD.gmath")
+            mad.import_module("MAD.gmath")
             self.assertTrue(mad.send("py:send(sin == MAD.gmath.sin)").recv())
             self.assertTrue(mad.send("py:send(cos == MAD.gmath.cos)").recv())
             self.assertTrue(mad.send("py:send(tan == MAD.gmath.tan)").recv())
 
-            mad.load("MAD.element", "quadrupole", "sextupole", "drift")
+            mad.import_module("MAD.element", "quadrupole", "sextupole", "drift")
             self.assertTrue(mad.send("py:send(quadrupole == MAD.element.quadrupole)").recv())
             self.assertTrue(mad.send("py:send(sextupole  == MAD.element.sextupole )").recv())
             self.assertTrue(mad.send("py:send(drift      == MAD.element.drift     )").recv())
@@ -34,7 +34,7 @@ class TestLoad(unittest.TestCase):
             b = cmatrix(2, 3):seq()
             """)
         with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
-            mad.loadfile("test.mad")
+            mad.import_file("test.mad")
             self.assertIsNone(mad.matrix)
             self.assertTrue(np.all(mad.a == self.a))
             self.assertTrue(np.all(mad.b == self.b))
@@ -47,7 +47,7 @@ class TestLoad(unittest.TestCase):
             return {res1 = a * c, res2 = a * c:conj()}
             """)
         with MAD() as mad:
-            mad.loadfile("test.mad", "res1", "res2")
+            mad.import_file("test.mad", "res1", "res2")
             self.assertTrue(np.all(mad.res1 == np.matmul(self.a, self.c)))
             self.assertTrue(np.all(mad.res2 == np.matmul(self.a, self.c.conj())))
         test_file.unlink()
@@ -59,6 +59,59 @@ class TestLoad(unittest.TestCase):
             self.assertIn("a", global_vars)
             self.assertIn("b", global_vars)
             self.assertIn("c", global_vars)
+
+
+class TestLuaLoad(unittest.TestCase):
+    """``mad.load`` / ``mad.loadfile`` are MAD-NG's own functions: string arguments are Lua expressions."""
+
+    def test_load_chunk_returns_callable(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            chunk = mad.load("'return 20 + 22'")
+            self.assertEqual(chunk().eval(), 42)
+
+    def test_load_chunk_from_mad_variable(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            mad.send("src = 'return 5'")
+            self.assertEqual(mad.load("src")().eval(), 5)
+
+    def test_load_default_env_is_global(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            mad.load("'loaded_global = 5'", "'=chunk'")()
+            self.assertEqual(mad.loaded_global, 5)
+
+    def test_load_syntax_error_returns_nil_and_message(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            result = mad.load("'return +'", "'=mychunk'").eval()
+            self.assertTrue(result[2].startswith("mychunk:1:"), result)
+
+    def test_load_mode_binary_rejects_text(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            result = mad.load("'return 1'", "'=chunk'", "'b'").eval()
+            self.assertEqual(result[2], "attempt to load chunk with wrong mode")
+
+    def test_load_env(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            mad.send("custom_env = {seed = 1}")
+            mad.load("'only_in_env = 7'", "'=chunk'", "'t'", "custom_env")()
+            self.assertIsNone(mad.only_in_env)
+            self.assertEqual(mad.custom_env.only_in_env, 7)
+
+    def test_loadfile(self):
+        test_file = Path("test_loadfile.mad")
+        test_file.write_text("loadfile_global = 11\nreturn 3\n")
+        try:
+            with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+                chunk = mad.loadfile(f"'{test_file}'")
+                self.assertIsNone(mad.loadfile_global)  # compiled, not run
+                self.assertEqual(chunk().eval(), 3)
+                self.assertEqual(mad.loadfile_global, 11)
+        finally:
+            test_file.unlink()
+
+    def test_loadfile_missing_returns_nil_and_message(self):
+        with MAD(stdout="/dev/null", redirect_stderr=True) as mad:
+            result = mad.loadfile("'does_not_exist.mad'").eval()
+            self.assertIn("cannot open", result[2])
 
 
 if __name__ == "__main__":

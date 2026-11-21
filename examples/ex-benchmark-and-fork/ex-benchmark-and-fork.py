@@ -72,7 +72,7 @@ if pid > 0:
     print("proc1 ended", time.time() - start_time)
 else:
     with MAD() as mad:
-        mad.load("element", "quadrupole")
+        mad.import_module("element", "quadrupole")
         # METHOD 1
         mad.MADX.load("'fodo.seq'", "'fodo.mad'")
         mad["seq"] = mad.MADX.seq

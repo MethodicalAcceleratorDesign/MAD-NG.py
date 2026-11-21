@@ -12,7 +12,7 @@ Loading the LHC
 
 The following lines loads the required variables and files for the example. ``assertf`` is not required, but it is used to check if the loading of the LHC is successful. The two string inputs to ``mad.MADX.load`` is also not required, but it is used to specify the final destination of the translated files from MAD-X to MAD-NG. Also, line 5 is not required as this is just to prevent MAD-NG from reporting warnings of unset variables from loading the LHC. Once again, in this extract, the important point to note is that to input strings into functions in MAD-NG, they must be enclosed in quotes. This is because any string input from the side of python is evaluated by MAD-NG, therefore the input can be a variable or expressions.
 
-To grab variables from the MAD-X environment, we use ``mad.load("MADX", ...)``.
+To grab variables from the MAD-X environment, we use ``mad.import_module("MADX", ...)``.
 
 .. literalinclude:: ../../examples/ex-lhc-couplingLocal/ex-lhc-couplingLocal.py
     :lines: 20-28
