@@ -106,6 +106,33 @@ mad.import_module("element", "quadrupole")  # Load a specific element type
 
 The first argument is the module path. Optional additional arguments allow importing specific submodules or functions.
 
+Run a MAD-NG file in the same way with {func}`MAD.import_file`, which takes the path of the file and the names to import from what it returns:
+
+```python
+mad.import_file("ps_ring.mad", "ps")  # ps_ring.mad ends with: return { ps = PS }
+```
+
+## `load` and `loadfile`
+
+{func}`MAD.load` and {func}`MAD.loadfile` follow the Lua functions of the same name. They compile a chunk and return a reference to it without running it, or `(None, message)` when the chunk does not compile:
+
+```python
+chunk = mad.load("return 1 + 1")             # load (ld [, source [, mode [, env]]])
+chunk = mad.loadfile("setup.mad")            # loadfile (filename [, mode [, env]])
+chunk, err = mad.load("return +")            # (None, '[string "return +"]:1: unexpected symbol near <eof>')
+```
+
+`filename` is required, because the standard input of MAD-NG is the pipe from Python.
+
+### Moving from 0.9
+
+Before 0.10.0, `load` imported a module and `loadfile` imported a file. Those calls are now `import_module` and `import_file`:
+
+| 0.9                                  | 0.10.0                                         |
+|--------------------------------------|------------------------------------------------|
+| `mad.load("MADX", "lhcb1")`          | `mad.import_module("MADX", "lhcb1")`           |
+| `mad.loadfile("setup.mad", "knob")`  | `mad.import_file("setup.mad", "knob")`         |
+
 ---
 
 

@@ -250,6 +250,14 @@ mad = MAD(debug=True)
 mad = MAD(num_temp_vars=10)
 ```
 
+### Output and completion in Jupyter and IPython:
+In a Jupyter notebook the output of MAD-NG appears under the cell that runs it. MAD-NG writes its output asynchronously, so a line can appear under the cell that follows when the first cell has already finished.
+
+Tab completion with jedi evaluates the objects it completes, and completing on a MAD-NG reference blocks until MAD-NG answers (3 s while a 3 s loop runs). `MAD()` therefore turns jedi off in every IPython shell, terminal and Jupyter. Completion of `mad.<name>` still works, but nested tables such as `mad.mytable.<name>` and other objects (for example a DataFrame) lose their completions for the rest of the session. To keep jedi:
+```python
+mad = MAD(ipython_use_jedi=True)
+```
+
 See {meth}`pymadng.MAD.__init__` for all configuration options.
 
 ---
